@@ -167,6 +167,38 @@ export default [
         access: 'canSeeAdmin',
         hideInMenu: true,
         component: './benchmark/details'
+      },
+      {
+        name: 'evaluation',
+        path: '/models/evaluation',
+        key: 'evaluation',
+        icon: 'icon-speed',
+        selectedIcon: 'icon-speed-filled',
+        defaultIcon: 'icon-speed',
+        access: 'canSeeAdmin',
+        component: './evaluation/index'
+      },
+      {
+        name: 'evaluationCreate',
+        path: '/models/evaluation/create',
+        key: 'evaluationCreate',
+        icon: 'icon-speed',
+        selectedIcon: 'icon-speed-filled',
+        defaultIcon: 'icon-speed',
+        access: 'canSeeAdmin',
+        hideInMenu: true,
+        component: './evaluation/create'
+      },
+      {
+        name: 'evaluationDetail',
+        path: '/models/evaluation/detail',
+        key: 'evaluationDetail',
+        icon: 'icon-speed',
+        selectedIcon: 'icon-speed-filled',
+        defaultIcon: 'icon-speed',
+        access: 'canSeeAdmin',
+        hideInMenu: true,
+        component: './evaluation/details'
       }
     ]
   },

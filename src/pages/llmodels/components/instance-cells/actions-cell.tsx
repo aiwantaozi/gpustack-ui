@@ -3,6 +3,7 @@ import IconFont from '@/components/icon-font';
 import { HandlerOptions } from '@/hooks/use-chunk-fetch';
 import useDownloadStream from '@/hooks/use-download-stream';
 import { useBenchmarkTargetInstance } from '@/pages/llmodels/hooks/use-run-benchmark';
+import { useEvaluationTargetInstance } from '@/pages/llmodels/hooks/use-run-evaluation';
 import { DeleteOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useIntl } from '@umijs/max';
 import { Progress, notification } from 'antd';
@@ -43,6 +44,12 @@ const childActionList = [
     icon: <IconFont type="icon-speed" />
   },
   {
+    label: 'models.table.instance.evaluation',
+    key: 'evaluation',
+    status: [InstanceStatusMap.Running],
+    icon: <IconFont type="icon-speed" />
+  },
+  {
     label: 'common.button.delrecreate',
     key: 'delete',
     props: {
@@ -64,6 +71,7 @@ const ActionsCell: React.FC<ActionsCellProps> = ({
   onSelect
 }) => {
   const { runBenchmarkOnInstance } = useBenchmarkTargetInstance();
+  const { runEvaluationOnInstance } = useEvaluationTargetInstance();
   const [api, contextHolder] = notification.useNotification({
     stack: { threshold: 1 }
   });
@@ -116,6 +124,8 @@ const ActionsCell: React.FC<ActionsCellProps> = ({
   const handleOnSelect = (val: string) => {
     if (val === 'benchmark') {
       runBenchmarkOnInstance(record);
+    } else if (val === 'evaluation') {
+      runEvaluationOnInstance(record);
     } else if (val === 'download') {
       downloadStream({
         url: `${MODEL_INSTANCE_API}/${record.id}/logs`,

@@ -280,6 +280,7 @@ export default {
   'models.form.backend.helperText':
     'Not enabled yet. Will be enabled after deployment. ',
   'models.table.instance.benchmark': 'Run Benchmark',
+  'models.table.instance.evaluation': 'Run Evaluation',
   'models.table.modelView': 'Model List',
   'models.table.instanceView': 'Instance List'
 };

@@ -264,6 +264,7 @@ export default {
   'models.form.maxContextLength': '最大上下文长度',
   'models.form.backend.helperText': '该社区后端暂未启用，部署后将自动启用',
   'models.table.instance.benchmark': '运行基准测试',
+  'models.table.instance.evaluation': '运行评估',
   'models.table.modelView': '模型列表',
   'models.table.instanceView': '实例列表'
 };

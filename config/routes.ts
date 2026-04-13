@@ -127,6 +127,16 @@ export default [
         component: './model-routes/index'
       },
       {
+        name: 'usage',
+        path: '/models/usage',
+        key: 'modelUsage',
+        icon: 'icon-chart',
+        selectedIcon: 'icon-chart',
+        defaultIcon: 'icon-chart',
+        access: 'canSeeAdmin',
+        component: './llmodels/usage/index'
+      },
+      {
         name: 'providers',
         path: '/models/providers',
         key: 'modelProviders',

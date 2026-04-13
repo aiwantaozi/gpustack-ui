@@ -9,8 +9,12 @@ const Wrapper = styled.div`
 `;
 
 const CardWrapper = (props: any) => {
-  const { children, style } = props;
-  return <Wrapper style={{ ...style }}>{children}</Wrapper>;
+  const { children, style, className } = props;
+  return (
+    <Wrapper className={className} style={{ ...style }}>
+      {children}
+    </Wrapper>
+  );
 };
 
 export default CardWrapper;

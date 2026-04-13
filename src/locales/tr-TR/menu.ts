@@ -18,6 +18,7 @@ export default {
   'menu.models.benchmarkDetail': 'Kıyaslama Detayları',
   'menu.models.providers': 'Sağlayıcılar',
   'menu.models.routes': 'Yönlendirmeler',
+  'menu.models.usage': 'Kullanım',
   'menu.modelCatalog': 'Katalog',
   'menu.resources': 'Kaynaklar',
   'menu.apikeys': 'API Anahtarları',

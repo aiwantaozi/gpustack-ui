@@ -11,6 +11,7 @@ export default (initialState: { currentUser?: Global.UserInfo }) => {
   );
 
   return {
+    canSeeAuthenticated: !!initialState?.currentUser,
     canSeeAdmin,
     canSeeUser,
     canDelete: true,

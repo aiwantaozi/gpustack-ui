@@ -1,34 +1,59 @@
 import CardWrapper from '@/components/card-wrapper';
+import { TABLE_SORT_DIRECTIONS } from '@/config/settings';
 import { PageContainerInner } from '@/pages/_components/page-box';
 import { baseColorMap } from '@/pages/dashboard/config';
-import { CalendarOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+  CalendarOutlined,
+  DownloadOutlined,
+  ReloadOutlined
+} from '@ant-design/icons';
 import { useIntl, useModel } from '@umijs/max';
-import { Button, DatePicker, Segmented, Select, Tabs, Tooltip } from 'antd';
+import type { TableColumnsType } from 'antd';
+import {
+  Button,
+  DatePicker,
+  Empty,
+  Popover,
+  Segmented,
+  Select,
+  Table,
+  Tabs,
+  Tooltip
+} from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 
 type MetricKey = 'input' | 'output' | 'total' | 'requests';
-type TabKey = 'models' | 'users' | 'projects' | 'apikeys';
-type GroupKey = 'models' | 'users' | 'projects' | 'apikeys';
+type SummaryKey = MetricKey | 'modelsUsed';
+type ViewKey = 'models' | 'users' | 'apikeys';
+type GroupKey = 'none' | 'models' | 'users' | 'apikeys';
+type GranularityKey = 'day' | 'week' | 'month';
 type ScopeKey = 'all' | 'self';
 
-interface UsageEntity {
+interface UsageRecord {
   key: string;
-  name: string;
-  values: number[];
+  modelKey: string;
+  userKey: string;
+  apiKeyKey: string;
+  provider: string;
+  cluster: string;
+  inputValues: number[];
 }
 
-interface UsageDataset {
-  key: TabKey;
-  entities: UsageEntity[];
-}
-
-interface SummaryMetric {
-  key: MetricKey;
+interface AggregatedRow {
+  key: string;
   label: string;
-  allTimeTotal: number;
-  selectedTotal: number;
+  provider?: string;
+  cluster?: string;
+  userLabel?: string;
+  inputValues: number[];
+  outputValues: number[];
+  totalValues: number[];
+  requestValues: number[];
+  modelsUsed: number;
+  apiKeysUsed: number;
+  lastActive: string;
 }
 
 interface ChartSeries {
@@ -36,12 +61,6 @@ interface ChartSeries {
   label: string;
   color: string;
   values: number[];
-}
-
-interface EntityRelation {
-  modelKeys: string[];
-  userKeys: string[];
-  apiKeyKeys: string[];
 }
 
 const RangePicker = DatePicker.RangePicker;
@@ -57,39 +76,178 @@ const datePoints = Array.from({ length: 16 }, (_, index) =>
   dayjs('2026-03-24').add(index, 'day')
 );
 
+const mockDateRange: [Dayjs, Dayjs] = [
+  datePoints[0],
+  datePoints[datePoints.length - 1]
+];
+
+const modelMeta = {
+  'qwen3.5-9b': { label: 'Qwen3.5-9B', provider: 'Qwen', cluster: 'cn-a' },
+  'qwen3.5-27b': { label: 'Qwen3.5-27B', provider: 'Qwen', cluster: 'cn-b' },
+  'minimax-m1-8b': {
+    label: 'MiniMax-M1-8B',
+    provider: 'MiniMax',
+    cluster: 'cn-a'
+  },
+  'deepseek-v3.2': {
+    label: 'DeepSeek-V3.2',
+    provider: 'DeepSeek',
+    cluster: 'cn-b'
+  },
+  'glm-4.6': { label: 'GLM-4.6', provider: 'Zhipu', cluster: 'cn-a' },
+  'llama-3.3-70b': {
+    label: 'Llama-3.3-70B',
+    provider: 'Meta',
+    cluster: 'us-west'
+  },
+  'yi-lightning': { label: 'Yi-Lightning', provider: '01.AI', cluster: 'cn-c' },
+  'mistral-small-3.1': {
+    label: 'Mistral-Small-3.1',
+    provider: 'Mistral',
+    cluster: 'eu-central'
+  }
+} as const;
+
+const userMeta = {
+  'dev-michelia': { label: 'dev-michelia' },
+  'dev-wangyimi': { label: 'dev-wangyimi' },
+  'dev-frank': { label: 'dev-frank' },
+  'test-xunfeng': { label: 'test-xunfeng' }
+} as const;
+
+const apiKeyMeta = {
+  'key-1': { label: 'key_d8q99khrxxwnz7IT', userKey: 'dev-frank' },
+  'key-2': { label: 'key_roB5bVsiUyx66o5I', userKey: 'test-xunfeng' },
+  'key-3': { label: 'key_dev_michelia', userKey: 'dev-michelia' },
+  'key-4': { label: 'key_dev_wangyimi', userKey: 'dev-wangyimi' }
+} as const;
+
+const usageRecords: UsageRecord[] = [
+  {
+    key: 'record-1',
+    modelKey: 'qwen3.5-9b',
+    userKey: 'dev-michelia',
+    apiKeyKey: 'key-3',
+    provider: 'Qwen',
+    cluster: 'cn-a',
+    inputValues: [
+      22, 18, 16, 20, 18, 16, 20, 18, 24, 280, 16, 14, 16, 14, 18, 22
+    ]
+  },
+  {
+    key: 'record-2',
+    modelKey: 'qwen3.5-9b',
+    userKey: 'dev-frank',
+    apiKeyKey: 'key-1',
+    provider: 'Qwen',
+    cluster: 'cn-a',
+    inputValues: [8, 10, 0, 12, 0, 0, 14, 6, 8, 96, 0, 6, 0, 0, 8, 24]
+  },
+  {
+    key: 'record-3',
+    modelKey: 'qwen3.5-27b',
+    userKey: 'dev-wangyimi',
+    apiKeyKey: 'key-4',
+    provider: 'Qwen',
+    cluster: 'cn-b',
+    inputValues: [120, 32, 18, 34, 2, 48, 20, 50, 70, 1, 0, 0, 18, 0, 0, 0]
+  },
+  {
+    key: 'record-4',
+    modelKey: 'minimax-m1-8b',
+    userKey: 'dev-michelia',
+    apiKeyKey: 'key-3',
+    provider: 'MiniMax',
+    cluster: 'cn-a',
+    inputValues: [0, 0, 62, 0, 0, 0, 0, 0, 16, 0, 0, 0, 6, 0, 0, 0]
+  },
+  {
+    key: 'record-5',
+    modelKey: 'minimax-m1-8b',
+    userKey: 'test-xunfeng',
+    apiKeyKey: 'key-2',
+    provider: 'MiniMax',
+    cluster: 'cn-a',
+    inputValues: [2, 2, 56, 0, 2, 0, 0, 0, 16, 0, 0, 0, 4, 0, 0, 0]
+  },
+  {
+    key: 'record-6',
+    modelKey: 'deepseek-v3.2',
+    userKey: 'dev-frank',
+    apiKeyKey: 'key-1',
+    provider: 'DeepSeek',
+    cluster: 'cn-b',
+    inputValues: [0, 94, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+    key: 'record-7',
+    modelKey: 'glm-4.6',
+    userKey: 'test-xunfeng',
+    apiKeyKey: 'key-2',
+    provider: 'Zhipu',
+    cluster: 'cn-a',
+    inputValues: [132, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+    key: 'record-8',
+    modelKey: 'llama-3.3-70b',
+    userKey: 'dev-wangyimi',
+    apiKeyKey: 'key-4',
+    provider: 'Meta',
+    cluster: 'us-west',
+    inputValues: [8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0]
+  },
+  {
+    key: 'record-9',
+    modelKey: 'yi-lightning',
+    userKey: 'dev-frank',
+    apiKeyKey: 'key-1',
+    provider: '01.AI',
+    cluster: 'cn-c',
+    inputValues: [0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+    key: 'record-10',
+    modelKey: 'mistral-small-3.1',
+    userKey: 'dev-michelia',
+    apiKeyKey: 'key-3',
+    provider: 'Mistral',
+    cluster: 'eu-central',
+    inputValues: [2, 2, 54, 18, 2, 4, 8, 10, 18, 0, 0, 0, 0, 0, 4, 6]
+  },
+  {
+    key: 'record-11',
+    modelKey: 'mistral-small-3.1',
+    userKey: 'dev-wangyimi',
+    apiKeyKey: 'key-4',
+    provider: 'Mistral',
+    cluster: 'eu-central',
+    inputValues: [0, 0, 58, 22, 4, 4, 6, 6, 32, 0, 0, 0, 0, 0, 4, 8]
+  }
+];
+
 const StyledPage = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
-
-  .ant-tabs-nav {
-    margin-bottom: 0;
-  }
-`;
-
-const OverviewCard = styled(CardWrapper)`
-  padding: 0;
-  overflow: hidden;
-`;
-
-const OverviewHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--ant-color-border-secondary);
-
-  @media (max-width: 1180px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
 `;
 
 const Toolbar = styled.div`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+`;
+
+const FilterGroup = styled.div`
+  display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+
+  .filterSelect {
+    width: 180px;
+  }
 `;
 
 const ScopeSwitch = styled.div`
@@ -99,33 +257,33 @@ const ScopeSwitch = styled.div`
   }
 `;
 
-const MetricPanel = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 320px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--ant-color-border);
-  background: var(--ant-color-bg-container);
+const OverviewCard = styled(CardWrapper)`
+  padding: 0;
+  overflow: hidden;
+`;
 
-  .metricLabel {
-    flex: none;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ant-color-text-secondary);
-  }
-
-  .metricSelect {
-    min-width: 260px;
-    flex: 1;
-  }
+const OverviewHeader = styled.div`
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px 0;
 `;
 
 const SummaryGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+
+  @media (max-width: 1320px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const SummaryCard = styled.div`
@@ -151,45 +309,72 @@ const SummaryCard = styled.div`
     font-weight: 700;
     color: var(--ant-color-text);
   }
-
-  .subValue {
-    margin-top: 8px;
-    font-size: 13px;
-    color: var(--ant-color-text-tertiary);
-  }
 `;
 
-const ControlRow = styled.div`
+const ChartControls = styled.div`
   display: flex;
+  justify-content: flex-start;
   align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
+  gap: 20px;
   flex-wrap: wrap;
+  padding: 0;
 
-  .controlLabel {
-    font-size: 13px;
+  .controlItem {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    font-size: 12px;
     color: var(--ant-color-text-secondary);
   }
 
-  .controlSelect {
-    width: 180px;
+  .controlLabel {
+    font-weight: 600;
+    color: var(--ant-color-text);
+    white-space: nowrap;
   }
 
-  @media (max-width: 1180px) {
-    justify-content: flex-start;
+  .controlSelect {
+    min-width: 92px;
+
+    .ant-select-selector {
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      height: 24px !important;
+      padding-inline: 0 !important;
+    }
+
+    .ant-select-selection-item {
+      line-height: 24px !important;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ant-color-text);
+    }
+
+    .ant-select-arrow {
+      color: var(--ant-color-text-tertiary);
+    }
+  }
+
+  @media (max-width: 760px) {
+    .controlSelect {
+      min-width: 82px;
+    }
   }
 `;
 
 const OverviewBody = styled.div`
-  padding: 18px 20px 16px;
+  padding: 16px 20px 18px;
 `;
 
 const BigChart = styled.div`
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  height: 280px;
-  padding: 24px 0 12px;
+  height: 260px;
+  padding: 22px 0 12px;
   position: relative;
   overflow: hidden;
 
@@ -197,7 +382,7 @@ const BigChart = styled.div`
     position: absolute;
     left: 0;
     right: 0;
-    top: 44px;
+    top: 42px;
     border-top: 1px dashed var(--ant-color-border);
   }
 
@@ -221,11 +406,11 @@ const BigChart = styled.div`
   }
 
   .barStack {
-    width: min(52px, 100%);
+    width: min(56px, 100%);
     display: flex;
     flex-direction: column-reverse;
     overflow: hidden;
-    border-radius: 12px 12px 2px 2px;
+    border-radius: 12px 12px 3px 3px;
     box-shadow: 0 10px 24px rgba(0, 85, 255, 0.12);
   }
 
@@ -263,373 +448,57 @@ const LegendRow = styled.div`
   }
 `;
 
-const DetailTabs = styled(CardWrapper)`
+const TableCard = styled(CardWrapper)`
   padding: 0;
   overflow: hidden;
 
   .ant-tabs-nav {
-    margin-bottom: 0;
-    padding-inline: 12px;
+    padding: 0 16px;
+    margin-bottom: 12px;
   }
 
-  .ant-tabs-content-holder {
-    display: none;
+  .ant-table-wrapper {
+    padding: 0 16px 16px;
+  }
+
+  @media (max-width: 760px) {
+    .ant-tabs-nav {
+      padding: 0 12px;
+    }
+
+    .ant-table-wrapper {
+      padding: 0 12px 12px;
+    }
   }
 `;
 
-const CardsGrid = styled.div`
+const ExportPanel = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-
-  @media (max-width: 1200px) {
-    grid-template-columns: 1fr;
-  }
+  gap: 6px;
+  min-width: 140px;
 `;
 
-const DetailCard = styled(CardWrapper)`
+const NameCell = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 236px;
+  gap: 4px;
 
   .title {
-    font-size: 22px;
     font-weight: 600;
     color: var(--ant-color-text);
   }
 
-  .meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    color: var(--ant-color-text-secondary);
-  }
-
-  .dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 2px;
-    background: linear-gradient(
-      180deg,
-      rgba(85, 167, 255, 0.92) 0%,
-      rgba(0, 85, 255, 0.82) 100%
-    );
-    flex: none;
-  }
-
-  .peak {
-    font-size: 13px;
+  .sub {
+    font-size: 12px;
     color: var(--ant-color-text-tertiary);
   }
 `;
 
-const MiniChart = styled.div`
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  height: 140px;
-  padding-top: 28px;
-
-  .guide {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 44px;
-    border-top: 1px dashed var(--ant-color-border);
+const includesAny = (source: string[], selected: string[]) => {
+  if (!selected.length) {
+    return true;
   }
-
-  .miniBarWrap {
-    flex: 1;
-    min-width: 0;
-    height: 100%;
-    display: flex;
-    align-items: flex-end;
-  }
-
-  .miniBar {
-    width: 100%;
-    border-radius: 10px 10px 2px 2px;
-    background: linear-gradient(
-      180deg,
-      rgba(85, 167, 255, 0.88) 0%,
-      rgba(0, 85, 255, 0.72) 100%
-    );
-  }
-`;
-
-const CardFooter = styled.div`
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--ant-color-text-tertiary);
-`;
-
-const mockDateRange: [Dayjs, Dayjs] = [datePoints[0], datePoints[datePoints.length - 1]];
-
-const tabDatasets: UsageDataset[] = [
-  {
-    key: 'models',
-    entities: [
-      {
-        key: 'qwen3.5-9b',
-        name: 'Qwen3.5-9B',
-        values: [16, 18, 14, 17, 15, 18, 20, 18, 22, 402, 17, 15, 18, 16, 14, 18]
-      },
-      {
-        key: 'qwen3.5-27b',
-        name: 'Qwen3.5-27B',
-        values: [120, 32, 18, 34, 2, 48, 20, 50, 70, 1, 0, 0, 18, 0, 0, 0]
-      },
-      {
-        key: 'minimax-m1-8b',
-        name: 'MiniMax-M1-8B',
-        values: [2, 2, 118, 0, 2, 0, 0, 0, 32, 0, 0, 0, 10, 0, 0, 0]
-      },
-      {
-        key: 'deepseek-v3.2',
-        name: 'DeepSeek-V3.2',
-        values: [0, 94, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-      },
-      {
-        key: 'glm-4.6',
-        name: 'GLM-4.6',
-        values: [132, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-      },
-      {
-        key: 'llama-3.3-70b',
-        name: 'Llama-3.3-70B',
-        values: [8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 146, 0, 0, 0, 0, 0]
-      },
-      {
-        key: 'yi-lightning',
-        name: 'Yi-Lightning',
-        values: [0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-      },
-      {
-        key: 'mistral-small-3.1',
-        name: 'Mistral-Small-3.1',
-        values: [2, 2, 112, 40, 6, 8, 14, 16, 50, 0, 0, 0, 0, 0, 8, 14]
-      }
-    ]
-  },
-  {
-    key: 'users',
-    entities: [
-      {
-        key: 'dev-michelia',
-        name: 'dev-michelia',
-        values: [10, 8, 7, 10, 8, 7, 8, 6, 10, 560, 7, 6, 7, 8, 9, 12]
-      },
-      {
-        key: 'dev-wangyimi',
-        name: 'dev-wangyimi',
-        values: [28, 12, 6, 52, 15, 10, 6, 12, 14, 9, 0, 0, 4, 110, 3, 4]
-      },
-      {
-        key: 'dev-frank',
-        name: 'dev-frank',
-        values: [16, 48, 0, 18, 0, 0, 34, 14, 16, 70, 0, 10, 0, 0, 20, 108]
-      },
-      {
-        key: 'test-xunfeng',
-        name: 'test-xunfeng',
-        values: [0, 46, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-      }
-    ]
-  },
-  {
-    key: 'projects',
-    entities: [
-      {
-        key: 'chat-completion',
-        name: 'CHAT_COMPLETION',
-        values: [18, 20, 16, 18, 16, 18, 18, 20, 22, 540, 18, 12, 14, 16, 14, 18]
-      },
-      {
-        key: 'completion',
-        name: 'COMPLETION',
-        values: [48, 18, 10, 62, 18, 12, 10, 16, 18, 12, 0, 0, 10, 134, 8, 8]
-      },
-      {
-        key: 'embedding',
-        name: 'EMBEDDING',
-        values: [6, 88, 0, 10, 0, 0, 18, 6, 6, 42, 0, 4, 0, 0, 12, 74]
-      },
-      {
-        key: 'rerank',
-        name: 'RERANK',
-        values: [0, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-      },
-      {
-        key: 'image-generation',
-        name: 'IMAGE_GENERATION',
-        values: [0, 0, 8, 0, 0, 12, 0, 0, 6, 28, 0, 4, 0, 0, 10, 18]
-      },
-      {
-        key: 'audio-transcription',
-        name: 'AUDIO_TRANSCRIPTION',
-        values: [4, 0, 0, 6, 0, 0, 8, 0, 4, 14, 0, 0, 0, 10, 0, 0]
-      },
-      {
-        key: 'audio-speech',
-        name: 'AUDIO_SPEECH',
-        values: [0, 2, 0, 0, 4, 0, 0, 6, 0, 18, 0, 0, 2, 0, 0, 12]
-      }
-    ]
-  },
-  {
-    key: 'apikeys',
-    entities: [
-      {
-        key: 'key-1',
-        name: 'key_d8q99khrxxwnz7IT',
-        values: [16, 48, 0, 18, 0, 0, 34, 14, 16, 70, 0, 10, 0, 0, 20, 108]
-      },
-      {
-        key: 'key-2',
-        name: 'key_roB5bVsiUyx66o5I',
-        values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 124]
-      },
-      {
-        key: 'key-3',
-        name: 'key_dev_michelia',
-        values: [10, 8, 7, 10, 8, 7, 8, 6, 10, 560, 7, 6, 7, 8, 9, 12]
-      },
-      {
-        key: 'key-4',
-        name: 'key_dev_wangyimi',
-        values: [28, 12, 6, 52, 15, 10, 6, 12, 14, 9, 0, 0, 4, 110, 3, 4]
-      }
-    ]
-  }
-];
-
-const entityRelations: Record<string, EntityRelation> = {
-  'qwen3.5-9b': {
-    modelKeys: ['qwen3.5-9b'],
-    userKeys: ['dev-michelia', 'dev-frank'],
-    apiKeyKeys: ['key-1', 'key-3']
-  },
-  'qwen3.5-27b': {
-    modelKeys: ['qwen3.5-27b'],
-    userKeys: ['dev-wangyimi'],
-    apiKeyKeys: ['key-4']
-  },
-  'minimax-m1-8b': {
-    modelKeys: ['minimax-m1-8b'],
-    userKeys: ['dev-michelia', 'test-xunfeng'],
-    apiKeyKeys: ['key-3']
-  },
-  'deepseek-v3.2': {
-    modelKeys: ['deepseek-v3.2'],
-    userKeys: ['dev-frank'],
-    apiKeyKeys: ['key-1']
-  },
-  'glm-4.6': {
-    modelKeys: ['glm-4.6'],
-    userKeys: ['test-xunfeng'],
-    apiKeyKeys: ['key-2']
-  },
-  'llama-3.3-70b': {
-    modelKeys: ['llama-3.3-70b'],
-    userKeys: ['dev-wangyimi'],
-    apiKeyKeys: ['key-4']
-  },
-  'yi-lightning': {
-    modelKeys: ['yi-lightning'],
-    userKeys: ['dev-frank'],
-    apiKeyKeys: ['key-1']
-  },
-  'mistral-small-3.1': {
-    modelKeys: ['mistral-small-3.1'],
-    userKeys: ['dev-michelia', 'dev-wangyimi'],
-    apiKeyKeys: ['key-3', 'key-4']
-  },
-  'dev-michelia': {
-    modelKeys: ['qwen3.5-9b', 'minimax-m1-8b', 'mistral-small-3.1'],
-    userKeys: ['dev-michelia'],
-    apiKeyKeys: ['key-3']
-  },
-  'dev-wangyimi': {
-    modelKeys: ['qwen3.5-27b', 'llama-3.3-70b', 'mistral-small-3.1'],
-    userKeys: ['dev-wangyimi'],
-    apiKeyKeys: ['key-4']
-  },
-  'dev-frank': {
-    modelKeys: ['qwen3.5-9b', 'deepseek-v3.2', 'yi-lightning'],
-    userKeys: ['dev-frank'],
-    apiKeyKeys: ['key-1']
-  },
-  'test-xunfeng': {
-    modelKeys: ['glm-4.6', 'minimax-m1-8b'],
-    userKeys: ['test-xunfeng'],
-    apiKeyKeys: ['key-2']
-  },
-  'chat-completion': {
-    modelKeys: ['qwen3.5-9b', 'qwen3.5-27b', 'yi-lightning'],
-    userKeys: ['dev-michelia', 'dev-wangyimi'],
-    apiKeyKeys: ['key-1', 'key-3']
-  },
-  completion: {
-    modelKeys: ['glm-4.6', 'deepseek-v3.2'],
-    userKeys: ['dev-frank', 'test-xunfeng'],
-    apiKeyKeys: ['key-1', 'key-2']
-  },
-  embedding: {
-    modelKeys: ['minimax-m1-8b', 'mistral-small-3.1'],
-    userKeys: ['dev-michelia'],
-    apiKeyKeys: ['key-3']
-  },
-  rerank: {
-    modelKeys: ['qwen3.5-27b'],
-    userKeys: ['dev-wangyimi'],
-    apiKeyKeys: ['key-4']
-  },
-  'image-generation': {
-    modelKeys: ['llama-3.3-70b'],
-    userKeys: ['dev-wangyimi'],
-    apiKeyKeys: ['key-4']
-  },
-  'audio-transcription': {
-    modelKeys: ['minimax-m1-8b'],
-    userKeys: ['dev-frank'],
-    apiKeyKeys: ['key-1']
-  },
-  'audio-speech': {
-    modelKeys: ['mistral-small-3.1'],
-    userKeys: ['dev-michelia'],
-    apiKeyKeys: ['key-3']
-  },
-  'key-1': {
-    modelKeys: ['qwen3.5-9b', 'deepseek-v3.2', 'yi-lightning'],
-    userKeys: ['dev-frank'],
-    apiKeyKeys: ['key-1']
-  },
-  'key-2': {
-    modelKeys: ['glm-4.6'],
-    userKeys: ['test-xunfeng'],
-    apiKeyKeys: ['key-2']
-  },
-  'key-3': {
-    modelKeys: ['qwen3.5-9b', 'minimax-m1-8b', 'mistral-small-3.1'],
-    userKeys: ['dev-michelia'],
-    apiKeyKeys: ['key-3']
-  },
-  'key-4': {
-    modelKeys: ['qwen3.5-27b', 'llama-3.3-70b', 'mistral-small-3.1'],
-    userKeys: ['dev-wangyimi'],
-    apiKeyKeys: ['key-4']
-  }
-};
-
-const metricMultipliers: Record<MetricKey, number> = {
-  input: 1,
-  output: 0.42,
-  total: 1.42,
-  requests: 0.08
+  return selected.some((item) => source.includes(item));
 };
 
 const formatValue = (value: number) => {
@@ -642,32 +511,6 @@ const formatValue = (value: number) => {
   return `${value}`;
 };
 
-const formatOperationLabel = (value: string) => {
-  if (!value.includes('_')) {
-    return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-  }
-  return value
-    .split('_')
-    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-    .join(' ');
-};
-
-const getMetricValues = (values: number[], metric: MetricKey) => {
-  return values.map((value, index) => {
-    if (metric === 'output') {
-      return Math.round(value * metricMultipliers.output + (index % 3));
-    }
-    if (metric === 'requests') {
-      return Math.max(1, Math.round(value * metricMultipliers.requests));
-    }
-    if (metric === 'total') {
-      const outputValue = Math.round(value * metricMultipliers.output + (index % 3));
-      return value + outputValue;
-    }
-    return value;
-  });
-};
-
 const getRangeIndexes = (range: [Dayjs, Dayjs] | null) => {
   if (!range) {
     return { start: 0, end: datePoints.length - 1 };
@@ -676,236 +519,807 @@ const getRangeIndexes = (range: [Dayjs, Dayjs] | null) => {
   const start = datePoints.findIndex((date) =>
     date.isSame(startDate.startOf('day'), 'day')
   );
-  const end = datePoints.findIndex((date) => date.isSame(endDate.startOf('day'), 'day'));
+  const end = datePoints.findIndex((date) =>
+    date.isSame(endDate.startOf('day'), 'day')
+  );
   return {
     start: start >= 0 ? start : 0,
     end: end >= 0 ? end : datePoints.length - 1
   };
 };
 
-const sumRange = (values: number[], start: number, end: number) => {
-  return values.slice(start, end + 1).reduce((sum, value) => sum + value, 0);
+const sumRange = (values: number[], start: number, end: number) =>
+  values.slice(start, end + 1).reduce((sum, value) => sum + value, 0);
+
+const getBucketStart = (date: Dayjs, granularity: GranularityKey) => {
+  if (granularity === 'month') {
+    return date.startOf('month');
+  }
+  if (granularity === 'week') {
+    const daysFromMonday = (date.day() + 6) % 7;
+    return date.subtract(daysFromMonday, 'day').startOf('day');
+  }
+  return date.startOf('day');
 };
 
-const includesAny = (source: string[], selected: string[]) => {
-  if (!selected.length) {
-    return true;
+const formatBucketLabel = (date: Dayjs, granularity: GranularityKey) => {
+  if (granularity === 'month') {
+    return date.format('MMM YYYY');
   }
-  return selected.some((item) => source.includes(item));
+  return date.format('MMM DD');
+};
+
+const escapeCsvCell = (value: string | number) => {
+  const raw = String(value ?? '');
+  if (/[",\n]/.test(raw)) {
+    return `"${raw.replace(/"/g, '""')}"`;
+  }
+  return raw;
+};
+
+const downloadCsv = (
+  fileName: string,
+  headers: string[],
+  rows: Array<Array<string | number>>
+) => {
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
+    .join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+const getOutputValues = (values: number[], seed: number) =>
+  values.map((value, index) => Math.round(value * 0.42 + ((seed + index) % 3)));
+
+const getRequestValues = (values: number[], seed: number) =>
+  values.map((value, index) =>
+    Math.max(1, Math.round(value * 0.08 + ((seed + index) % 2)))
+  );
+
+const getMetricValues = (row: AggregatedRow, metric: MetricKey) => {
+  if (metric === 'input') {
+    return row.inputValues;
+  }
+  if (metric === 'output') {
+    return row.outputValues;
+  }
+  if (metric === 'requests') {
+    return row.requestValues;
+  }
+  return row.totalValues;
+};
+
+const getLastActive = (values: number[]) => {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    if (values[index] > 0) {
+      return datePoints[index].format('YYYY-MM-DD');
+    }
+  }
+  return datePoints[0].format('YYYY-MM-DD');
+};
+
+const sortRowsByMetric = (rows: AggregatedRow[], metric: MetricKey) => {
+  const cloned = [...rows];
+  cloned.sort((left, right) => {
+    const leftValue = getMetricValues(left, metric).reduce(
+      (sum, value) => sum + value,
+      0
+    );
+    const rightValue = getMetricValues(right, metric).reduce(
+      (sum, value) => sum + value,
+      0
+    );
+    return rightValue - leftValue;
+  });
+  return cloned;
 };
 
 const UsagePage: React.FC = () => {
   const intl = useIntl();
   const initialInfo = useModel('@@initialState') || { initialState: undefined };
   const isAdmin = Boolean(initialInfo.initialState?.currentUser?.is_admin);
-  const currentUsername = initialInfo.initialState?.currentUser?.username;
-  const [selectedMetrics, setSelectedMetrics] = useState<MetricKey[]>(['input']);
-  const [activeTab, setActiveTab] = useState<TabKey>('models');
-  const [groupBy, setGroupBy] = useState<GroupKey>('apikeys');
+  const currentUsername =
+    initialInfo.initialState?.currentUser?.username ||
+    userMeta['dev-michelia'].label;
+
   const [scope, setScope] = useState<ScopeKey>('self');
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(mockDateRange);
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(
+    mockDateRange
+  );
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [selectedApiKeys, setSelectedApiKeys] = useState<string[]>([]);
+  const [metric, setMetric] = useState<MetricKey>('total');
+  const [groupBy, setGroupBy] = useState<GroupKey>('none');
+  const [granularity, setGranularity] = useState<GranularityKey>('day');
+  const [activeView, setActiveView] = useState<ViewKey>('models');
 
   const rangeIndexes = useMemo(() => getRangeIndexes(dateRange), [dateRange]);
 
-  const activeMetrics = selectedMetrics.length ? selectedMetrics : ['input'];
-  const primaryMetric = activeMetrics[0];
-
-  const detailDataset = useMemo(() => {
-    return tabDatasets.find((item) => item.key === activeTab) || tabDatasets[0];
-  }, [activeTab]);
-
-  const groupedDataset = useMemo(() => {
-    return tabDatasets.find((item) => item.key === groupBy) || tabDatasets[0];
-  }, [groupBy]);
-
-  const availableUsers =
-    tabDatasets.find((item) => item.key === 'users')?.entities || [];
   const currentUserKey = useMemo(() => {
-    const matchedUser = availableUsers.find((item) => item.name === currentUsername);
-    return matchedUser?.key || availableUsers[0]?.key || '';
-  }, [availableUsers, currentUsername]);
+    return (
+      Object.entries(userMeta).find(
+        ([, meta]) => meta.label === currentUsername
+      )?.[0] || currentUsername
+    );
+  }, [currentUsername]);
+
+  const userMetaMap = useMemo<Record<string, { label: string }>>(
+    () => ({
+      ...userMeta,
+      [currentUserKey]: { label: currentUsername }
+    }),
+    [currentUserKey, currentUsername]
+  );
+
+  const apiKeyMetaMap = useMemo<
+    Record<string, { label: string; userKey: string }>
+  >(
+    () => ({
+      ...apiKeyMeta,
+      'key-current-user': {
+        label: `key_${currentUserKey.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+        userKey: currentUserKey
+      }
+    }),
+    [currentUserKey]
+  );
+
+  const currentUsageRecords = useMemo<UsageRecord[]>(() => {
+    if (usageRecords.some((record) => record.userKey === currentUserKey)) {
+      return usageRecords;
+    }
+
+    return [
+      ...usageRecords,
+      {
+        key: 'record-current-user-qwen',
+        modelKey: 'qwen3.5-9b',
+        userKey: currentUserKey,
+        apiKeyKey: 'key-current-user',
+        provider: 'Qwen',
+        cluster: 'cn-a',
+        inputValues: [
+          18, 22, 20, 28, 16, 24, 30, 26, 34, 42, 36, 32, 38, 44, 40, 48
+        ]
+      },
+      {
+        key: 'record-current-user-mistral',
+        modelKey: 'mistral-small-3.1',
+        userKey: currentUserKey,
+        apiKeyKey: 'key-current-user',
+        provider: 'Mistral',
+        cluster: 'eu-central',
+        inputValues: [0, 8, 12, 0, 16, 18, 0, 22, 20, 0, 24, 28, 0, 26, 30, 34]
+      }
+    ];
+  }, [currentUserKey]);
 
   const effectiveSelectedUsers = useMemo(() => {
-    if (scope === 'self' && currentUserKey) {
+    if (scope === 'self') {
       return [currentUserKey];
     }
     return selectedUsers;
   }, [currentUserKey, scope, selectedUsers]);
 
-  const matchesSelections = (entity: UsageEntity) => {
-    const relation = entityRelations[entity.key] || {
-      modelKeys: [],
-      userKeys: [],
-      apiKeyKeys: []
-    };
-    return (
-      includesAny(relation.modelKeys, selectedModels) &&
-      includesAny(relation.userKeys, effectiveSelectedUsers) &&
-      includesAny(relation.apiKeyKeys, selectedApiKeys)
-    );
+  const filteredRecords = useMemo(() => {
+    return currentUsageRecords.filter((record) => {
+      return (
+        includesAny([record.modelKey], selectedModels) &&
+        includesAny([record.apiKeyKey], selectedApiKeys) &&
+        includesAny([record.userKey], effectiveSelectedUsers)
+      );
+    });
+  }, [
+    currentUsageRecords,
+    effectiveSelectedUsers,
+    selectedApiKeys,
+    selectedModels
+  ]);
+
+  const aggregateRows = (view: ViewKey): AggregatedRow[] => {
+    const grouped = new Map<string, AggregatedRow>();
+
+    filteredRecords.forEach((record, recordIndex) => {
+      const outputValues = getOutputValues(record.inputValues, recordIndex);
+      const requestValues = getRequestValues(record.inputValues, recordIndex);
+      const totalValues = record.inputValues.map(
+        (value, index) => value + outputValues[index]
+      );
+      const groupKey =
+        view === 'models'
+          ? record.modelKey
+          : view === 'users'
+            ? record.userKey
+            : record.apiKeyKey;
+
+      if (!grouped.has(groupKey)) {
+        const baseLabel =
+          view === 'models'
+            ? modelMeta[record.modelKey as keyof typeof modelMeta].label
+            : view === 'users'
+              ? userMetaMap[record.userKey]?.label || record.userKey
+              : apiKeyMetaMap[record.apiKeyKey]?.label || record.apiKeyKey;
+
+        grouped.set(groupKey, {
+          key: groupKey,
+          label: baseLabel,
+          provider:
+            view === 'models'
+              ? modelMeta[record.modelKey as keyof typeof modelMeta].provider
+              : undefined,
+          cluster:
+            view === 'models'
+              ? modelMeta[record.modelKey as keyof typeof modelMeta].cluster
+              : undefined,
+          userLabel:
+            view === 'apikeys'
+              ? userMetaMap[record.userKey]?.label || record.userKey
+              : undefined,
+          inputValues: new Array(datePoints.length).fill(0),
+          outputValues: new Array(datePoints.length).fill(0),
+          totalValues: new Array(datePoints.length).fill(0),
+          requestValues: new Array(datePoints.length).fill(0),
+          modelsUsed: 0,
+          apiKeysUsed: 0,
+          lastActive: datePoints[0].format('YYYY-MM-DD')
+        });
+      }
+
+      const row = grouped.get(groupKey)!;
+      row.inputValues = row.inputValues.map(
+        (value, index) => value + record.inputValues[index]
+      );
+      row.outputValues = row.outputValues.map(
+        (value, index) => value + outputValues[index]
+      );
+      row.totalValues = row.totalValues.map(
+        (value, index) => value + totalValues[index]
+      );
+      row.requestValues = row.requestValues.map(
+        (value, index) => value + requestValues[index]
+      );
+    });
+
+    grouped.forEach((row) => {
+      const matchingRecords = filteredRecords.filter((record) => {
+        if (view === 'models') {
+          return record.modelKey === row.key;
+        }
+        if (view === 'users') {
+          return record.userKey === row.key;
+        }
+        return record.apiKeyKey === row.key;
+      });
+      row.modelsUsed = new Set(
+        matchingRecords.map((record) => record.modelKey)
+      ).size;
+      row.apiKeysUsed = new Set(
+        matchingRecords.map((record) => record.apiKeyKey)
+      ).size;
+      row.lastActive = getLastActive(row.totalValues);
+    });
+
+    return Array.from(grouped.values());
   };
 
-  const filteredGroupEntities = useMemo(() => {
-    return groupedDataset.entities.filter(matchesSelections);
-  }, [effectiveSelectedUsers, groupedDataset.entities, selectedApiKeys, selectedModels]);
+  const availableViews = useMemo(() => {
+    const items: { key: ViewKey; label: string }[] = [
+      { key: 'models', label: intl.formatMessage({ id: 'usage.view.models' }) },
+      {
+        key: 'apikeys',
+        label: intl.formatMessage({ id: 'usage.view.apikeys' })
+      }
+    ];
+    if (isAdmin && scope === 'all') {
+      items.splice(1, 0, {
+        key: 'users',
+        label: intl.formatMessage({ id: 'usage.view.users' })
+      });
+    }
+    return items;
+  }, [intl, isAdmin, scope]);
 
-  const filteredDetailEntities = useMemo(() => {
-    return detailDataset.entities.filter(matchesSelections);
-  }, [detailDataset.entities, effectiveSelectedUsers, selectedApiKeys, selectedModels]);
+  const availableGroupOptions = useMemo(() => {
+    const items = [
+      { value: 'none', label: intl.formatMessage({ id: 'usage.group.none' }) },
+      {
+        value: 'models',
+        label: intl.formatMessage({ id: 'usage.group.models' })
+      },
+      {
+        value: 'apikeys',
+        label: intl.formatMessage({ id: 'usage.group.apikeys' })
+      }
+    ];
+    if (isAdmin && scope === 'all') {
+      items.splice(1, 0, {
+        value: 'users',
+        label: intl.formatMessage({ id: 'usage.group.users' })
+      });
+    }
+    return items;
+  }, [intl, isAdmin, scope]);
 
-  const metricOptions = [
-    { label: intl.formatMessage({ id: 'usage.metric.inputTokens' }), value: 'input' },
-    { label: intl.formatMessage({ id: 'usage.metric.outputTokens' }), value: 'output' },
-    { label: intl.formatMessage({ id: 'usage.metric.totalTokens' }), value: 'total' },
-    { label: intl.formatMessage({ id: 'usage.metric.requests' }), value: 'requests' }
-  ];
-
-  const summaryMetrics = useMemo<SummaryMetric[]>(() => {
-    return activeMetrics.map((metricKey) => {
-      const allTimeTotal = filteredGroupEntities.reduce((sum, entity) => {
-        return sum + getMetricValues(entity.values, metricKey).reduce((inner, value) => inner + value, 0);
-      }, 0);
-      const selectedTotal = filteredGroupEntities.reduce((sum, entity) => {
-        return (
-          sum +
-          sumRange(
-            getMetricValues(entity.values, metricKey),
-            rangeIndexes.start,
-            rangeIndexes.end
-          )
-        );
-      }, 0);
-
-      return {
-        key: metricKey,
-        label:
-          metricOptions.find((item) => item.value === metricKey)?.label?.toString() || '',
-        allTimeTotal,
-        selectedTotal
+  const groupRows = useMemo(() => {
+    if (groupBy === 'none') {
+      const row: AggregatedRow = {
+        key: 'all',
+        label: intl.formatMessage({ id: 'usage.label.total' }),
+        inputValues: new Array(datePoints.length).fill(0),
+        outputValues: new Array(datePoints.length).fill(0),
+        totalValues: new Array(datePoints.length).fill(0),
+        requestValues: new Array(datePoints.length).fill(0),
+        modelsUsed: new Set(filteredRecords.map((record) => record.modelKey))
+          .size,
+        apiKeysUsed: new Set(filteredRecords.map((record) => record.apiKeyKey))
+          .size,
+        lastActive: datePoints[0].format('YYYY-MM-DD')
       };
-    });
-  }, [activeMetrics, filteredGroupEntities, metricOptions, rangeIndexes.end, rangeIndexes.start]);
 
-  const chartSeries = useMemo<ChartSeries[]>(() => {
-    return activeMetrics.map((metricKey, index) => {
-      const values = datePoints.map((_, dateIndex) => {
-        return filteredGroupEntities.reduce((sum, entity) => {
-          const metricValues = getMetricValues(entity.values, metricKey);
-          return sum + metricValues[dateIndex];
-        }, 0);
+      filteredRecords.forEach((record, index) => {
+        const outputValues = getOutputValues(record.inputValues, index);
+        const requestValues = getRequestValues(record.inputValues, index);
+        row.inputValues = row.inputValues.map(
+          (value, valueIndex) => value + record.inputValues[valueIndex]
+        );
+        row.outputValues = row.outputValues.map(
+          (value, valueIndex) => value + outputValues[valueIndex]
+        );
+        row.totalValues = row.totalValues.map(
+          (value, valueIndex) =>
+            value + record.inputValues[valueIndex] + outputValues[valueIndex]
+        );
+        row.requestValues = row.requestValues.map(
+          (value, valueIndex) => value + requestValues[valueIndex]
+        );
       });
 
-      return {
-        key: metricKey,
-        label: `${metricOptions.find((item) => item.value === metricKey)?.label} · ${
-          intl.formatMessage({ id: `usage.group.${groupBy}` })
-        }`,
-        color: chartColors[index % chartColors.length],
-        values
-      };
-    });
-  }, [activeMetrics, filteredGroupEntities, groupBy, intl, metricOptions]);
+      row.lastActive = getLastActive(row.totalValues);
+      return row.totalValues.some((value) => value > 0) ? [row] : [];
+    }
 
-  const selectedChartValues = useMemo(() => {
-    return datePoints
-      .slice(rangeIndexes.start, rangeIndexes.end + 1)
-      .map((_, offsetIndex) =>
-        chartSeries.map((series) => ({
-          key: series.key,
-          color: series.color,
-          value: series.values[rangeIndexes.start + offsetIndex]
-        }))
+    return aggregateRows(groupBy as ViewKey);
+  }, [filteredRecords, groupBy, intl]);
+  const viewRows = useMemo(
+    () => aggregateRows(activeView),
+    [activeView, filteredRecords]
+  );
+
+  const summaryValues = useMemo(() => {
+    const metrics: Record<SummaryKey, number> = {
+      input: 0,
+      output: 0,
+      total: 0,
+      requests: 0,
+      modelsUsed: 0
+    };
+
+    filteredRecords.forEach((record, index) => {
+      const outputValues = getOutputValues(record.inputValues, index);
+      const requestValues = getRequestValues(record.inputValues, index);
+      const totalValues = record.inputValues.map(
+        (value, valueIndex) => value + outputValues[valueIndex]
       );
-  }, [chartSeries, rangeIndexes.end, rangeIndexes.start]);
+      metrics.input += sumRange(
+        record.inputValues,
+        rangeIndexes.start,
+        rangeIndexes.end
+      );
+      metrics.output += sumRange(
+        outputValues,
+        rangeIndexes.start,
+        rangeIndexes.end
+      );
+      metrics.total += sumRange(
+        totalValues,
+        rangeIndexes.start,
+        rangeIndexes.end
+      );
+      metrics.requests += sumRange(
+        requestValues,
+        rangeIndexes.start,
+        rangeIndexes.end
+      );
+    });
+
+    metrics.modelsUsed = new Set(
+      filteredRecords
+        .filter(
+          (record) =>
+            sumRange(record.inputValues, rangeIndexes.start, rangeIndexes.end) >
+            0
+        )
+        .map((record) => record.modelKey)
+    ).size;
+
+    return metrics;
+  }, [filteredRecords, rangeIndexes.end, rangeIndexes.start]);
+
+  const chartSeries = useMemo<ChartSeries[]>(() => {
+    const rows = sortRowsByMetric(groupRows, metric).slice(0, 4);
+    const remainingRows = sortRowsByMetric(groupRows, metric).slice(4);
+    const series = rows.map((row, index) => ({
+      key: row.key,
+      label: row.label,
+      color: chartColors[index % chartColors.length],
+      values: getMetricValues(row, metric)
+    }));
+
+    if (remainingRows.length) {
+      const others = new Array(datePoints.length).fill(0);
+      remainingRows.forEach((row) => {
+        getMetricValues(row, metric).forEach((value, index) => {
+          others[index] += value;
+        });
+      });
+      series.push({
+        key: 'others',
+        label: intl.formatMessage({ id: 'usage.legend.others' }),
+        color: chartColors[series.length % chartColors.length],
+        values: others
+      });
+    }
+    return series;
+  }, [groupRows, intl, metric]);
+
+  const selectedChartBuckets = useMemo(() => {
+    const buckets = new Map<
+      string,
+      {
+        date: string;
+        label: string;
+        values: { key: string; color: string; value: number }[];
+      }
+    >();
+
+    datePoints
+      .slice(rangeIndexes.start, rangeIndexes.end + 1)
+      .forEach((date, offsetIndex) => {
+        const bucketStart = getBucketStart(date, granularity);
+        const bucketKey = bucketStart.format('YYYY-MM-DD');
+        if (!buckets.has(bucketKey)) {
+          buckets.set(bucketKey, {
+            date: bucketKey,
+            label: formatBucketLabel(bucketStart, granularity),
+            values: chartSeries.map((series) => ({
+              key: series.key,
+              color: series.color,
+              value: 0
+            }))
+          });
+        }
+
+        const bucket = buckets.get(bucketKey)!;
+        chartSeries.forEach((series, seriesIndex) => {
+          bucket.values[seriesIndex].value +=
+            series.values[rangeIndexes.start + offsetIndex];
+        });
+      });
+
+    return Array.from(buckets.values());
+  }, [chartSeries, granularity, rangeIndexes.end, rangeIndexes.start]);
+
+  const selectedChartValues = useMemo(
+    () => selectedChartBuckets.map((bucket) => bucket.values),
+    [selectedChartBuckets]
+  );
 
   const maxChartValue = useMemo(() => {
     return Math.max(
       ...selectedChartValues.map((dayValues) =>
-        dayValues.reduce((sum, series) => sum + series.value, 0)
+        dayValues.reduce((sum, item) => sum + item.value, 0)
       ),
       0
     );
   }, [selectedChartValues]);
 
-  const detailCards = useMemo(() => {
-    return filteredDetailEntities.map((entity) => {
-      const metricValues = getMetricValues(entity.values, primaryMetric);
-      const displayName =
-        activeTab === 'projects' ? formatOperationLabel(entity.name) : entity.name;
-      return {
-        ...entity,
-        displayName,
-        metricValues,
-        total: metricValues.reduce((sum, value) => sum + value, 0),
-        selectedTotal: sumRange(metricValues, rangeIndexes.start, rangeIndexes.end),
-        peak: Math.max(...metricValues, 0)
-      };
-    });
-  }, [activeTab, filteredDetailEntities, primaryMetric, rangeIndexes.end, rangeIndexes.start]);
+  const modelOptions = Object.entries(modelMeta).map(([key, value]) => ({
+    value: key,
+    label: value.label
+  }));
+  const userOptions = Object.entries(userMetaMap).map(([key, value]) => ({
+    value: key,
+    label: value.label
+  }));
+  const apiKeyOptions = Object.entries(apiKeyMetaMap).map(([key, value]) => ({
+    value: key,
+    label: value.label
+  }));
 
-  const tabItems = [
-    { key: 'models', label: intl.formatMessage({ id: 'usage.tab.models' }) },
-    { key: 'projects', label: intl.formatMessage({ id: 'usage.tab.projects' }) },
-    { key: 'apikeys', label: intl.formatMessage({ id: 'usage.tab.apikeys' }) }
+  const rangeStartLabel =
+    selectedChartBuckets[0]?.label ||
+    datePoints[rangeIndexes.start].format('MMM DD');
+  const rangeEndLabel =
+    selectedChartBuckets[selectedChartBuckets.length - 1]?.label ||
+    datePoints[rangeIndexes.end].format('MMM DD');
+
+  const metricOptions: { label: string; value: MetricKey }[] = [
+    {
+      label: intl.formatMessage({ id: 'usage.metric.inputTokens' }),
+      value: 'input'
+    },
+    {
+      label: intl.formatMessage({ id: 'usage.metric.outputTokens' }),
+      value: 'output'
+    },
+    {
+      label: intl.formatMessage({ id: 'usage.metric.totalTokens' }),
+      value: 'total'
+    },
+    {
+      label: intl.formatMessage({ id: 'usage.metric.requests' }),
+      value: 'requests'
+    }
   ];
-  if (isAdmin && scope === 'all') {
-    tabItems.splice(1, 0, {
-      key: 'users',
-      label: intl.formatMessage({ id: 'usage.tab.users' })
-    });
-  }
-
-  const groupOptions = [
-    { label: intl.formatMessage({ id: 'usage.group.models' }), value: 'models' },
-    { label: intl.formatMessage({ id: 'usage.group.projects' }), value: 'projects' },
-    { label: intl.formatMessage({ id: 'usage.group.apikeys' }), value: 'apikeys' }
+  const granularityOptions: { label: string; value: GranularityKey }[] = [
+    {
+      label: intl.formatMessage({ id: 'usage.granularity.day' }),
+      value: 'day'
+    },
+    {
+      label: intl.formatMessage({ id: 'usage.granularity.week' }),
+      value: 'week'
+    },
+    {
+      label: intl.formatMessage({ id: 'usage.granularity.month' }),
+      value: 'month'
+    }
   ];
-  if (isAdmin && scope === 'all') {
-    groupOptions.splice(1, 0, {
-      label: intl.formatMessage({ id: 'usage.group.users' }),
-      value: 'users'
-    });
-  }
+  const summaryOptions: { label: string; value: SummaryKey }[] = [
+    ...metricOptions,
+    {
+      label: intl.formatMessage({ id: 'usage.summary.modelsCalled' }),
+      value: 'modelsUsed'
+    }
+  ];
 
-  const modelFilterOptions = useMemo(() => {
-    return (tabDatasets.find((item) => item.key === 'models')?.entities || []).map((entity) => ({
-      label: entity.name,
-      value: entity.key
-    }));
-  }, []);
+  const baseColumns: TableColumnsType<AggregatedRow> = [
+    {
+      title:
+        activeView === 'models'
+          ? intl.formatMessage({ id: 'usage.table.model' })
+          : activeView === 'users'
+            ? intl.formatMessage({ id: 'usage.table.user' })
+            : intl.formatMessage({ id: 'usage.table.apiKey' }),
+      dataIndex: 'label',
+      key: 'label',
+      width: activeView === 'models' ? 220 : 200,
+      sorter: (left, right) => left.label.localeCompare(right.label),
+      render: (_, row) => (
+        <NameCell>
+          <span className="title">{row.label}</span>
+          {activeView === 'apikeys' ? (
+            <span className="sub">{row.userLabel}</span>
+          ) : null}
+        </NameCell>
+      )
+    }
+  ];
 
-  const userFilterOptions = useMemo(() => {
-    return (tabDatasets.find((item) => item.key === 'users')?.entities || []).map((entity) => ({
-      label: entity.name,
-      value: entity.key
-    }));
-  }, []);
+  const viewColumns: Record<ViewKey, TableColumnsType<AggregatedRow>> = {
+    models: [
+      ...baseColumns,
+      {
+        title: intl.formatMessage({ id: 'usage.table.provider' }),
+        dataIndex: 'provider',
+        key: 'provider',
+        width: 120,
+        sorter: (left, right) =>
+          (left.provider || '').localeCompare(right.provider || '')
+      },
+      {
+        title: intl.formatMessage({ id: 'usage.table.cluster' }),
+        dataIndex: 'cluster',
+        key: 'cluster',
+        width: 120,
+        sorter: (left, right) =>
+          (left.cluster || '').localeCompare(right.cluster || '')
+      }
+    ],
+    users: [
+      ...baseColumns,
+      {
+        title: intl.formatMessage({ id: 'usage.table.modelsUsed' }),
+        dataIndex: 'modelsUsed',
+        key: 'modelsUsed',
+        width: 110,
+        sorter: (left, right) => left.modelsUsed - right.modelsUsed
+      },
+      {
+        title: intl.formatMessage({ id: 'usage.table.apiKeysUsed' }),
+        dataIndex: 'apiKeysUsed',
+        key: 'apiKeysUsed',
+        width: 120,
+        sorter: (left, right) => left.apiKeysUsed - right.apiKeysUsed
+      }
+    ],
+    apikeys: [
+      ...baseColumns,
+      {
+        title: intl.formatMessage({ id: 'usage.table.user' }),
+        dataIndex: 'userLabel',
+        key: 'userLabel',
+        width: 150,
+        sorter: (left, right) =>
+          (left.userLabel || '').localeCompare(right.userLabel || '')
+      },
+      {
+        title: intl.formatMessage({ id: 'usage.table.modelsUsed' }),
+        dataIndex: 'modelsUsed',
+        key: 'modelsUsed',
+        width: 110,
+        sorter: (left, right) => left.modelsUsed - right.modelsUsed
+      }
+    ]
+  };
 
-  const apiKeyFilterOptions = useMemo(() => {
-    return (tabDatasets.find((item) => item.key === 'apikeys')?.entities || []).map((entity) => ({
-      label: entity.name,
-      value: entity.key
-    }));
-  }, []);
+  const metricColumns: TableColumnsType<AggregatedRow> = [
+    {
+      title: intl.formatMessage({ id: 'usage.metric.inputTokens' }),
+      key: 'input',
+      width: 130,
+      sorter: (left, right) =>
+        sumRange(left.inputValues, rangeIndexes.start, rangeIndexes.end) -
+        sumRange(right.inputValues, rangeIndexes.start, rangeIndexes.end),
+      render: (_, row) =>
+        formatValue(
+          sumRange(row.inputValues, rangeIndexes.start, rangeIndexes.end)
+        )
+    },
+    {
+      title: intl.formatMessage({ id: 'usage.metric.outputTokens' }),
+      key: 'output',
+      width: 130,
+      sorter: (left, right) =>
+        sumRange(left.outputValues, rangeIndexes.start, rangeIndexes.end) -
+        sumRange(right.outputValues, rangeIndexes.start, rangeIndexes.end),
+      render: (_, row) =>
+        formatValue(
+          sumRange(row.outputValues, rangeIndexes.start, rangeIndexes.end)
+        )
+    },
+    {
+      title: intl.formatMessage({ id: 'usage.metric.totalTokens' }),
+      key: 'total',
+      width: 130,
+      defaultSortOrder: 'descend',
+      sorter: (left, right) =>
+        sumRange(left.totalValues, rangeIndexes.start, rangeIndexes.end) -
+        sumRange(right.totalValues, rangeIndexes.start, rangeIndexes.end),
+      render: (_, row) =>
+        formatValue(
+          sumRange(row.totalValues, rangeIndexes.start, rangeIndexes.end)
+        )
+    },
+    {
+      title: intl.formatMessage({ id: 'usage.metric.requests' }),
+      key: 'requests',
+      width: 120,
+      sorter: (left, right) =>
+        sumRange(left.requestValues, rangeIndexes.start, rangeIndexes.end) -
+        sumRange(right.requestValues, rangeIndexes.start, rangeIndexes.end),
+      render: (_, row) =>
+        formatValue(
+          sumRange(row.requestValues, rangeIndexes.start, rangeIndexes.end)
+        )
+    },
+    {
+      title: intl.formatMessage({ id: 'usage.table.lastActive' }),
+      dataIndex: 'lastActive',
+      key: 'lastActive',
+      width: 120,
+      sorter: (left, right) =>
+        dayjs(left.lastActive).valueOf() - dayjs(right.lastActive).valueOf(),
+      render: (value) => dayjs(value).format('MM-DD')
+    }
+  ];
 
-  const rangeStartLabel = datePoints[rangeIndexes.start].format('MMM DD');
-  const rangeEndLabel = datePoints[rangeIndexes.end].format('MMM DD');
+  const columns = [...viewColumns[activeView], ...metricColumns];
 
   const handleScopeChange = (value: string | number) => {
     const nextScope = value as ScopeKey;
     setScope(nextScope);
     if (nextScope === 'self') {
-      if (groupBy === 'users') {
-        setGroupBy('apikeys');
+      if (activeView === 'users') {
+        setActiveView('models');
       }
-      if (activeTab === 'users') {
-        setActiveTab('models');
+      if (groupBy === 'users') {
+        setGroupBy('none');
       }
       setSelectedUsers([]);
     }
+  };
+
+  const handleExportSummary = () => {
+    const rows = summaryOptions.map((item) => [
+      item.label,
+      summaryValues[item.value]
+    ]);
+    downloadCsv(
+      `usage-summary-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
+      [
+        intl.formatMessage({ id: 'usage.chart.metric' }),
+        intl.formatMessage({ id: 'usage.summary.selectedRange' })
+      ],
+      rows
+    );
+  };
+
+  const handleExportTrend = () => {
+    const dateHeaders = selectedChartBuckets.map((bucket) => bucket.date);
+    const rows = chartSeries.map((series) => [
+      series.label,
+      ...selectedChartBuckets.map(
+        (bucket) =>
+          bucket.values.find((item) => item.key === series.key)?.value || 0
+      )
+    ]);
+    downloadCsv(
+      `usage-trend-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
+      [intl.formatMessage({ id: 'usage.table.model' }), ...dateHeaders],
+      rows
+    );
+  };
+
+  const handleExportTable = () => {
+    const headers =
+      activeView === 'models'
+        ? [
+            intl.formatMessage({ id: 'usage.table.model' }),
+            intl.formatMessage({ id: 'usage.table.provider' }),
+            intl.formatMessage({ id: 'usage.table.cluster' })
+          ]
+        : activeView === 'users'
+          ? [
+              intl.formatMessage({ id: 'usage.table.user' }),
+              intl.formatMessage({ id: 'usage.table.modelsUsed' }),
+              intl.formatMessage({ id: 'usage.table.apiKeysUsed' })
+            ]
+          : [
+              intl.formatMessage({ id: 'usage.table.apiKey' }),
+              intl.formatMessage({ id: 'usage.table.user' }),
+              intl.formatMessage({ id: 'usage.table.modelsUsed' })
+            ];
+
+    const metricHeaders = [
+      intl.formatMessage({ id: 'usage.metric.inputTokens' }),
+      intl.formatMessage({ id: 'usage.metric.outputTokens' }),
+      intl.formatMessage({ id: 'usage.metric.totalTokens' }),
+      intl.formatMessage({ id: 'usage.metric.requests' }),
+      intl.formatMessage({ id: 'usage.table.lastActive' })
+    ];
+
+    const rows = viewRows.map((row) => {
+      const head =
+        activeView === 'models'
+          ? [row.label, row.provider || '-', row.cluster || '-']
+          : activeView === 'users'
+            ? [row.label, row.modelsUsed, row.apiKeysUsed]
+            : [row.label, row.userLabel || '-', row.modelsUsed];
+      return [
+        ...head,
+        sumRange(row.inputValues, rangeIndexes.start, rangeIndexes.end),
+        sumRange(row.outputValues, rangeIndexes.start, rangeIndexes.end),
+        sumRange(row.totalValues, rangeIndexes.start, rangeIndexes.end),
+        sumRange(row.requestValues, rangeIndexes.start, rangeIndexes.end),
+        row.lastActive
+      ];
+    });
+
+    downloadCsv(
+      `usage-table-${activeView}-${dayjs().format('YYYYMMDD-HHmmss')}.csv`,
+      [...headers, ...metricHeaders],
+      rows
+    );
   };
 
   return (
@@ -915,24 +1329,24 @@ const UsagePage: React.FC = () => {
       }}
       extra={[
         <Toolbar key="usage-controls">
-          <MetricPanel>
-            <span className="metricLabel">
-              {intl.formatMessage({ id: 'usage.metric.select' })}
-            </span>
-            <Select
-              mode="multiple"
-              value={activeMetrics}
-              onChange={(value) =>
-                setSelectedMetrics(
-                  (value as MetricKey[]).length ? (value as MetricKey[]) : ['input']
-                )
-              }
-              className="metricSelect"
-              maxTagCount="responsive"
-              placeholder={intl.formatMessage({ id: 'usage.metric.select' })}
-              options={metricOptions}
-            />
-          </MetricPanel>
+          {isAdmin ? (
+            <ScopeSwitch>
+              <Segmented
+                value={scope}
+                onChange={handleScopeChange}
+                options={[
+                  {
+                    label: intl.formatMessage({ id: 'usage.scope.self' }),
+                    value: 'self'
+                  },
+                  {
+                    label: intl.formatMessage({ id: 'usage.scope.all' }),
+                    value: 'all'
+                  }
+                ]}
+              />
+            </ScopeSwitch>
+          ) : null}
           <RangePicker
             value={dateRange}
             onChange={(value) => setDateRange(value as [Dayjs, Dayjs] | null)}
@@ -945,198 +1359,204 @@ const UsagePage: React.FC = () => {
               current.isAfter(datePoints[datePoints.length - 1], 'day')
             }
           />
-          {isAdmin && (
-            <ScopeSwitch>
-              <Segmented
-                value={scope}
-                onChange={handleScopeChange}
-                options={[
-                  {
-                    label: intl.formatMessage({ id: 'usage.scope.all' }),
-                    value: 'all'
-                  },
-                  {
-                    label: intl.formatMessage({ id: 'usage.scope.self' }),
-                    value: 'self'
-                  }
-                ]}
+          <FilterGroup>
+            <Select
+              mode="multiple"
+              value={selectedModels}
+              onChange={(value) => setSelectedModels(value as string[])}
+              className="filterSelect"
+              maxTagCount="responsive"
+              placeholder={intl.formatMessage({ id: 'usage.filter.model' })}
+              options={modelOptions}
+            />
+            {isAdmin && scope === 'all' ? (
+              <Select
+                mode="multiple"
+                value={selectedUsers}
+                onChange={(value) => setSelectedUsers(value as string[])}
+                className="filterSelect"
+                maxTagCount="responsive"
+                placeholder={intl.formatMessage({ id: 'usage.filter.user' })}
+                options={userOptions}
               />
-            </ScopeSwitch>
-          )}
+            ) : null}
+            <Select
+              mode="multiple"
+              value={selectedApiKeys}
+              onChange={(value) => setSelectedApiKeys(value as string[])}
+              className="filterSelect"
+              maxTagCount="responsive"
+              placeholder={intl.formatMessage({ id: 'usage.filter.apiKey' })}
+              options={apiKeyOptions}
+            />
+          </FilterGroup>
           <Tooltip title="Refresh">
             <Button icon={<ReloadOutlined />} />
           </Tooltip>
+          <Popover
+            trigger="click"
+            placement="bottomRight"
+            content={
+              <ExportPanel>
+                <Button type="text" size="small" onClick={handleExportSummary}>
+                  {intl.formatMessage({ id: 'usage.export.summary' })}
+                </Button>
+                <Button type="text" size="small" onClick={handleExportTrend}>
+                  {intl.formatMessage({ id: 'usage.export.trend' })}
+                </Button>
+                <Button type="text" size="small" onClick={handleExportTable}>
+                  {intl.formatMessage({ id: 'usage.export.table' })}
+                </Button>
+              </ExportPanel>
+            }
+          >
+            <Tooltip title={intl.formatMessage({ id: 'usage.export' })}>
+              <Button icon={<DownloadOutlined />} />
+            </Tooltip>
+          </Popover>
         </Toolbar>
       ]}
     >
       <StyledPage>
         <OverviewCard>
           <OverviewHeader>
-            <div style={{ flex: 1 }}>
-              <SummaryGrid>
-                {summaryMetrics.map((metric) => (
-                  <SummaryCard key={metric.key}>
-                    <div className="label">
-                      {intl.formatMessage(
-                        { id: 'usage.summary.totalMetric' },
-                        { metric: metric.label }
-                      )}
-                    </div>
-                    <div className="value">{formatValue(metric.allTimeTotal)}</div>
-                    <div className="subValue">
-                      {intl.formatMessage({ id: 'usage.summary.selectedRange' })}:{' '}
-                      {formatValue(metric.selectedTotal)}
-                    </div>
-                  </SummaryCard>
-                ))}
-              </SummaryGrid>
-            </div>
-            <ControlRow>
-              <span className="controlLabel">
-                {intl.formatMessage({ id: 'usage.filterBy' })}
-              </span>
-              <Select
-                mode="multiple"
-                value={selectedApiKeys}
-                onChange={(value) => setSelectedApiKeys(value as string[])}
-                className="controlSelect"
-                maxTagCount="responsive"
-                placeholder={intl.formatMessage({ id: 'usage.filter.apiKey' })}
-                options={apiKeyFilterOptions}
-              />
-              <Select
-                mode="multiple"
-                value={selectedModels}
-                onChange={(value) => setSelectedModels(value as string[])}
-                className="controlSelect"
-                maxTagCount="responsive"
-                placeholder={intl.formatMessage({ id: 'usage.filter.model' })}
-                options={modelFilterOptions}
-              />
-              {isAdmin && scope === 'all' ? (
-                <Select
-                  mode="multiple"
-                  value={selectedUsers}
-                  onChange={(value) => setSelectedUsers(value as string[])}
-                  className="controlSelect"
-                  maxTagCount="responsive"
-                  placeholder={intl.formatMessage({ id: 'usage.filter.user' })}
-                  options={userFilterOptions}
-                />
-              ) : null}
-              <span className="controlLabel">
-                {intl.formatMessage({ id: 'usage.groupBy' })}
-              </span>
-              <Select
-                value={groupBy}
-                onChange={(value) => setGroupBy(value)}
-                className="controlSelect"
-                options={groupOptions}
-              />
-            </ControlRow>
-          </OverviewHeader>
-          <OverviewBody>
-            <BigChart>
-              <span className="guide" />
-              {selectedChartValues.map((dayValues, index) => {
-                const dayTotal = dayValues.reduce((sum, item) => sum + item.value, 0);
-                const ratio = maxChartValue ? dayTotal / maxChartValue : 0;
-                const stackHeight = Math.max(4, ratio * 100);
+            <SummaryGrid>
+              {summaryOptions.map((item) => {
+                const value = summaryValues[item.value];
                 return (
-                  <div className="barCol" key={`${index}-${dayTotal}`}>
-                    <div className="barTrack">
-                      <div className="barStack" style={{ height: `${stackHeight}%` }}>
-                        {dayValues.map((item) => {
-                          const segmentRatio = dayTotal ? item.value / dayTotal : 0;
-                          return (
-                            <div
-                              key={`${index}-${item.key}`}
-                              className="barSegment"
-                              style={{
-                                height: `${Math.max(2, segmentRatio * 100)}%`,
-                                backgroundColor: item.color,
-                                opacity: item.value ? 1 : 0.25
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                    {index === 0 || index === selectedChartValues.length - 1 ? (
-                      <div className="barLabel">
-                        {index === 0 ? rangeStartLabel : rangeEndLabel}
-                      </div>
-                    ) : (
-                      <div className="barLabel" />
-                    )}
-                  </div>
+                  <SummaryCard key={item.value}>
+                    <div className="label">{item.label}</div>
+                    <div className="value">{formatValue(value)}</div>
+                  </SummaryCard>
                 );
               })}
-            </BigChart>
-            <LegendRow>
-              {chartSeries.map((series) => (
-                <div className="legendItem" key={series.key}>
-                  <span
-                    className="legendDot"
-                    style={{ backgroundColor: series.color }}
-                  />
-                  <span>{series.label}</span>
-                </div>
-              ))}
-            </LegendRow>
+            </SummaryGrid>
+            <ChartControls>
+              <div className="controlItem">
+                <span className="controlLabel">
+                  {intl.formatMessage({ id: 'usage.chart.metric' })}
+                </span>
+                <Select
+                  value={metric}
+                  onChange={(value) => setMetric(value as MetricKey)}
+                  className="controlSelect"
+                  options={metricOptions}
+                />
+              </div>
+              <div className="controlItem">
+                <span className="controlLabel">
+                  {intl.formatMessage({ id: 'usage.groupBy' })}
+                </span>
+                <Select
+                  value={groupBy}
+                  onChange={(value) => setGroupBy(value as GroupKey)}
+                  className="controlSelect"
+                  options={availableGroupOptions}
+                />
+              </div>
+              <div className="controlItem">
+                <span className="controlLabel">
+                  {intl.formatMessage({ id: 'usage.granularity' })}
+                </span>
+                <Select
+                  value={granularity}
+                  onChange={(value) => setGranularity(value as GranularityKey)}
+                  className="controlSelect"
+                  options={granularityOptions}
+                />
+              </div>
+            </ChartControls>
+          </OverviewHeader>
+          <OverviewBody>
+            {chartSeries.length ? (
+              <>
+                <BigChart>
+                  <span className="guide" />
+                  {selectedChartValues.map((dayValues, index) => {
+                    const dayTotal = dayValues.reduce(
+                      (sum, item) => sum + item.value,
+                      0
+                    );
+                    const ratio = maxChartValue ? dayTotal / maxChartValue : 0;
+                    const stackHeight = Math.max(4, ratio * 100);
+                    return (
+                      <div className="barCol" key={`${index}-${dayTotal}`}>
+                        <div className="barTrack">
+                          <div
+                            className="barStack"
+                            style={{ height: `${stackHeight}%` }}
+                          >
+                            {dayValues.map((item) => {
+                              const segmentRatio = dayTotal
+                                ? item.value / dayTotal
+                                : 0;
+                              return (
+                                <div
+                                  key={`${index}-${item.key}`}
+                                  className="barSegment"
+                                  style={{
+                                    height: `${Math.max(2, segmentRatio * 100)}%`,
+                                    backgroundColor: item.color,
+                                    opacity: item.value ? 1 : 0.25
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                        {index === 0 ||
+                        index === selectedChartValues.length - 1 ? (
+                          <div className="barLabel">
+                            {index === 0 ? rangeStartLabel : rangeEndLabel}
+                          </div>
+                        ) : (
+                          <div className="barLabel" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </BigChart>
+                <LegendRow>
+                  {chartSeries.map((series) => (
+                    <div className="legendItem" key={series.key}>
+                      <span
+                        className="legendDot"
+                        style={{ backgroundColor: series.color }}
+                      />
+                      <span>{series.label}</span>
+                    </div>
+                  ))}
+                </LegendRow>
+              </>
+            ) : (
+              <Empty description={intl.formatMessage({ id: 'usage.empty' })} />
+            )}
           </OverviewBody>
         </OverviewCard>
 
-        <DetailTabs>
+        <TableCard>
           <Tabs
-            activeKey={activeTab}
-            onChange={(value) => setActiveTab(value as TabKey)}
-            items={tabItems.map((item) => ({ ...item, children: null }))}
+            activeKey={activeView}
+            onChange={(value) => setActiveView(value as ViewKey)}
+            items={availableViews.map((item) => ({ ...item, children: null }))}
           />
-        </DetailTabs>
-
-        <CardsGrid>
-          {detailCards.map((card) => (
-            <DetailCard key={card.key}>
-              <div className="title">{card.displayName}</div>
-              <div className="meta">
-                <span className="dot" />
-                <span>
-                  {formatValue(card.total)}{' '}
-                  {
-                    metricOptions.find((item) => item.value === primaryMetric)
-                      ?.label as React.ReactNode
-                  }
-                </span>
-              </div>
-              <div className="peak">
-                {intl.formatMessage({ id: 'usage.summary.selectedRange' })}:{' '}
-                {formatValue(card.selectedTotal)}
-              </div>
-              <MiniChart>
-                <span className="guide" />
-                {card.metricValues.map((value, index) => {
-                  const ratio = card.peak ? value / card.peak : 0;
-                  return (
-                    <div className="miniBarWrap" key={`${card.key}-${index}`}>
-                      <div
-                        className="miniBar"
-                        style={{
-                          height: `${Math.max(3, ratio * 100)}%`,
-                          opacity: value ? 1 : 0.18
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </MiniChart>
-              <CardFooter>
-                <span>{rangeStartLabel}</span>
-                <span>{rangeEndLabel}</span>
-              </CardFooter>
-            </DetailCard>
-          ))}
-        </CardsGrid>
+          <Table<AggregatedRow>
+            rowKey="key"
+            columns={columns}
+            dataSource={viewRows}
+            scroll={{ x: 1200 }}
+            sortDirections={TABLE_SORT_DIRECTIONS}
+            showSorterTooltip={false}
+            locale={{
+              emptyText: (
+                <Empty
+                  description={intl.formatMessage({ id: 'usage.empty' })}
+                />
+              )
+            }}
+            pagination={{ pageSize: 8, showSizeChanger: false }}
+          />
+        </TableCard>
       </StyledPage>
     </PageContainerInner>
   );

@@ -133,7 +133,7 @@ export default [
         icon: 'icon-chart',
         selectedIcon: 'icon-chart',
         defaultIcon: 'icon-chart',
-        access: 'canSeeAdmin',
+        access: 'canSeeAuthenticated',
         component: './llmodels/usage/index'
       },
       {

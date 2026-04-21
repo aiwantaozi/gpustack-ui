@@ -14,7 +14,6 @@ import {
   DatePicker,
   Empty,
   Popover,
-  Segmented,
   Select,
   Table,
   Tabs,
@@ -247,13 +246,6 @@ const FilterGroup = styled.div`
 
   .filterSelect {
     width: 180px;
-  }
-`;
-
-const ScopeSwitch = styled.div`
-  .ant-segmented {
-    background: var(--ant-color-bg-container);
-    border: 1px solid var(--ant-color-border);
   }
 `;
 
@@ -630,7 +622,7 @@ const UsagePage: React.FC = () => {
     initialInfo.initialState?.currentUser?.username ||
     userMeta['dev-michelia'].label;
 
-  const [scope, setScope] = useState<ScopeKey>('self');
+  const scope: ScopeKey = isAdmin ? 'all' : 'self';
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(
     mockDateRange
   );
@@ -1225,20 +1217,6 @@ const UsagePage: React.FC = () => {
 
   const columns = [...viewColumns[activeView], ...metricColumns];
 
-  const handleScopeChange = (value: string | number) => {
-    const nextScope = value as ScopeKey;
-    setScope(nextScope);
-    if (nextScope === 'self') {
-      if (activeView === 'users') {
-        setActiveView('models');
-      }
-      if (groupBy === 'users') {
-        setGroupBy('none');
-      }
-      setSelectedUsers([]);
-    }
-  };
-
   const handleExportSummary = () => {
     const rows = summaryOptions.map((item) => [
       item.label,
@@ -1329,24 +1307,6 @@ const UsagePage: React.FC = () => {
       }}
       extra={[
         <Toolbar key="usage-controls">
-          {isAdmin ? (
-            <ScopeSwitch>
-              <Segmented
-                value={scope}
-                onChange={handleScopeChange}
-                options={[
-                  {
-                    label: intl.formatMessage({ id: 'usage.scope.self' }),
-                    value: 'self'
-                  },
-                  {
-                    label: intl.formatMessage({ id: 'usage.scope.all' }),
-                    value: 'all'
-                  }
-                ]}
-              />
-            </ScopeSwitch>
-          ) : null}
           <RangePicker
             value={dateRange}
             onChange={(value) => setDateRange(value as [Dayjs, Dayjs] | null)}

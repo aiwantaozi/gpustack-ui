@@ -190,6 +190,16 @@ const baseRoutes = [
         defaultIcon: 'icon-files',
         access: 'canSeeOrgAdmin',
         component: './resources/components/model-files'
+      },
+      {
+        name: 'datasets',
+        path: '/models/datasets',
+        key: 'datasets',
+        icon: 'icon-database-outlined',
+        selectedIcon: 'icon-database-filled',
+        defaultIcon: 'icon-database-outlined',
+        access: 'canSeeOrgAdmin',
+        component: './datasets/index'
       }
     ]
   },

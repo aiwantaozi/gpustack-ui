@@ -26,6 +26,7 @@ export default {
   'menu.resources.workers': 'İşçi Düğümler',
   'menu.resources.gpus': "GPU'lar",
   'menu.models.modelfiles': 'Model Dosyaları',
+  'menu.models.datasets': 'Datasets',
   'menu.accessControl': 'Erişim Kontrolü',
   'menu.accessControl.apikeys': 'API Anahtarları',
   'menu.accessControl.users': 'Kullanıcılar',

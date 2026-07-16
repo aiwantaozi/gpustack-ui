@@ -36,6 +36,7 @@ export default {
   'menu.resources.workers': '节点',
   'menu.resources.gpus': 'GPU',
   'menu.models.modelfiles': '模型文件',
+  'menu.models.datasets': '数据集',
   'menu.accessControl': '访问控制',
   'menu.accessControl.apikeys': 'API 密钥',
   'menu.accessControl.users': '用户',

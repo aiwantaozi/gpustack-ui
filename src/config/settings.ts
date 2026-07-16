@@ -38,6 +38,7 @@ export const PaginationKey = {
   Routes: 'Routes',
   Providers: 'Providers',
   Benchmarks: 'Benchmarks',
+  Datasets: 'Datasets',
   GPUs: 'GPUs',
   ModelFiles: 'ModelFiles',
   Storage: 'Storage',

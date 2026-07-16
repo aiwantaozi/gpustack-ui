@@ -28,6 +28,7 @@ export default {
   'menu.resources.workers': 'Workers',
   'menu.resources.gpus': 'GPUs',
   'menu.models.modelfiles': 'Model Files',
+  'menu.models.datasets': 'Datasets',
   'menu.accessControl': 'Access Control',
   'menu.accessControl.apikeys': 'API Keys',
   'menu.accessControl.users': 'Users',

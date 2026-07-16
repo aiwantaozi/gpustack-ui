@@ -1,3 +1,4 @@
+import { Dataset } from '@/pages/datasets/config/types';
 import { createContext, useContext } from 'react';
 import { BenchmarkDetail } from './detail-types';
 
@@ -7,6 +8,9 @@ interface DetailContextProps {
   id: number;
   loading?: boolean;
   profilesOptions: Global.BaseOption<string>[];
+  // Downloaded Dataset resources — used to resolve a custom benchmark's
+  // `dataset_id` to the dataset's source label for display.
+  datasetResources?: Dataset[];
 }
 
 const DetailContext = createContext<DetailContextProps>(

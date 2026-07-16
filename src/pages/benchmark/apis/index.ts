@@ -2,6 +2,7 @@ import { request } from '@umijs/max';
 import { CancelToken } from 'axios';
 import {
   BenchmarkListItem,
+  BenchmarkResultItem,
   DatasetListItem,
   FormData,
   ProfileOption
@@ -73,6 +74,20 @@ export async function createBenchmarkResult(params: { id: number; data: any }) {
   return request(`${BENCHMARKS_API}/${params.id}/result`, {
     method: 'POST',
     data: params.data
+  });
+}
+
+// Per-point results (one row per (input_tokens, rate) grid cell) for the
+// multi-rate detail view (curve + summary table).
+export async function queryBenchmarkResults(
+  id: number,
+  options?: {
+    token?: CancelToken;
+  }
+) {
+  return request<BenchmarkResultItem[]>(`${BENCHMARKS_API}/${id}/results`, {
+    method: 'GET',
+    cancelToken: options?.token
   });
 }
 

@@ -1,3 +1,5 @@
+import { DatasetSnapshot } from './types';
+
 export interface ComputedResourceClaim {
   is_unified_memory: boolean;
   offload_layers: any;
@@ -69,6 +71,8 @@ export interface Snapshot {
   instances: Record<string, InstancesData>;
   workers: Record<string, WorkerData>;
   gpus: Record<string, GPUData>;
+  // Custom-dataset snapshot taken at creation (readable label + source fields).
+  dataset?: DatasetSnapshot;
 }
 export interface BenchmarkDetail {
   profile: string;
@@ -87,6 +91,29 @@ export interface BenchmarkDetail {
   tokens_per_second_mean: number;
   output_tokens_per_second_mean: number;
   input_tokens_per_second_mean: number;
+  // load / auto-tune / SLA / best operating points
+  load_type?: string;
+  auto_tune?: boolean;
+  lower_bound?: number;
+  upper_bound?: number;
+  max_points?: number;
+  max_total_seconds?: number;
+  sla_avg_ttft_ms?: number;
+  sla_avg_tpot_ms?: number;
+  sla_p99_ttft_ms?: number;
+  sla_p99_tpot_ms?: number;
+  sla_avg_latency_ms?: number;
+  sla_p99_latency_ms?: number;
+  sla_met_rate?: number;
+  peak_rate?: number;
+  knee_rate?: number;
+  recommended_rate?: number;
+  // Test-coverage validity, computed on the backend (language-neutral codes +
+  // params; the UI localizes them).
+  validity?: {
+    sufficient?: boolean;
+    warnings?: { code: string; params?: Record<string, unknown> }[];
+  };
   name: string;
   description: string;
   labels: Record<string, any>;

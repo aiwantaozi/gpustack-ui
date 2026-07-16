@@ -10,10 +10,12 @@ const PERCENTILES = [
   { key: 'p99', label: '99%' }
 ] as const;
 
-const PercentileResult: React.FC = () => {
+const PercentileResult: React.FC<{ data?: any }> = (props) => {
   const intl = useIntl();
   const { detailData } = useDetailContext();
-  const metrics = detailData?.raw_metrics?.benchmarks?.[0]?.metrics || {};
+  // v2.1: feed the selected stage's data when provided (Overview drill-down).
+  const data = props.data ?? detailData;
+  const metrics = data?.raw_metrics?.benchmarks?.[0]?.metrics || {};
 
   const columns = [
     {
@@ -51,18 +53,21 @@ const PercentileResult: React.FC = () => {
       render: (value: number) => round(value, 0)
     },
     {
-      title: `${intl.formatMessage({ id: 'benchmark.detail.percentile.input' })} (Tokens/s)`,
+      // Token-rate columns use the compact acronyms (TPS / In TPS / Out TPS)
+      // and the same total-first order as the list and "Results by stage"
+      // table headers.
+      title: 'TPS (Tokens/s)',
+      dataIndex: 'tokens_per_second',
+      render: (value: number) => round(value, 2)
+    },
+    {
+      title: 'In TPS (Tokens/s)',
       dataIndex: 'prompt_tokens_per_second',
       render: (value: number) => round(value, 2)
     },
     {
-      title: `${intl.formatMessage({ id: 'benchmark.detail.percentile.output' })} (Tokens/s)`,
+      title: 'Out TPS (Tokens/s)',
       dataIndex: 'output_tokens_per_second',
-      render: (value: number) => round(value, 2)
-    },
-    {
-      title: `${intl.formatMessage({ id: 'benchmark.detail.percentile.total' })} (Tokens/s)`,
-      dataIndex: 'tokens_per_second',
       render: (value: number) => round(value, 2)
     }
   ];

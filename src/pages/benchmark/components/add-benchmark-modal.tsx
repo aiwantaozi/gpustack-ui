@@ -1,7 +1,9 @@
 import { PageActionType } from '@/config/types';
 import useSubmitLock from '@/hooks/use-submit-lock';
 import { FormDrawer } from '@gpustack/core-ui';
+import _ from 'lodash';
 import React, { useRef } from 'react';
+import { DatasetValueMap } from '../config';
 import { FormData, BenchmarkListItem as ListItem } from '../config/types';
 
 import BenchmarkForm from '../forms';
@@ -36,11 +38,17 @@ const AddBenchmark: React.FC<AddModalProps> = ({
   };
 
   const handleOk = async (data: FormData) => {
-    await run(() =>
-      onOk({
-        ...data
-      })
-    );
+    // `dataset_worker_id` / `dataset_worker_name` are UI-only helpers (used by
+    // the custom-dataset picker for co-location); never send them. `dataset_id`
+    // only applies to the custom "Dataset" type.
+    const payload: any = _.omit(data, [
+      'dataset_worker_id',
+      'dataset_worker_name'
+    ]);
+    if (payload.dataset_name !== DatasetValueMap.Custom) {
+      delete payload.dataset_id;
+    }
+    await run(() => onOk(payload));
   };
 
   const handleCancel = () => {

@@ -18,7 +18,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
       title={currentData?.name}
       open={open}
       onCancel={onClose}
-      width={700}
+      width={960}
       footer={null}
     >
       <DetailContent currentData={currentData} />

@@ -22,6 +22,7 @@ import AddBenchmarkModal from './components/add-benchmark-modal';
 import LeftActions from './components/left-actions';
 import RightActions from './components/right-actions';
 import ViewLogsModal from './components/view-logs-modal';
+import { genBenchmarkName } from './config';
 import { FormData, BenchmarkListItem as ListItem } from './config/types';
 import Filters from './filters';
 import useBenchmarkColumns from './hooks/use-benchmark-columns';
@@ -66,7 +67,8 @@ const Benchmark: React.FC = () => {
   const { openViewLogsModal, closeViewLogsModal, openViewLogsModalStatus } =
     useViewLogs();
   const { handleStopBenchmark } = useStopBenchmark();
-  const { datasetList, fetchDatasetData } = useQueryDataset();
+  const { datasetList, fetchDatasetData, datasetResources, fetchDatasetResources } =
+    useQueryDataset();
   const { exportData } = useExportBenchmark();
   const {
     fetchClusterList,
@@ -82,7 +84,8 @@ const Benchmark: React.FC = () => {
   const { SettingsButton, columns: selectedColumns } = useColumnSettings({
     contentHeight: 320,
     clusterList,
-    profileOptions: profilesOptions
+    profileOptions: profilesOptions,
+    datasetResources
   });
   const [filtersVisible, { toggle: toggleFilters }] = useToggle();
   const filterRef = useRef<any>(null);
@@ -91,6 +94,7 @@ const Benchmark: React.FC = () => {
   useEffect(() => {
     fetchModelList({ page: -1 });
     fetchDatasetData();
+    fetchDatasetResources();
     fetchProfilesData();
     fetchClusterList({ page: -1 }).then(() => {
       if (benchmarkTargetInstance.model_name) {
@@ -148,9 +152,21 @@ const Benchmark: React.FC = () => {
     );
   };
 
+  // Clone = open the create form pre-filled with this row's config but a fresh
+  // auto-generated name (CREATE mode → fully editable, submits as a new record).
+  const handleClone = (row: ListItem) => {
+    openBenchmarkModal(
+      PageAction.CREATE,
+      intl.formatMessage({ id: 'benchmark.button.clone' }),
+      { ...row, name: genBenchmarkName(row.model_name, row.profile) }
+    );
+  };
+
   const handleSelect = useMemoizedFn((val: any, row: ListItem) => {
     if (val === 'edit') {
       handleEdit(row);
+    } else if (val === 'clone') {
+      handleClone(row);
     } else if (val === 'delete') {
       handleDelete({ ...row, name: row.name });
     } else if (val === 'viewlog') {
@@ -233,6 +249,7 @@ const Benchmark: React.FC = () => {
       <Filters
         ref={filterRef}
         open={filtersVisible}
+        profilesOptions={profilesOptions}
         onValuesChange={handleOnFilterChange}
         onClose={toggleFilters}
         onClear={handleOnClearFilters}

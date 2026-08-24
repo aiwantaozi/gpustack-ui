@@ -1,6 +1,6 @@
 import { InputNumber, LabelSelector } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Form } from 'antd';
+import { Form, Input } from 'antd';
 import React from 'react';
 import { OverrideGroupMap } from '../../config';
 import BackendFields from '../backend';
@@ -32,6 +32,14 @@ const RoleForm: React.FC<RoleFormProps> = ({ index, cacheDisabledReason }) => {
 
   return (
     <>
+      {/* The role's identity has no visible control, so nothing would register
+          it — and `onFinish` rebuilds its value from REGISTERED fields only,
+          the same rule that makes `useWatch` need `preserve`. Without this the
+          submitted role is an anonymous bag of overrides and the API refuses
+          it. Same trick `kv-cache.tsx` uses to keep `mode` alive. */}
+      <Form.Item name={['roles', index, 'name']} hidden>
+        <Input />
+      </Form.Item>
       <RoleSection
         label={intl.formatMessage({ id: 'models.form.roles.replicas' })}
       >

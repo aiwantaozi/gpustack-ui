@@ -17,6 +17,7 @@ import { useFormContext } from '../config/form-context';
 import { FormData, PDMode, RoleFormItem } from '../config/types';
 import { backendOptionsMap } from '../constants/backend-parameters';
 import useQueryPDModes from '../hooks/use-query-pd-modes';
+import { createDefaultRoles } from './roles/transform';
 
 // 1 prefill + 1 decode is the smallest group that can exist, so a cluster with
 // fewer usable cards than this cannot run PD at all.
@@ -110,7 +111,9 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   const mode = Form.useWatch(['disaggregation', 'mode'], form);
   // Read-only reads of other sections: the role ratio and the model-level cache
   // are owned elsewhere, this block only reflects them.
-  const roles = Form.useWatch('roles', form);
+  // See the note in forms/roles/index.tsx: without `preserve` this reads only
+  // registered fields, and `roles` is written straight into the store.
+  const roles = Form.useWatch('roles', { form, preserve: true });
   const kvCacheEnabled = Form.useWatch(['extended_kv_cache', 'enabled'], form);
 
   // The Segmented is deliberately NOT a form field: with `roles` empty the
@@ -222,6 +225,20 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       // Opening the branch IS the action, so this is where the catalog request
       // belongs — the drawer's open is not this component's to hook.
       getPDModes();
+      // Seed the role set here, not in the roles section's mount effect: that
+      // section only mounts when its panel is expanded, so a user who turns PD
+      // on and submits without opening it would send `disaggregation` with no
+      // roles — which the backend refuses, and rightly so. The value has to
+      // exist the moment PD does.
+      if (!form.getFieldValue('roles')?.length) {
+        form.setFieldValue('roles', createDefaultRoles());
+      }
+    }
+    if (!next) {
+      // Off means a plain model again: leave no group behind for the payload
+      // to pick up.
+      form.setFieldValue('roles', null);
+      form.setFieldValue('disaggregation', null);
     }
     setEnabled(next);
     setCacheCleared(clearModelKVCache);
@@ -255,8 +272,14 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   const gpuTypeOf = (name: string) =>
     roleList.find((item) => item?.name === name)?.gpu_type_selector?.type ??
     null;
+  // Only meaningful once both sides have actually chosen a type; two unset
+  // roles are not heterogeneous. The roles section renders the same warning
+  // beside the fields that cause it — this one is the summary a collapsed
+  // roles panel still shows.
+  const prefillType = gpuTypeOf(RoleValueMap.Prefill);
+  const decodeType = gpuTypeOf(RoleValueMap.Decode);
   const heterogeneous =
-    gpuTypeOf(RoleValueMap.Prefill) !== gpuTypeOf(RoleValueMap.Decode);
+    !!prefillType && !!decodeType && prefillType !== decodeType;
 
   // Options come from the catalog, filtered by engine: a recipe that targets
   // another engine stays visible but disabled, carrying why.

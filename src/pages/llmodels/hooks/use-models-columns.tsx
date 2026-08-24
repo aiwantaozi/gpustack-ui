@@ -21,7 +21,7 @@ import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
 import { useAtomValue } from 'jotai';
 import _ from 'lodash';
-import { useMemo } from 'react';
+import { cloneElement, useMemo } from 'react';
 import ModelTag from '../../_components/model-tag';
 import PDMarkers from '../components/pd/pd-markers';
 import RoleStatusDetail from '../components/pd/role-status-detail';
@@ -85,6 +85,11 @@ const ActionList: ActionItem[] = [
     icon: icons.Stop
   },
   {
+    label: 'models.restart',
+    key: 'restart',
+    icon: icons.RetweetOutlined
+  },
+  {
     label: 'resources.metrics.details',
     key: 'metrics',
     icon: (
@@ -129,7 +134,7 @@ const useModelsColumns = ({
   const { styles } = useStyles();
 
   const setModelActionList = useMemoizedFn((record: any) => {
-    return _.filter(ActionList, (action: any) => {
+    const actions = _.filter(ActionList, (action: any) => {
       if (action.key === 'chat') {
         // `isModelServable` is the whole servability half of this gate: under
         // PD a running-instance count no longer implies the model can answer
@@ -154,12 +159,36 @@ const useModelsColumns = ({
       if (action.key === 'stop') {
         return record.replicas > 0;
       }
+      if (action.key === 'restart') {
+        // The same "there is something to act on" gate as stop, and
+        // deliberately not `stale`: whether an edit is worth a restart window
+        // is the operator's call, and an entry that only appears once the
+        // model is already stale teaches nobody it exists.
+        return record.replicas > 0;
+      }
       if (action.key === 'metrics') {
         return systemConfig?.showMonitoring;
       }
 
       return true;
     });
+
+    if (!record.stale) {
+      return actions;
+    }
+    // Stale is the state this action exists for, so the entry points at
+    // itself — same warning colour as the marker on the replica cell. A hint
+    // only: the action is no more available here than it was a moment ago.
+    return _.map(actions, (action: ActionItem) =>
+      action.key === 'restart'
+        ? {
+            ...action,
+            icon: cloneElement(action.icon as React.ReactElement, {
+              style: { color: 'var(--ant-color-warning)' }
+            })
+          }
+        : action
+    );
   });
 
   // The replica cell's status, straight off `Model.state` — the UI never
@@ -333,23 +362,25 @@ const useModelsColumns = ({
               <span style={{ flexShrink: 0 }}>
                 {ready} / {total}
               </span>
+              {/* Markers, never a replacement for the colour above: a stale
+                  model is usually still serving and a degraded one is serving
+                  worse than asked for. Both carry their reason.
+
+                  Outside the `isPD` guard because `stale` is computed for
+                  every model, not only groups — an edited plain model is just
+                  as silently un-applied. A model with neither marker renders
+                  nothing at all, so those cells are untouched. */}
+              <PDMarkers
+                stale={record.stale}
+                degradations={record.degradations}
+              />
               {isPD && (
-                <>
-                  {/* Markers, never a replacement for the colour above:
-                      a stale group is usually still serving and a degraded one
-                      is serving worse than asked for. Both carry their
-                      reason. */}
-                  <PDMarkers
-                    stale={record.stale}
-                    degradations={record.degradations}
-                  />
-                  <InfoCircleOutlined
-                    style={{
-                      flexShrink: 0,
-                      color: 'var(--ant-color-text-tertiary)'
-                    }}
-                  />
-                </>
+                <InfoCircleOutlined
+                  style={{
+                    flexShrink: 0,
+                    color: 'var(--ant-color-text-tertiary)'
+                  }}
+                />
               )}
             </Flex>
           );

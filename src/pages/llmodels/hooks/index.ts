@@ -235,7 +235,16 @@ export const useCheckCompatibility = () => {
               ..._.omit(data, [
                 'scheduleType',
                 'manualGpuMode',
-                'scaling_schedule'
+                'scaling_schedule',
+                // Same reasoning again, and the strongest case of it: a role
+                // is held in form shape — the override switches, the router's
+                // managed flag, and GPU ids still in the cascader's
+                // [worker, gpu] pairs — which the API's `List[str]` rejects
+                // outright, so the whole evaluation 422s and surfaces as an
+                // error toast. The wire shape is assembled at submit; there is
+                // nothing per-role for this endpoint to answer yet anyway.
+                'roles',
+                'disaggregation'
               ]),
               // Same reasoning for the vGPU selector, which the form walks
               // through an incomplete state on every GPU-type switch: the new

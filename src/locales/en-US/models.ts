@@ -464,6 +464,17 @@ export default {
   'models.pd.instance.stale':
     'This instance is running an older configuration; restart the group to apply the change.',
   'models.pd.stale': 'Configuration changed; restart the group to apply it.',
+  'models.restart': 'Restart',
+  'models.restart.confirm':
+    'All instances of {name} are stopped and rebuilt with its current configuration. The model is unavailable in between.',
+  'models.restart.done':
+    'Restarting: the instances have been retired and will be rebuilt with the current configuration.',
+  'models.restart.uptodate':
+    'The instances already run the current configuration, so there is nothing to restart.',
+  'models.restart.inprogress':
+    'A restart is already in progress. Wait for it to finish and try again.',
+  'models.restart.failed': 'Failed to restart the model.',
+  'models.stale.tag': 'Outdated',
   'models.pd.group.id': 'Group',
   'models.form.pd.disabled.gpus':
     'PD disaggregation needs at least 2 available GPUs (one Prefill, one Decode); the selected cluster has {count}.',

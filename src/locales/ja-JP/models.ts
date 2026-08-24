@@ -466,6 +466,17 @@ export default {
     'このインスタンスは古い設定で稼働しています。グループ全体を再起動すると反映されます。',
   'models.pd.stale':
     '設定が変更されました。グループ全体を再起動すると反映されます。',
+  'models.restart': '再起動',
+  'models.restart.confirm':
+    '{name} のすべてのインスタンスを停止し、現在の設定で再構築します。その間、このモデルは利用できません。',
+  'models.restart.done':
+    '再起動中：インスタンスを停止しました。現在の設定で再構築されます。',
+  'models.restart.uptodate':
+    'インスタンスはすでに現在の設定で稼働しているため、再起動は不要です。',
+  'models.restart.inprogress':
+    '再起動がすでに進行中です。完了してからもう一度お試しください。',
+  'models.restart.failed': 'モデルの再起動に失敗しました。',
+  'models.stale.tag': '要再起動',
   'models.pd.group.id': 'グループ',
   'models.form.pd.disabled.gpus':
     'PD 分離には少なくとも 2 枚の利用可能な GPU（Prefill 1 枚 + Decode 1 枚）が必要です。現在のクラスターの利用可能数は {count} 枚です。',

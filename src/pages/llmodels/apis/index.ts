@@ -18,6 +18,7 @@ import {
   ModelInstanceFormData,
   ModelInstanceListItem,
   ModelLoraAdapterResult,
+  ModelRestartResult,
   PDMode
 } from '../config/types';
 
@@ -97,6 +98,21 @@ export async function updateModel(params: { id: number; data: FormData }) {
   return request(`${MODELS_API}/${params.id}`, {
     method: 'PUT',
     data: params.data
+  });
+}
+
+// Retire the running generation so the current spec takes effect. Not a PUT
+// with the same body: the whole group has to stop before any of it restarts,
+// or replica convergence pairs a new-generation prefill with an old-generation
+// decode — a combination the engines accept and only fail on later.
+//
+// `skipErrorHandler` because the one error this reliably returns is 409 "a
+// restart is already in flight", which is a wait rather than a fault and reads
+// wrong as a red toast. Every caller therefore owns its own error reporting.
+export async function restartModel(id: number) {
+  return request<ModelRestartResult>(`${MODELS_API}/${id}/restart`, {
+    method: 'POST',
+    skipErrorHandler: true
   });
 }
 

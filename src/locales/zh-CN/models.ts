@@ -437,6 +437,14 @@ export default {
     '此修改需要重启整个 PD 组：将先停止全部 {total} 个实例，再以新配置重建，期间该模型不可用。',
   'models.pd.instance.stale': '该实例使用旧版配置，重启整组后生效。',
   'models.pd.stale': '配置已变更，需重启整组生效。',
+  'models.restart': '重启',
+  'models.restart.confirm':
+    '将停止 {name} 的全部实例，并以当前配置重建，期间该模型不可用。',
+  'models.restart.done': '正在重启：实例已停止，将以当前配置重建。',
+  'models.restart.uptodate': '实例已在运行当前配置，无需重启。',
+  'models.restart.inprogress': '重启进行中，请等待完成后重试。',
+  'models.restart.failed': '重启模型失败。',
+  'models.stale.tag': '待重启',
   'models.pd.group.id': '组',
   'models.form.pd.disabled.gpus':
     'PD 分离至少需要 2 张可用 GPU（1 Prefill + 1 Decode），当前集群可用 {count} 张。',

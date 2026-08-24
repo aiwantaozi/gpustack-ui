@@ -1,8 +1,9 @@
 import { AutoTooltip, CheckboxField, InputNumber } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Flex, Form, Segmented, Tooltip } from 'antd';
+import { Flex, Form, Input, Segmented, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import React from 'react';
+import { OverrideGroupMap } from '../../config';
 import { PDMode } from '../../config/types';
 import BackendFields from '../backend';
 import CustomBackend from '../custom-backend';
@@ -115,6 +116,14 @@ const RouterForm: React.FC<RouterFormProps> = ({
 
   return (
     <>
+      {/* The role's identity has no visible control, so nothing would register
+          it — and `onFinish` rebuilds its value from REGISTERED fields only,
+          the same rule that makes `useWatch` need `preserve`. Without this the
+          submitted role is an anonymous bag of overrides and the API refuses
+          it. Same trick `kv-cache.tsx` uses to keep `mode` alive. */}
+      <Form.Item name={['roles', index, 'name']} hidden>
+        <Input />
+      </Form.Item>
       <RoleSection
         label={intl.formatMessage({ id: 'models.form.roles.replicas' })}
         description={intl.formatMessage({
@@ -182,7 +191,10 @@ const RouterForm: React.FC<RouterFormProps> = ({
 
       {/* A managed router still runs somewhere, so its placement is the one
           thing left to override even in the managed branch. */}
-      <OverrideSection group="scheduling" index={index}></OverrideSection>
+      <OverrideSection
+        group={OverrideGroupMap.Scheduling}
+        index={index}
+      ></OverrideSection>
     </>
   );
 };

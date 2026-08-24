@@ -54,6 +54,7 @@ import {
 } from '../config/types';
 import useEditDeployment from '../hooks/use-edit-deployment';
 import useModelsColumns from '../hooks/use-models-columns';
+import useRestartModel from '../hooks/use-restart-model';
 import useViewInstanceLogs from '../hooks/use-view-instance-logs';
 import LeftFilters from '../instance-view/left-filters';
 import DeployModal from './deployment/deploy-modal';
@@ -157,6 +158,11 @@ const Models: React.FC<ModelsProps> = ({
   const { handleOpenPlayGround } = useOpenPlayground();
   const { openViewLogsModal, openViewLogsModalStatus, closeViewLogsModal } =
     useViewInstanceLogs();
+  // The row expands on success, because the whole visible effect of the action
+  // is the members being torn down and rebuilt one row down.
+  const { handleRestartModel } = useRestartModel({
+    onSuccess: (row) => updateExpandedRowKeys([row.id, ...expandedRowKeys])
+  });
 
   const { goToGrafana, ActionButton } = useGranfanaLink({
     type: 'model'
@@ -399,6 +405,9 @@ const Models: React.FC<ModelsProps> = ({
             onStop?.([row.id]);
           }
         });
+      }
+      if (val === 'restart') {
+        await handleRestartModel(row);
       }
       if (val === 'chat') {
         const targetRoute = targetList.find(

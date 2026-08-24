@@ -465,6 +465,17 @@ export default {
     'Bu örnek eski bir yapılandırmayla çalışıyor; değişikliği uygulamak için grubu yeniden başlatın.',
   'models.pd.stale':
     'Yapılandırma değişti; uygulamak için grubu yeniden başlatın.',
+  'models.restart': 'Yeniden başlat',
+  'models.restart.confirm':
+    '{name} modelinin tüm örnekleri durdurulur ve geçerli yapılandırmayla yeniden oluşturulur. Bu sırada model kullanılamaz.',
+  'models.restart.done':
+    'Yeniden başlatılıyor: örnekler durduruldu ve geçerli yapılandırmayla yeniden oluşturulacak.',
+  'models.restart.uptodate':
+    'Örnekler zaten geçerli yapılandırmayla çalışıyor, yeniden başlatmaya gerek yok.',
+  'models.restart.failed': 'Model yeniden başlatılamadı.',
+  'models.restart.inprogress':
+    'Zaten bir yeniden başlatma sürüyor. Tamamlanmasını bekleyip yeniden deneyin.',
+  'models.stale.tag': 'Eski',
   'models.pd.group.id': 'Grup',
   'models.form.pd.disabled.gpus':
     'PD ayrıştırma en az 2 kullanılabilir GPU gerektirir (bir Prefill, bir Decode); seçili kümede {count} adet var.',

@@ -141,7 +141,11 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
     if (next.clearModelKVCache) {
       form.setFieldValue('extended_kv_cache', { enabled: false });
     }
-    if (next.replicasLocked) {
+    // Only when it actually differs. An unconditional write fires the form's
+    // onValuesChange on every notification, and that is what drives the
+    // compatibility check — so writing the value it already holds turns each
+    // mode change into a round trip.
+    if (next.replicasLocked && form.getFieldValue('replicas') !== 1) {
       form.setFieldValue('replicas', 1);
     }
   };
@@ -615,14 +619,16 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
                   ></PDDisaggregation>
                 )
               },
-              // Rendered only with PD on. `forceRender` would defeat that:
-              // the roles module must register no field on a plain model, or
-              // an unrelated deployment's payload would grow a `roles` key.
+              // The item exists only with PD on, so `forceRender` is safe here
+              // and necessary: without it the section's fields register only
+              // once the panel is opened, and a group submitted without
+              // opening it would carry no roles at all.
               ...(pdEffects.enabled
                 ? [
                     {
                       key: TABKeysMap.ROLES,
                       label: intl.formatMessage({ id: 'models.form.roles' }),
+                      forceRender: true,
                       children: (
                         <Roles
                           enabled={pdEffects.enabled}

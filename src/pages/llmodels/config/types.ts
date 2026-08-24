@@ -137,6 +137,17 @@ export interface RoleStatus {
   ready: number;
 }
 
+// `POST /v2/models/{id}/restart`. The endpoint converges the model onto its
+// current spec rather than cycling processes, so "nothing to do" is a success:
+// `restarted: false` means the members already run that spec (or there are
+// none), which is why the caller has to read this instead of the status code.
+export interface ModelRestartResult {
+  spec_digest: string;
+  restarted: boolean;
+  deleted_instances?: string[];
+  message?: string | null;
+}
+
 // One entry of `GET /v2/pd-modes`. Deliberately loose below the fields the UI
 // reads: the catalog's whole point is that adding an engine is a YAML change,
 // so the UI must not mirror its full schema.

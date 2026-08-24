@@ -160,7 +160,9 @@ const NameCell: React.FC<NameCellProps> = ({
           needs a digest the API does not expose yet. */}
       {!!modelData?.stale && (
         <Tooltip title={intl.formatMessage({ id: 'models.pd.instance.stale' })}>
-          <TextAttribute variant="outlined">stale</TextAttribute>
+          <TextAttribute variant="outlined">
+            {intl.formatMessage({ id: 'models.stale.tag' })}
+          </TextAttribute>
         </Tooltip>
       )}
       {!!record.worker_id && showWorkerInfo && (

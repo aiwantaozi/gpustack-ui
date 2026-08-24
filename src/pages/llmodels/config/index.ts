@@ -418,7 +418,16 @@ export const DO_NOT_TRIGGER_CHECK_COMPATIBILITY = [
   'speculative_config.enabled',
   'speculative_config.draft_model',
   'max_context_len',
-  'native_anthropic_api'
+  'native_anthropic_api',
+  // Whether PD is on, and which recipe it picked: neither changes what the
+  // deployment needs from a worker.
+  'pdMode',
+  'disaggregation.mode',
+  // Role edits do not move the model-level answer either — and they are the
+  // fields a user types through, so leaving them out would mean a round trip
+  // per keystroke. Per-role sizing needs the endpoint to report a claim per
+  // role, which it does not yet.
+  'roles'
 ];
 
 // ignore to compare old and new data when these fields change in updating model

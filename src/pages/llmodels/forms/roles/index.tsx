@@ -10,7 +10,6 @@ import {
 import { PDMode, RoleFormItem } from '../../config/types';
 import RoleForm from './role-form';
 import RouterForm from './router-form';
-import { createDefaultRoles } from './transform';
 
 interface RolesProps {
   /** Whether PD is on. Off renders nothing at all — see the note below. */
@@ -37,20 +36,20 @@ interface RolesProps {
 const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName }) => {
   const intl = useIntl();
   const form = Form.useFormInstance();
-  const roles: RoleFormItem[] = Form.useWatch('roles', form) || [];
+  // `preserve: true` is load-bearing, not defensive. Without it `useWatch`
+  // reads `getFieldsValue()`, which returns only REGISTERED fields — and
+  // `roles` is written with `setFieldValue`, registered by nothing but the
+  // very tabs below. That is a cycle: the value stays invisible, the tabs
+  // never render, so nothing ever registers it. `preserve` switches the read
+  // to `getFieldsValue(true)`, the whole store.
+  const roles: RoleFormItem[] =
+    Form.useWatch('roles', { form, preserve: true }) || [];
   const [active, setActive] = React.useState<string>(RoleValueMap.Prefill);
 
-  // Seed the role set the first time PD turns on. Doing it here rather than in
-  // the PD block keeps one owner for the `roles` value, and doing it on the
-  // transition rather than in an effect keeps the write attached to the action
-  // that caused it.
-  React.useEffect(() => {
-    if (enabled && !roles.length) {
-      form.setFieldValue('roles', createDefaultRoles());
-    }
-  }, [enabled, roles.length, form]);
-
-  if (!enabled) {
+  // Seeding lives in the PD block's enable handler, not here: this component
+  // only mounts when its panel is open, and a value that appears on expand is
+  // a value that is missing from a submit that never expanded it.
+  if (!enabled || !roles.length) {
     return null;
   }
 
@@ -97,11 +96,6 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName }) => {
     };
   });
 
-  const activeIndex = roles.findIndex((role) => role.name === active);
-  if (activeIndex === -1) {
-    return null;
-  }
-
   // Two roles on different card types cannot be admitted atomically, and the
   // user has to learn that here rather than from a half-started group.
   const cardTypes = roles
@@ -129,18 +123,31 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName }) => {
           style={{ marginBottom: 12 }}
         ></Alert>
       )}
-      {active === RoleValueMap.Router ? (
-        <RouterForm
-          index={activeIndex}
-          mode={mode}
-          managedDisabledReason={managedDisabledReason}
-        ></RouterForm>
-      ) : (
-        <RoleForm
-          index={activeIndex}
-          cacheDisabledReason={cacheDisabledReason}
-        ></RoleForm>
-      )}
+      {/* Every role is rendered; the inactive ones are hidden rather than
+          unmounted. The form is `preserve={false}`, so unmounting a role's
+          fields deletes their values — switching tabs would quietly discard
+          whatever the user had just typed into the previous one. Hidden is
+          cheap here because a collapsed override group renders a summary line,
+          not its sub-forms, so nothing fetches for a role nobody opened. */}
+      {roles.map((role, index) => (
+        <div
+          key={role.name}
+          style={{ display: role.name === active ? undefined : 'none' }}
+        >
+          {role.name === RoleValueMap.Router ? (
+            <RouterForm
+              index={index}
+              mode={mode}
+              managedDisabledReason={managedDisabledReason}
+            ></RouterForm>
+          ) : (
+            <RoleForm
+              index={index}
+              cacheDisabledReason={cacheDisabledReason}
+            ></RoleForm>
+          )}
+        </div>
+      ))}
     </>
   );
 };

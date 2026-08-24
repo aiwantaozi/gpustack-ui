@@ -73,7 +73,11 @@ export const rolesSpecToForm = (
   return roles.map((role) => {
     const overrides = Object.values(OverrideGroupMap).reduce(
       (acc: Record<string, boolean>, group) => {
-        acc[group] = isGroupOverridden(role, group);
+        // The cache group has no switch, so its flag is never read back; keep
+        // it out rather than seeding a control that does not exist.
+        if (group !== OverrideGroupMap.Cache) {
+          acc[group] = isGroupOverridden(role, group);
+        }
         return acc;
       },
       {}
@@ -124,10 +128,20 @@ const roleFormToPayload = (role: RoleFormItem): RoleSpec => {
   const overrides = role.overrides || {};
   // A managed router derives its image and command from the catalog, so it
   // owns none of the engine group; asking for custom is what turns it on.
-  const isGroupOn = (group: string) =>
-    isRouter && group === OverrideGroupMap.Backend
-      ? role.managed === false
-      : !!overrides[group];
+  const isGroupOn = (group: string) => {
+    // A managed router derives its image and command from the catalog, so it
+    // owns none of the engine group; asking for custom is what turns it on.
+    if (isRouter && group === OverrideGroupMap.Backend) {
+      return role.managed === false;
+    }
+    // The cache group is the one that does not inherit (see role-kv-cache):
+    // there is no "same as model" switch for it, so nothing writes an override
+    // flag and reading one would null a value the user did fill in.
+    if (group === OverrideGroupMap.Cache) {
+      return true;
+    }
+    return !!overrides[group];
+  };
 
   // Normalized once for the whole role: the scheduling group's three fields
   // are mutually exclusive (whole cards vs an InstanceType pool), so they can

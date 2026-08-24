@@ -17,7 +17,8 @@ import {
   ListItem,
   ModelInstanceFormData,
   ModelInstanceListItem,
-  ModelLoraAdapterResult
+  ModelLoraAdapterResult,
+  PDMode
 } from '../config/types';
 
 export const MODELS_API = '/models';
@@ -35,6 +36,8 @@ export const DRAFT_MODELS_API = '/draft-models';
 export const CATALOG_LIST_API = '/model-sets';
 
 export const MODEL_LORA_ADAPTER_API = '/models/adapters';
+
+export const PD_MODES_API = '/pd-modes';
 
 const setProxyUrl = (url: string) => {
   return `/proxy?url=${encodeURIComponent(url)}`;
@@ -506,4 +509,19 @@ export async function queryModelContextLength(params: {
       data: params
     }
   );
+}
+
+/**
+ * The PD-mode catalog.
+ *
+ * Read from the server rather than mirrored in the frontend: the catalog's
+ * whole point is that adding an engine is a YAML change, and a hardcoded enum
+ * here would spend that benefit. Fetch it when the deploy drawer opens.
+ */
+export async function queryPDModes() {
+  return request<{
+    items: PDMode[];
+  }>(PD_MODES_API, {
+    method: 'GET'
+  });
 }

@@ -361,5 +361,89 @@ export default {
   // Model catalog source configuration
   'models.catalog.source.title': '模型库来源',
   'models.catalog.source.official':
-    '在随本版本打包的内置模型库之上，跟随 GPUStack 发布的官方模型库。'
+    '在随本版本打包的内置模型库之上，跟随 GPUStack 发布的官方模型库。',
+
+  // --- Prefill/decode disaggregation ---
+  'models.form.pd.enable': 'PD 分离',
+  'models.form.pd.enable.off': '不开启',
+  'models.form.pd.enable.on': 'PD 分离',
+  'models.form.pd.enable.tips':
+    '将预填充（Prefill）与解码（Decode）拆分到不同实例，代价是多一跳网络与一次 KV 传输。并发低、prompt 短或前缀命中率很高时，聚合部署通常更快。建议先跑一轮基准再决定。',
+  'models.form.pd.mode': 'PD 模式',
+  'models.form.pd.mode.holder': '请选择 PD 模式',
+  'models.form.pd.mode.tips':
+    '连接态参数（connector、端口、对端地址）全部由所选模式推导，无需手工配置。',
+  'models.form.pd.mode.custom.tips':
+    '自定义模式下系统不注入任何连接参数，需自行提供 --kv-transfer-config、端口与对端地址。',
+  'models.form.pd.mode.backend.mismatch':
+    '需要 {targets}，当前引擎是 {backend}。跨角色混用引擎请选「自定义」模式。',
+  'models.form.pd.replicas.moved': 'PD 部署的副本数由各角色分别设置。',
+  'models.form.pd.disabled.gguf':
+    'PD 分离仅支持 vLLM / SGLang 引擎，当前模型为 GGUF 格式。',
+  'models.form.pd.disabled.backend':
+    'PD 分离仅支持 vLLM / SGLang 引擎。其他引擎可通过「自定义」模式使用。',
+  'models.form.pd.disabled.schedule':
+    'PD 部署暂不支持定时扩缩，请通过各角色的副本数调整。',
+  'models.form.pd.cache.cleared':
+    'PD 部署下 KV 缓存按角色配置，模型级设置已清空 —— 请在角色配置中为需要的角色单独选择。',
+  'models.form.roles': '角色配置',
+  'models.form.roles.prefill': 'Prefill',
+  'models.form.roles.decode': 'Decode',
+  'models.form.roles.router': 'Router',
+  'models.form.roles.inherit': '与模型相同',
+  'models.form.roles.override': '自定义',
+  'models.form.roles.inherited': '继承',
+  'models.form.roles.group.backend': '引擎与镜像',
+  'models.form.roles.group.parameters': '引擎参数与环境变量',
+  'models.form.roles.group.scheduling': '资源与调度',
+  'models.form.roles.group.cache': '共享 KV 缓存',
+  'models.form.roles.replicas': '副本数',
+  'models.form.roles.router.managed': '由系统托管',
+  'models.form.roles.router.replicas.tips': '一期 Router 为单副本。',
+  'models.form.roles.router.order.tips':
+    'Router 在 Prefill 与 Decode 就绪后才创建。',
+  'models.form.roles.router.custom.forced':
+    '自定义 PD 模式下系统不推导 Router，请提供镜像与启动命令。',
+  'models.form.roles.router.peers':
+    '部署后由系统注入 Prefill / Decode 实例地址。',
+  'models.form.roles.cache.holder': '不使用',
+  'models.form.roles.cache.tips': '连接方式与优先级顺序由系统推导，无需配置。',
+  'models.form.roles.cache.custom.conflict':
+    '自定义 PD 模式下需在引擎参数中自行提供 --kv-transfer-config，不能同时选择缓存服务。',
+  'models.form.roles.cache.param.conflict':
+    '与所选 PD 模式冲突。改用「自定义」PD 模式，或删除该参数。',
+  'models.state.pending': '等待中',
+  'models.state.partial': '部分就绪',
+  'models.state.running': '运行中',
+  'models.state.error': '异常',
+  'models.pd.tag': 'PD',
+  'models.pd.roles.detail': '各角色状态',
+  'models.pd.role.waiting': '等待中',
+  'models.pd.replicas.readonly': 'PD 部署请在「编辑」中调整各角色副本数。',
+  'models.pd.degraded.cache': '共享 KV 缓存未接上，组在无缓存的情况下服务。',
+  'models.pd.degraded.ratio': '就绪成员少于请求数量，当前以降低的容量服务。',
+  'models.pd.heterogeneous.warning':
+    '本组 Prefill 与 Decode 使用不同 GPU 类型，无法原子准入：并发提交时可能出现只有部分角色启动。',
+  'models.pd.admission.infeasible':
+    '当前可用算力放不下这一组（需要 {required}，可用 {available}）。可减少副本数、换用切分卡型，或增加节点。',
+  'models.pd.effectiveness.degraded':
+    'PD 已退化为聚合式 —— 未检测到 KV 传输。请检查 PD 模式与引擎参数。',
+  'models.pd.bandwidth.degraded':
+    'KV 传输路径可能已降级：当前 {actual}，起组基线 {baseline}（下降 {delta}）。',
+  'models.pd.ratio.waiting': '配比 {configured}（当前 {current}，等待 {role}）',
+  'models.pd.group.restarting':
+    '组级重启中：已停止 {stopped}/{total} · 重建 {ready}/{total} 就绪',
+  'models.pd.group.restart.confirm':
+    '此修改需要重启整个 PD 组：将先停止全部 {total} 个实例，再以新配置重建，期间该模型不可用。',
+  'models.pd.instance.stale': '该实例使用旧版配置，重启整组后生效。',
+  'models.pd.stale': '配置已变更，需重启整组生效。',
+  'models.pd.group.id': '组',
+  'models.form.pd.disabled.gpus':
+    'PD 分离至少需要 2 张可用 GPU（1 Prefill + 1 Decode），当前集群可用 {count} 张。',
+  'models.pd.ratio': '配比',
+  'models.form.roles.router.health': '健康检查',
+  'models.form.roles.router.peerslabel': '对端',
+  'models.form.roles.cpuonly': '仅使用 CPU',
+  'models.form.roles.cpuonly.tips':
+    'Router 只转发请求、不持有模型权重，因此不占用 GPU。'
 };

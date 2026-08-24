@@ -546,3 +546,181 @@ export const catalogSourceTemplate = `# A YAML mapping with model_sets (and opti
 #           - --max-model-len=8192
 # draft_models: []
 `;
+
+// ---------------------------------------------------------------------------
+// Prefill/decode disaggregation
+// ---------------------------------------------------------------------------
+
+// Phase one's role set. The data model allows any name; the backend's
+// validation layer is what limits it to these three, and the UI mirrors that
+// limit rather than offering an add-a-role affordance it cannot honour.
+export const RoleValueMap = {
+  Prefill: 'prefill',
+  Decode: 'decode',
+  Router: 'router'
+};
+
+export const RoleLabelMap = {
+  [RoleValueMap.Prefill]: 'models.form.roles.prefill',
+  [RoleValueMap.Decode]: 'models.form.roles.decode',
+  [RoleValueMap.Router]: 'models.form.roles.router'
+};
+
+export const RoleOrder = [
+  RoleValueMap.Prefill,
+  RoleValueMap.Decode,
+  RoleValueMap.Router
+];
+
+// The Segmented at the top of the PD block. Two states in phase one; the
+// third (a homogeneous `kv_both` pool) is phase two and slots in here without
+// changing the interaction, which is why this is a Segmented and not a Switch.
+export const PDEnableValueMap = {
+  Off: 'off',
+  Disaggregated: 'disaggregated'
+};
+
+// `Model.state` — the model-level lifecycle. Not a copy of the instance
+// lifecycle: there are no download or start phases here.
+export const ModelStateValueMap = {
+  Pending: 'pending',
+  Partial: 'partial',
+  Running: 'running',
+  Error: 'error'
+};
+
+export const ModelStateMap = {
+  [ModelStateValueMap.Pending]: StatusMaps.transitioning,
+  [ModelStateValueMap.Partial]: StatusMaps.transitioning,
+  [ModelStateValueMap.Running]: StatusMaps.success,
+  [ModelStateValueMap.Error]: StatusMaps.error
+};
+
+export const ModelStateLabelMap = {
+  [ModelStateValueMap.Pending]: 'models.state.pending',
+  [ModelStateValueMap.Partial]: 'models.state.partial',
+  [ModelStateValueMap.Running]: 'models.state.running',
+  [ModelStateValueMap.Error]: 'models.state.error'
+};
+
+// Degradations are orthogonal to `state`: they say "serving, but worse than
+// you asked for", so they coexist with `running` and are rendered as a warning
+// badge beside its colour rather than replacing it.
+export const DegradationValueMap = {
+  CacheNotInjected: 'cache_not_injected',
+  BandwidthDegraded: 'bandwidth_degraded',
+  RatioUnmet: 'ratio_unmet',
+  NoAtomicAdmission: 'no_atomic_admission'
+};
+
+export const DegradationLabelMap = {
+  [DegradationValueMap.CacheNotInjected]: 'models.pd.degraded.cache',
+  [DegradationValueMap.BandwidthDegraded]: 'models.pd.bandwidth.degraded',
+  [DegradationValueMap.RatioUnmet]: 'models.pd.degraded.ratio',
+  [DegradationValueMap.NoAtomicAdmission]: 'models.pd.heterogeneous.warning'
+};
+
+// The four override groups of a role tab. A group left on "same as model"
+// submits its fields as null, which is exactly what the backend reads as
+// "inherit" — so the form's shape and the payload's shape are the same and
+// nothing has to decide which fields to strip.
+export const OverrideGroupMap = {
+  Backend: 'backend',
+  Parameters: 'parameters',
+  Scheduling: 'scheduling',
+  Cache: 'cache'
+};
+
+export const OverrideGroupLabelMap = {
+  [OverrideGroupMap.Backend]: 'models.form.roles.group.backend',
+  [OverrideGroupMap.Parameters]: 'models.form.roles.group.parameters',
+  [OverrideGroupMap.Scheduling]: 'models.form.roles.group.scheduling',
+  [OverrideGroupMap.Cache]: 'models.form.roles.group.cache'
+};
+
+// Which RoleSpec fields each override group owns. Nulling a group means
+// nulling exactly these, so the mapping lives in one place rather than being
+// spelled out at each submit path.
+export const OverrideGroupFields: Record<string, string[]> = {
+  [OverrideGroupMap.Backend]: [
+    'backend',
+    'backend_version',
+    'image_name',
+    'run_command'
+  ],
+  [OverrideGroupMap.Parameters]: ['backend_parameters', 'env'],
+  [OverrideGroupMap.Scheduling]: [
+    'gpu_selector',
+    'worker_selector',
+    'gpu_type_selector'
+  ],
+  [OverrideGroupMap.Cache]: ['extended_kv_cache']
+};
+
+// The `custom` pd mode is the only one that injects nothing, so it is also the
+// only one under which a mixed-engine group is legal — and the one where the
+// user owns every connection-state parameter.
+export const PD_MODE_CUSTOM = 'custom';
+
+// Engines that have a built-in PD recipe. Anything else can still use PD, but
+// only through `custom`.
+export const PD_CAPABLE_BACKENDS = ['vLLM', 'SGLang'];
+
+/**
+ * Whether requests may be routed to this model.
+ *
+ * Mirrors the backend's `is_model_servable`, and is the ONE predicate the UI
+ * should use for "can the user chat with this / benchmark this". Under PD a
+ * running-instance count no longer implies servability, so `ready_replicas > 0`
+ * is not it. A row whose `state` has not been computed yet falls back to the
+ * counter, which is the same answer the gate gave before the field existed.
+ */
+export const isModelServable = (record: {
+  state?: string | null;
+  ready_replicas?: number;
+}) => {
+  if (!record?.state) {
+    return (record?.ready_replicas ?? 0) > 0;
+  }
+  return record.state === ModelStateValueMap.Running;
+};
+
+/**
+ * The replica column's denominator.
+ *
+ * Under PD `Model.replicas` is a 0/1 deployment switch, so `ready / replicas`
+ * would render "5 / 1". The declared size of a group is the sum of its roles'
+ * replica counts, router included, which `role_status` already carries. For a
+ * model without roles the sum degenerates to `replicas` and the display is
+ * unchanged.
+ */
+export const modelReplicaCounts = (record: {
+  replicas?: number;
+  ready_replicas?: number;
+  roles?: { replicas: number }[] | null;
+  role_status?: Record<string, { desired: number; ready: number }> | null;
+}) => {
+  if (!record?.roles?.length) {
+    return {
+      ready: record?.ready_replicas ?? 0,
+      total: record?.replicas ?? 0
+    };
+  }
+  const status = record.role_status;
+  if (status) {
+    const entries = Object.values(status);
+    return {
+      ready: entries.reduce((sum, item) => sum + (item?.ready ?? 0), 0),
+      total: entries.reduce((sum, item) => sum + (item?.desired ?? 0), 0)
+    };
+  }
+  // No status yet (a group that has never been reconciled): the spec still
+  // knows the declared size, so show it rather than a bare zero.
+  return {
+    ready: record.ready_replicas ?? 0,
+    total: record.roles.reduce((sum, role) => sum + (role?.replicas ?? 0), 0)
+  };
+};
+
+export const isPDModel = (record: { roles?: unknown[] | null }) =>
+  !!record?.roles?.length;

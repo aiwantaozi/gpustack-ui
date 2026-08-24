@@ -4,7 +4,7 @@ import { BaseSelect } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { Button, Input, Space } from 'antd';
 import React from 'react';
-import { categoryOptions } from '../config';
+import { categoryOptions, RoleLabelMap, RoleOrder } from '../config';
 import useFilterStatus from '../hooks/use-filter-status';
 interface LeftFiltersProps {
   handleNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -12,11 +12,15 @@ interface LeftFiltersProps {
   handleStatusChange: (value: string) => void;
   handleWorkerChange?: (value: number) => void;
   handleCategoryChange?: (value: string) => void;
+  handleRoleChange?: (value: string) => void;
   handleSearch: () => void;
   clusterList: Global.BaseOption<number>[];
   workerList?: workerListItem[];
   showWorker?: boolean;
   showCategory?: boolean;
+  // Opt-in, like the two above: this bar is shared with the deployments list,
+  // which has no role dimension.
+  showRole?: boolean;
   filterOptions?: {
     optionList: {
       label: string;
@@ -33,11 +37,13 @@ const LeftFilters: React.FC<LeftFiltersProps> = (props) => {
     handleStatusChange,
     handleWorkerChange,
     handleCategoryChange,
+    handleRoleChange,
     handleSearch,
     clusterList,
     workerList = [],
     showWorker = true,
     showCategory = false,
+    showRole = false,
     filterOptions
   } = props;
   const { labelRender, optionRender, statusOptions } =
@@ -82,6 +88,21 @@ const LeftFilters: React.FC<LeftFiltersProps> = (props) => {
           maxTagCount={1}
           onChange={handleCategoryChange}
           options={categoryOptions}
+        ></BaseSelect>
+      )}
+      {showRole && (
+        <BaseSelect
+          allowClear
+          showSearch={false}
+          placeholder={intl.formatMessage({ id: 'models.form.roles' })}
+          style={{ width: 140 }}
+          size="large"
+          maxTagCount={1}
+          onChange={handleRoleChange}
+          options={RoleOrder.map((role) => ({
+            label: intl.formatMessage({ id: RoleLabelMap[role] }),
+            value: role
+          }))}
         ></BaseSelect>
       )}
       {showWorker && (

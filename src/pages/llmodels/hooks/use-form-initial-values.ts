@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { queryGPUList } from '../apis';
 import { ManualGPUModeMap, ScheduleValueMap } from '../config';
 import { GPUListItem, ListItem } from '../config/types';
+import { rolesSpecToForm } from '../forms/roles/transform';
 
 type EmptyObject = Record<never, never>;
 
@@ -363,7 +364,16 @@ export default function useFormInitialValues() {
         isVGPU || data?.gpu_selector
           ? ScheduleValueMap.Manual
           : ScheduleValueMap.Auto,
-      manualGpuMode: isVGPU ? ManualGPUModeMap.VGPU : ManualGPUModeMap.FullGPU
+      manualGpuMode: isVGPU ? ManualGPUModeMap.VGPU : ManualGPUModeMap.FullGPU,
+      // A stored group's roles arrive in wire shape: every field a role does
+      // not override is null, which is what the backend reads as inherit. The
+      // form needs the override switches derived back from those nulls, or a
+      // group that inherits everything would open with every switch on and
+      // submit the inherited values as overrides. `roles` absent stays absent —
+      // a plain model must hydrate exactly as it does today.
+      ...(data?.roles?.length
+        ? { roles: rolesSpecToForm(data.roles, gpuOptions) }
+        : {})
     };
     return formData;
   };

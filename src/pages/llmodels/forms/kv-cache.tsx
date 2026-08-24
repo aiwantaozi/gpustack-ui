@@ -20,18 +20,49 @@ const IN_PROCESS = 'in-process';
 // after that internal flush or it reads the pre-update values.
 const FORM_FLUSH_DELAY_MS = 100;
 
-const KVCacheForm = () => {
+interface KVCacheFormProps {
+  /**
+   * Renders the same fields at a nested Form path (e.g. `['roles', 0]`) so a
+   * role can carry its own cache choice. Absent means the model-level path,
+   * byte-for-byte what it was.
+   */
+  namePrefix?: (string | number)[];
+}
+
+const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
   const intl = useIntl();
   const form = Form.useFormInstance();
   const { onValuesChange, flatBackendOptions } = useFormContext();
-  const kvCacheEnabled = Form.useWatch(['extended_kv_cache', 'enabled'], form);
-  const kvCacheMode = Form.useWatch(['extended_kv_cache', 'mode'], form);
-  const cacheServiceId = Form.useWatch(
-    ['extended_kv_cache', 'cache_service_id'],
+  // Every `extended_kv_cache` path goes through this, so the section can move
+  // under a role without any field knowing about roles.
+  const path = (...field: (string | number)[]) =>
+    namePrefix ? [...namePrefix, ...field] : field;
+  // `cache` is the object-shaped write target: setFieldsValue takes a nested
+  // object at the model level and a `['roles', i, 'extended_kv_cache']` path
+  // under a prefix, so the two cannot share one literal.
+  const setCache = (value: Record<string, any>) => {
+    if (namePrefix) {
+      form.setFieldValue(path('extended_kv_cache'), value);
+      return;
+    }
+    form.setFieldsValue({ extended_kv_cache: value } as any);
+  };
+  const kvCacheEnabled = Form.useWatch(
+    path('extended_kv_cache', 'enabled'),
     form
   );
+  const kvCacheMode = Form.useWatch(path('extended_kv_cache', 'mode'), form);
+  const cacheServiceId = Form.useWatch(
+    path('extended_kv_cache', 'cache_service_id'),
+    form
+  );
+  // Model-level on purpose: a role does not pick its own cluster.
   const clusterId = Form.useWatch('cluster_id', form);
-  const backend = Form.useWatch('backend', form);
+  // A role that does not override its engine runs the model's, and which
+  // engines can share a cache is a property of the engine.
+  const roleBackend = Form.useWatch(path('backend'), form);
+  const modelBackend = Form.useWatch('backend', form);
+  const backend = namePrefix ? (roleBackend ?? modelBackend) : modelBackend;
   const configCacheRef = useRef<any>({});
   // set when the user enables the checkbox without a stashed shared
   // selection; the options-sync effect resolves it into a default pick
@@ -60,7 +91,11 @@ const KVCacheForm = () => {
     await new Promise((resolve) => {
       setTimeout(resolve, FORM_FLUSH_DELAY_MS);
     });
-    onValuesChange?.(changedValues, form.getFieldsValue());
+    // `getFieldsValue()` is the whole store either way, so the compatibility
+    // consumer still receives a model-level shape. The changed-values argument
+    // is dropped under a prefix: nothing downstream parses a role path, and a
+    // role-shaped key would read as an unknown model-level field.
+    onValuesChange?.(namePrefix ? {} : changedValues, form.getFieldsValue());
   };
 
   // in-process defaults, restoring whatever the user had filled before a
@@ -80,24 +115,20 @@ const KVCacheForm = () => {
           ? 'shared'
           : 'local';
       if (mode === 'shared') {
-        form.setFieldsValue({
-          extended_kv_cache: {
-            enabled: true,
-            mode,
-            cache_service_id: configCacheRef.current?.cache_service_id ?? null,
-            chunk_size: null,
-            ram_ratio: null,
-            ram_size: null
-          }
+        setCache({
+          enabled: true,
+          mode,
+          cache_service_id: configCacheRef.current?.cache_service_id ?? null,
+          chunk_size: null,
+          ram_ratio: null,
+          ram_size: null
         });
       } else {
-        form.setFieldsValue({
-          extended_kv_cache: {
-            enabled: true,
-            mode,
-            cache_service_id: null,
-            ...localCacheFields()
-          }
+        setCache({
+          enabled: true,
+          mode,
+          cache_service_id: null,
+          ...localCacheFields()
         });
         // Enabling flips kvCacheEnabled, which triggers the service-list
         // sync effect below; the effect consumes this flag to default the
@@ -106,7 +137,7 @@ const KVCacheForm = () => {
         autoSelectPendingRef.current = true;
       }
     } else {
-      configCacheRef.current = form.getFieldValue('extended_kv_cache');
+      configCacheRef.current = form.getFieldValue(path('extended_kv_cache'));
     }
     await notifyValuesChangeDelayed({
       extended_kv_cache: {
@@ -118,33 +149,29 @@ const KVCacheForm = () => {
   // Merged backend choice: the in-process cache, or a specific cache service.
   const handleBackendChange = async (value: string | number) => {
     if (value === IN_PROCESS) {
-      form.setFieldsValue({
-        extended_kv_cache: {
-          enabled: true,
-          mode: 'local',
-          cache_service_id: null,
-          ...localCacheFields()
-        }
+      setCache({
+        enabled: true,
+        mode: 'local',
+        cache_service_id: null,
+        ...localCacheFields()
       });
       await notifyValuesChangeDelayed({
         extended_kv_cache: { mode: 'local' }
       });
     } else {
       // stash the local-mode fields so switching back restores them
-      const current = form.getFieldValue('extended_kv_cache');
+      const current = form.getFieldValue(path('extended_kv_cache'));
       configCacheRef.current = {
         ...configCacheRef.current,
         ..._.pick(current, ['chunk_size', 'ram_ratio', 'ram_size'])
       };
-      form.setFieldsValue({
-        extended_kv_cache: {
-          enabled: true,
-          mode: 'shared',
-          cache_service_id: value,
-          chunk_size: null,
-          ram_ratio: null,
-          ram_size: null
-        }
+      setCache({
+        enabled: true,
+        mode: 'shared',
+        cache_service_id: value,
+        chunk_size: null,
+        ram_ratio: null,
+        ram_size: null
       });
       await notifyValuesChangeDelayed({
         extended_kv_cache: { mode: 'shared', cache_service_id: value }
@@ -157,15 +184,15 @@ const KVCacheForm = () => {
     field: string
   ) => {
     if (!value) {
-      form.setFieldValue(['extended_kv_cache', field], null);
+      form.setFieldValue(path('extended_kv_cache', field), null);
     }
   };
 
   const handleRamSizeInput = (value: number | null | string) => {
     if (!value) {
-      form.setFieldValue(['extended_kv_cache', 'ram_size'], null);
+      form.setFieldValue(path('extended_kv_cache', 'ram_size'), null);
     } else {
-      form.setFieldValue(['extended_kv_cache', 'ram_size'], _.round(value));
+      form.setFieldValue(path('extended_kv_cache', 'ram_size'), _.round(value));
     }
     onValuesChange?.(
       {
@@ -192,60 +219,59 @@ const KVCacheForm = () => {
         if (!options) {
           return;
         }
-      const current = form.getFieldValue([
-        'extended_kv_cache',
-        'cache_service_id'
-      ]);
-      if (current != null && !options.some((item) => item.value === current)) {
-        form.setFieldsValue({
-          extended_kv_cache: {
+        const current = form.getFieldValue(
+          path('extended_kv_cache', 'cache_service_id')
+        );
+        if (
+          current != null &&
+          !options.some((item) => item.value === current)
+        ) {
+          setCache({
             mode: 'local',
             cache_service_id: null,
             ...localCacheFields()
-          }
-        });
-        // setFieldsValue does not fire onValuesChange: tell the parent
-        // explicitly so compatibility checks see the fallback
-        await notifyValuesChangeDelayed({
-          extended_kv_cache: { mode: 'local', cache_service_id: null }
-        });
-      }
-      if (!autoSelectPendingRef.current) {
-        return;
-      }
-      autoSelectPendingRef.current = false;
-      // A sole running compatible cache service becomes the default
-      // backend: its existence signals the cluster was provisioned for
-      // shared caching, and in-process is the fallback for clusters
-      // without one. Ambiguity (several services) stays with the user.
-      const eligible = options.filter((item) => !item.disabled);
-      const untouched =
-        form.getFieldValue(['extended_kv_cache', 'enabled']) &&
-        form.getFieldValue(['extended_kv_cache', 'mode']) !== 'shared' &&
-        form.getFieldValue(['extended_kv_cache', 'cache_service_id']) == null;
-      if (eligible.length === 1 && untouched) {
-        const currentConfig = form.getFieldValue('extended_kv_cache');
-        configCacheRef.current = {
-          ...configCacheRef.current,
-          ..._.pick(currentConfig, ['chunk_size', 'ram_ratio', 'ram_size'])
-        };
-        form.setFieldsValue({
-          extended_kv_cache: {
+          });
+          // setFieldsValue does not fire onValuesChange: tell the parent
+          // explicitly so compatibility checks see the fallback
+          await notifyValuesChangeDelayed({
+            extended_kv_cache: { mode: 'local', cache_service_id: null }
+          });
+        }
+        if (!autoSelectPendingRef.current) {
+          return;
+        }
+        autoSelectPendingRef.current = false;
+        // A sole running compatible cache service becomes the default
+        // backend: its existence signals the cluster was provisioned for
+        // shared caching, and in-process is the fallback for clusters
+        // without one. Ambiguity (several services) stays with the user.
+        const eligible = options.filter((item) => !item.disabled);
+        const untouched =
+          form.getFieldValue(path('extended_kv_cache', 'enabled')) &&
+          form.getFieldValue(path('extended_kv_cache', 'mode')) !== 'shared' &&
+          form.getFieldValue(path('extended_kv_cache', 'cache_service_id')) ==
+            null;
+        if (eligible.length === 1 && untouched) {
+          const currentConfig = form.getFieldValue(path('extended_kv_cache'));
+          configCacheRef.current = {
+            ...configCacheRef.current,
+            ..._.pick(currentConfig, ['chunk_size', 'ram_ratio', 'ram_size'])
+          };
+          setCache({
             enabled: true,
             mode: 'shared',
             cache_service_id: eligible[0].value,
             chunk_size: null,
             ram_ratio: null,
             ram_size: null
-          }
-        });
-        await notifyValuesChangeDelayed({
-          extended_kv_cache: {
-            mode: 'shared',
-            cache_service_id: eligible[0].value
-          }
-        });
-      }
+          });
+          await notifyValuesChangeDelayed({
+            extended_kv_cache: {
+              mode: 'shared',
+              cache_service_id: eligible[0].value
+            }
+          });
+        }
       })
       .catch(() => {
         // cancellation rejects the underlying request; nothing to do
@@ -262,12 +288,10 @@ const KVCacheForm = () => {
       !sharedSupported &&
       kvCacheMode === 'shared'
     ) {
-      form.setFieldsValue({
-        extended_kv_cache: {
-          mode: 'local',
-          cache_service_id: null,
-          ...localCacheFields()
-        }
+      setCache({
+        mode: 'local',
+        cache_service_id: null,
+        ...localCacheFields()
       });
       // setFieldsValue does not fire onValuesChange: tell the parent
       // explicitly so compatibility checks see the fallback
@@ -312,7 +336,7 @@ const KVCacheForm = () => {
     <>
       <Form.Item<FormData>
         data-field="extended_kv_cache.enabled"
-        name={['extended_kv_cache', 'enabled']}
+        name={path('extended_kv_cache', 'enabled')}
         valuePropName="checked"
         style={{ marginBottom: 8 }}
       >
@@ -330,14 +354,14 @@ const KVCacheForm = () => {
           {/* mode + service persist through these registered fields; the
               merged Select below drives them */}
           <Form.Item<FormData>
-            name={['extended_kv_cache', 'mode']}
+            name={path('extended_kv_cache', 'mode')}
             hidden
             getValueProps={(value) => ({ value: value ?? 'local' })}
           >
             <Input />
           </Form.Item>
           <Form.Item<FormData>
-            name={['extended_kv_cache', 'cache_service_id']}
+            name={path('extended_kv_cache', 'cache_service_id')}
             hidden
             getValueProps={(value) => ({ value: value ?? '' })}
           >
@@ -360,7 +384,9 @@ const KVCacheForm = () => {
           </Form.Item>
           {isLocal && (
             <>
-              <Form.Item<FormData> name={['extended_kv_cache', 'ram_ratio']}>
+              <Form.Item<FormData>
+                name={path('extended_kv_cache', 'ram_ratio')}
+              >
                 <CInputNumber
                   onChange={(value) => handleRamRatioChange(value, 'ram_ratio')}
                   label={intl.formatMessage({ id: 'models.form.ramRatio' })}
@@ -372,7 +398,7 @@ const KVCacheForm = () => {
                   precision={1}
                 />
               </Form.Item>
-              <Form.Item<FormData> name={['extended_kv_cache', 'ram_size']}>
+              <Form.Item<FormData> name={path('extended_kv_cache', 'ram_size')}>
                 <CInputNumber
                   onInput={(value) => handleRamSizeInput(value)}
                   label={intl.formatMessage({ id: 'models.form.ramSize' })}
@@ -391,7 +417,9 @@ const KVCacheForm = () => {
                   precision={0}
                 />
               </Form.Item>
-              <Form.Item<FormData> name={['extended_kv_cache', 'chunk_size']}>
+              <Form.Item<FormData>
+                name={path('extended_kv_cache', 'chunk_size')}
+              >
                 <CInputNumber
                   onChange={(value) =>
                     handleRamRatioChange(value, 'chunk_size')

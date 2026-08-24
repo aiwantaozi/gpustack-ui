@@ -1,7 +1,4 @@
-import {
-  HeaderLeft,
-  usePageContentStyle
-} from '@/pages/_components/page-box';
+import { HeaderLeft, usePageContentStyle } from '@/pages/_components/page-box';
 import { IconFont } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { useMemoizedFn } from 'ahooks';

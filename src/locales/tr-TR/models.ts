@@ -380,7 +380,100 @@ export default {
   // Model catalog source configuration
   'models.catalog.source.title': 'Katalog Kaynağı',
   'models.catalog.source.official':
-    'Follows the catalog GPUStack publishes, on top of the one packaged with this release.'
+    'Follows the catalog GPUStack publishes, on top of the one packaged with this release.',
+
+  // --- Prefill/decode disaggregation ---
+  'models.form.pd.enable': 'PD Ayrıştırma',
+  'models.form.pd.enable.off': 'Kapalı',
+  'models.form.pd.enable.on': 'PD Ayrıştırma',
+  'models.form.pd.enable.tips':
+    'Ön dolgu (prefill) ile kod çözmeyi (decode) ayrı örneklere böler; bedeli bir ek ağ atlaması ve bir KV aktarımıdır. Düşük eşzamanlılıkta, kısa istemlerde veya yüksek önek önbelleği isabetinde toplu dağıtım genellikle daha hızlıdır. Önce bir kıyaslama çalıştırın.',
+  'models.form.pd.mode': 'PD Modu',
+  'models.form.pd.mode.holder': 'Bir PD modu seçin',
+  'models.form.pd.mode.tips':
+    'Bağlantı durumu parametrelerinin tümü - connector, portlar, karşı taraf adresleri - seçilen moddan türetilir; elle ayarlanmaz.',
+  'models.form.pd.mode.custom.tips':
+    'Özel modda hiçbir bağlantı parametresi eklenmez: --kv-transfer-config, portlar ve karşı taraf adreslerini kendiniz vermelisiniz.',
+  'models.form.pd.mode.backend.mismatch':
+    '{targets} gerekiyor; seçili motor {backend}. Roller arasında motor karıştırmak için Özel modu kullanın.',
+  'models.form.pd.replicas.moved':
+    'PD dağıtımında replika sayıları her rol için ayrı ayarlanır.',
+  'models.form.pd.disabled.gguf':
+    'PD ayrıştırma yalnızca vLLM / SGLang motorlarını destekler; bu model GGUF biçiminde.',
+  'models.form.pd.disabled.backend':
+    'PD ayrıştırma yalnızca vLLM / SGLang motorlarını destekler. Diğer motorlar Özel mod ile kullanılabilir.',
+  'models.form.pd.disabled.schedule':
+    'PD dağıtımı için zamanlanmış ölçekleme kullanılamaz. Rol başına replika sayısıyla ölçekleyin.',
+  'models.form.pd.cache.cleared':
+    'PD dağıtımında KV önbelleği rol başına ayarlanır; model düzeyindeki ayar temizlendi. Gereken roller için tek tek seçin.',
+  'models.form.roles': 'Roller',
+  'models.form.roles.prefill': 'Prefill',
+  'models.form.roles.decode': 'Decode',
+  'models.form.roles.router': 'Router',
+  'models.form.roles.inherit': 'Modelle aynı',
+  'models.form.roles.override': 'Özel',
+  'models.form.roles.inherited': 'Devralınan',
+  'models.form.roles.group.backend': 'Motor ve imaj',
+  'models.form.roles.group.parameters': 'Parametreler ve ortam değişkenleri',
+  'models.form.roles.group.scheduling': 'Kaynaklar ve zamanlama',
+  'models.form.roles.group.cache': 'Paylaşılan KV önbelleği',
+  'models.form.roles.replicas': 'Replikalar',
+  'models.form.roles.router.managed': 'Sistem tarafından yönetilir',
+  'models.form.roles.router.replicas.tips':
+    'Bu sürümde Router tek replika çalışır.',
+  'models.form.roles.router.order.tips':
+    'Router, Prefill ve Decode hazır olduktan sonra oluşturulur.',
+  'models.form.roles.router.custom.forced':
+    'Özel PD modu Router türetmez. İmajını ve başlatma komutunu verin.',
+  'models.form.roles.router.peers':
+    'Prefill / Decode örnek adresleri dağıtımdan sonra sistem tarafından eklenir.',
+  'models.form.roles.cache.holder': 'Kullanılmıyor',
+  'models.form.roles.cache.tips':
+    'Bağlantı yöntemi ve öncelik sırası sistem tarafından türetilir; ayar gerekmez.',
+  'models.form.roles.cache.custom.conflict':
+    'Özel PD modunda motor parametrelerinde --kv-transfer-config gerekir; bu nedenle önbellek servisi de seçilemez.',
+  'models.form.roles.cache.param.conflict':
+    'Seçili PD modu ile çakışıyor. Özel moda geçin veya --kv-transfer-config parametresini kaldırın.',
+  'models.state.pending': 'Bekliyor',
+  'models.state.partial': 'Kısmen hazır',
+  'models.state.running': 'Çalışıyor',
+  'models.state.error': 'Hata',
+  'models.pd.tag': 'PD',
+  'models.pd.roles.detail': 'Rol başına durum',
+  'models.pd.role.waiting': 'Bekliyor',
+  'models.pd.replicas.readonly':
+    'PD dağıtımı için rol başına replika sayılarını Düzenle içinde ayarlayın.',
+  'models.pd.degraded.cache':
+    'Paylaşılan KV önbelleği bağlanmadı; grup onsuz hizmet veriyor.',
+  'models.pd.degraded.ratio':
+    'Hazır üye sayısı istenenden az; dağıtım düşük kapasiteyle hizmet veriyor.',
+  'models.pd.heterogeneous.warning':
+    'Prefill ve Decode farklı GPU türleri kullanıyor; grup atomik olarak kabul edilemez: eşzamanlı gönderimde yalnızca bazı roller başlayabilir.',
+  'models.pd.admission.infeasible':
+    'Mevcut kapasite bu grubu barındıramıyor (gereken {required}, mevcut {available}). Replika sayısını azaltın, dilimlenmiş kart türü kullanın veya düğüm ekleyin.',
+  'models.pd.effectiveness.degraded':
+    'PD toplu sunuma geriledi - KV aktarımı algılanmadı. PD modunu ve motor parametrelerini kontrol edin.',
+  'models.pd.bandwidth.degraded':
+    'KV aktarım yolu bozulmuş olabilir: şimdi {actual}, grup başlangıcında {baseline} ({delta} düşüş).',
+  'models.pd.ratio.waiting':
+    'Oran {configured} (şu an {current}, {role} bekleniyor)',
+  'models.pd.group.restarting':
+    'Grup yeniden başlatılıyor: {stopped}/{total} durduruldu, {ready}/{total} yeniden oluşturuldu',
+  'models.pd.group.restart.confirm':
+    'Bu değişiklik tüm PD grubunun yeniden başlatılmasını gerektirir: önce {total} örneğin tümü durdurulur, sonra yeni yapılandırmayla yeniden oluşturulur; bu sürede model kullanılamaz.',
+  'models.pd.instance.stale':
+    'Bu örnek eski bir yapılandırmayla çalışıyor; değişikliği uygulamak için grubu yeniden başlatın.',
+  'models.pd.stale':
+    'Yapılandırma değişti; uygulamak için grubu yeniden başlatın.',
+  'models.pd.group.id': 'Grup',
+  'models.form.pd.disabled.gpus':
+    'PD ayrıştırma en az 2 kullanılabilir GPU gerektirir (bir Prefill, bir Decode); seçili kümede {count} adet var.',
+  'models.pd.ratio': 'Oran',
+  'models.form.roles.router.health': 'Sağlık kontrolü',
+  'models.form.roles.router.peerslabel': 'Karşı taraflar',
+  'models.form.roles.cpuonly': 'Yalnızca CPU',
+  'models.form.roles.cpuonly.tips':
+    'Router yalnızca istekleri iletir ve model ağırlığı tutmaz, bu yüzden GPU kullanmaz.'
 };
 
 // ========== To-Do: Translate Keys (Remove After Translation) ==========

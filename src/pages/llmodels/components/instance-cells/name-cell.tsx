@@ -6,7 +6,7 @@ import {
   PieChartFilled,
   ThunderboltFilled
 } from '@ant-design/icons';
-import { AutoTooltip, IconFont } from '@gpustack/core-ui';
+import { AutoTooltip, IconFont, TextAttribute } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { Tooltip } from 'antd';
 import _ from 'lodash';
@@ -15,6 +15,7 @@ import { ModelInstanceListItem } from '../../config/types';
 import { useGPUTypeDisplayName } from '../../hooks/use-gpu-type-display-name';
 import '../../style/instance-item.less';
 import { calcTotalVram } from '../../utils';
+import { roleLabel } from '../pd/role-status';
 import {
   formatGPUTypeAllocation,
   getGPUTypeClusterId,
@@ -140,6 +141,7 @@ const NameCell: React.FC<NameCellProps> = ({
   showWorkerInfo = true,
   styles
 }) => {
+  const intl = useIntl();
   return (
     <span className="instance-name flex-center" style={{ gap: 4 }}>
       <AutoTooltip title={record.name} ghost>
@@ -147,6 +149,20 @@ const NameCell: React.FC<NameCellProps> = ({
           {record.name}
         </span>
       </AutoTooltip>
+      {/* Which role of the group this member serves — a note on the name, not a
+          category of its own, which is what `TextAttribute` is for. Absent for
+          every single-role deployment, so those cells are untouched. */}
+      {!!record.role && (
+        <TextAttribute>{roleLabel(intl, record.role)}</TextAttribute>
+      )}
+      {/* `stale` is model-level: the group is one generation at a time, and the
+          per-instance truth (`spec_digest` against the model's current digest)
+          needs a digest the API does not expose yet. */}
+      {!!modelData?.stale && (
+        <Tooltip title={intl.formatMessage({ id: 'models.pd.instance.stale' })}>
+          <TextAttribute variant="outlined">stale</TextAttribute>
+        </Tooltip>
+      )}
       {!!record.worker_id && showWorkerInfo && (
         <WorkerInfo
           title={

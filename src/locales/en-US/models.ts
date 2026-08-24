@@ -380,5 +380,97 @@ export default {
   // Model catalog source configuration
   'models.catalog.source.title': 'Catalog Source',
   'models.catalog.source.official':
-    'Follows the catalog GPUStack publishes, on top of the one packaged with this release.'
+    'Follows the catalog GPUStack publishes, on top of the one packaged with this release.',
+
+  // --- Prefill/decode disaggregation ---
+  'models.form.pd.enable': 'PD Disaggregation',
+  'models.form.pd.enable.off': 'Off',
+  'models.form.pd.enable.on': 'PD Disaggregation',
+  'models.form.pd.enable.tips':
+    'Splits prefill and decode onto separate instances, at the cost of one extra network hop and one KV transfer. Aggregated deployment is usually faster at low concurrency, with short prompts, or with a high prefix cache hit rate. Benchmark the aggregated deployment first.',
+  'models.form.pd.mode': 'PD Mode',
+  'models.form.pd.mode.holder': 'Select a PD mode',
+  'models.form.pd.mode.tips':
+    'Every connection-state parameter - connector, ports, peer addresses - is derived from the selected mode. None of them is configured by hand.',
+  'models.form.pd.mode.custom.tips':
+    'Custom mode injects nothing: you must supply --kv-transfer-config, the ports and the peer addresses yourself.',
+  'models.form.pd.mode.backend.mismatch':
+    'Requires {targets}; the selected engine is {backend}. Mixing engines across roles needs the Custom mode.',
+  'models.form.pd.replicas.moved':
+    'Replica counts for a PD deployment are set per role.',
+  'models.form.pd.disabled.gguf':
+    'PD disaggregation supports the vLLM and SGLang engines only; this model is in GGUF format.',
+  'models.form.pd.disabled.backend':
+    'PD disaggregation supports the vLLM and SGLang engines only. Other engines can still use it through the Custom mode.',
+  'models.form.pd.disabled.schedule':
+    'Scheduled scaling is not available for a PD deployment. Scale it through the per-role replica counts.',
+  'models.form.pd.cache.cleared':
+    'KV cache is configured per role for a PD deployment; the model-level setting has been cleared. Select it for the roles that need it.',
+  'models.form.roles': 'Roles',
+  'models.form.roles.prefill': 'Prefill',
+  'models.form.roles.decode': 'Decode',
+  'models.form.roles.router': 'Router',
+  'models.form.roles.inherit': 'Same as model',
+  'models.form.roles.override': 'Custom',
+  'models.form.roles.inherited': 'Inherited',
+  'models.form.roles.group.backend': 'Engine and image',
+  'models.form.roles.group.parameters': 'Parameters and environment',
+  'models.form.roles.group.scheduling': 'Resources and scheduling',
+  'models.form.roles.group.cache': 'Shared KV cache',
+  'models.form.roles.replicas': 'Replicas',
+  'models.form.roles.router.managed': 'Managed by the system',
+  'models.form.roles.router.replicas.tips':
+    'The Router runs a single replica in this release.',
+  'models.form.roles.router.order.tips':
+    'The Router is created after Prefill and Decode are ready.',
+  'models.form.roles.router.custom.forced':
+    'The Custom PD mode derives no Router. Provide its image and start command.',
+  'models.form.roles.router.peers':
+    'Prefill and Decode instance addresses are injected by the system after deployment.',
+  'models.form.roles.cache.holder': 'Not used',
+  'models.form.roles.cache.tips':
+    'The connection method and priority order are derived by the system; no configuration needed.',
+  'models.form.roles.cache.custom.conflict':
+    'The Custom PD mode needs --kv-transfer-config in the engine parameters, so a cache service cannot also be selected.',
+  'models.form.roles.cache.param.conflict':
+    'Conflicts with the selected PD mode. Switch to the Custom mode, or remove --kv-transfer-config.',
+  'models.state.pending': 'Pending',
+  'models.state.partial': 'Partially ready',
+  'models.state.running': 'Running',
+  'models.state.error': 'Error',
+  'models.pd.tag': 'PD',
+  'models.pd.roles.detail': 'Per-role status',
+  'models.pd.role.waiting': 'Waiting',
+  'models.pd.replicas.readonly':
+    'Adjust the per-role replica counts in Edit for a PD deployment.',
+  'models.pd.degraded.cache':
+    'The shared KV cache was not attached; the group is serving without it.',
+  'models.pd.degraded.ratio':
+    'Fewer members ready than requested; the deployment is serving at reduced capacity.',
+  'models.pd.heterogeneous.warning':
+    'Prefill and Decode use different GPU types, so the group cannot be admitted atomically: a concurrent submission may start only some of the roles.',
+  'models.pd.admission.infeasible':
+    'The available capacity cannot hold this group (needs {required}, available {available}). Reduce the replica counts, use a sliced card type, or add nodes.',
+  'models.pd.effectiveness.degraded':
+    'PD has degraded to aggregated serving - no KV transfer detected. Check the PD mode and the engine parameters.',
+  'models.pd.bandwidth.degraded':
+    'The KV transfer path may have degraded: {actual} now, {baseline} at group start (down {delta}).',
+  'models.pd.ratio.waiting':
+    'Ratio {configured} (currently {current}, waiting for {role})',
+  'models.pd.group.restarting':
+    'Restarting the group: {stopped}/{total} stopped, {ready}/{total} rebuilt and ready',
+  'models.pd.group.restart.confirm':
+    'This change needs the whole PD group restarted: all {total} instances are stopped first and rebuilt with the new configuration, and the model is unavailable in between.',
+  'models.pd.instance.stale':
+    'This instance is running an older configuration; restart the group to apply the change.',
+  'models.pd.stale': 'Configuration changed; restart the group to apply it.',
+  'models.pd.group.id': 'Group',
+  'models.form.pd.disabled.gpus':
+    'PD disaggregation needs at least 2 available GPUs (one Prefill, one Decode); the selected cluster has {count}.',
+  'models.pd.ratio': 'Ratio',
+  'models.form.roles.router.health': 'Health check',
+  'models.form.roles.router.peerslabel': 'Peers',
+  'models.form.roles.cpuonly': 'CPU only',
+  'models.form.roles.cpuonly.tips':
+    'The router forwards requests and holds no model weights, so it takes no GPU.'
 };

@@ -40,7 +40,10 @@ import { useQueryContextLength } from '../services/use-query-context-length';
 import { derivesNativeAnthropicApi, generateGPUIds } from '../utils';
 import AdvanceConfig from './advance-config';
 import BasicForm from './basic';
+import PDDisaggregation, { PDEffects } from './pd-disaggregation';
 import Performance from './performance';
+import Roles from './roles';
+import { rolesFormToPayload } from './roles/transform';
 import ScheduleTypeForm from './schedule-type';
 import ScheduledScalingForm from './scheduled-scaling';
 
@@ -79,6 +82,8 @@ interface DataFormProps {
 
 const TABKeysMap = {
   BASIC: 'basic',
+  PD: 'pd',
+  ROLES: 'roles',
   SCHEDULING: 'scheduling',
   PERFORMANCE: 'performance',
   ADVANCED: 'advanced'
@@ -117,6 +122,29 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
   const modelScopeModelId = Form.useWatch('model_scope_model_id', form);
   const huggingfaceRepoId = Form.useWatch('huggingface_repo_id', form);
   const scrollTabsRef = React.useRef<any>(null);
+  // Reported by the PD block, applied here: the effects land on sections the
+  // block does not own (`replicas`, `scaling_schedule`, `extended_kv_cache`),
+  // so it names them and this owner writes them.
+  const [pdEffects, setPDEffects] = React.useState<PDEffects>({
+    enabled: false,
+    mode: null,
+    isCustomMode: false,
+    replicasLocked: false,
+    scalingDisabled: false,
+    clearModelKVCache: false
+  });
+
+  // `clearModelKVCache` is a one-shot instruction, so consume it where it
+  // arrives rather than letting it sit true and re-clear on every render.
+  const handlePDEffectsChange = (next: PDEffects) => {
+    setPDEffects(next);
+    if (next.clearModelKVCache) {
+      form.setFieldValue('extended_kv_cache', { enabled: false });
+    }
+    if (next.replicasLocked) {
+      form.setFieldValue('replicas', 1);
+    }
+  };
 
   const segmentOptions = [
     {
@@ -125,6 +153,24 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
       icon: <IconFont type="icon-basic" />,
       field: 'name'
     },
+    {
+      value: TABKeysMap.PD,
+      label: intl.formatMessage({ id: 'models.form.pd.enable' }),
+      icon: <IconFont type="icon-model" />,
+      field: 'pdMode'
+    },
+    // Only reachable once PD is on: an always-present Roles tab on a plain
+    // model would advertise a section that renders nothing.
+    ...(pdEffects.enabled
+      ? [
+          {
+            value: TABKeysMap.ROLES,
+            label: intl.formatMessage({ id: 'models.form.roles' }),
+            icon: <IconFont type="icon-model" />,
+            field: 'roles'
+          }
+        ]
+      : []),
     {
       value: TABKeysMap.PERFORMANCE,
       label: intl.formatMessage({ id: 'models.form.performance' }),
@@ -249,9 +295,22 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
     }
     const gpuSelector = generateGPUIds(data);
     const allValues = {
-      ..._.omit(data, ['scheduleType', 'manualGpuMode']),
+      // `pdMode` joins the UI-only pair: it says which Segmented state is
+      // selected, while `disaggregation` is what carries the intent.
+      ..._.omit(data, ['scheduleType', 'manualGpuMode', 'pdMode']),
       ...gpuSelector
     };
+    // A group left on "same as model" submits its fields as null, which is the
+    // wire's word for inherit — so the transform is what makes the form's shape
+    // and the payload's shape the same. `null` rather than `[]` for no roles:
+    // an empty array is a group with no members, while null is the plain
+    // single-role deployment every model is today.
+    if (pdEffects.enabled) {
+      allValues.roles = rolesFormToPayload(data.roles);
+    } else {
+      allValues.roles = null;
+      allValues.disaggregation = null;
+    }
     // Don't persist a disabled schedule — send null so the model carries no
     // scaling config unless the user explicitly enabled it.
     if (!allValues.scaling_schedule?.enabled) {
@@ -546,6 +605,34 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
             accordion={false}
             onChange={handleOnCollapseChange}
             items={[
+              {
+                key: TABKeysMap.PD,
+                label: intl.formatMessage({ id: 'models.form.pd.enable' }),
+                forceRender: true,
+                children: (
+                  <PDDisaggregation
+                    onEffectsChange={handlePDEffectsChange}
+                  ></PDDisaggregation>
+                )
+              },
+              // Rendered only with PD on. `forceRender` would defeat that:
+              // the roles module must register no field on a plain model, or
+              // an unrelated deployment's payload would grow a `roles` key.
+              ...(pdEffects.enabled
+                ? [
+                    {
+                      key: TABKeysMap.ROLES,
+                      label: intl.formatMessage({ id: 'models.form.roles' }),
+                      children: (
+                        <Roles
+                          enabled={pdEffects.enabled}
+                          mode={pdEffects.modeData}
+                          modeName={pdEffects.mode}
+                        ></Roles>
+                      )
+                    }
+                  ]
+                : []),
               {
                 key: TABKeysMap.PERFORMANCE,
                 label: intl.formatMessage({ id: 'models.form.performance' }),

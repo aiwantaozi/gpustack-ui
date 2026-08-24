@@ -1,24 +1,40 @@
 // columns.ts
 import { systemConfigAtom } from '@/atoms/system';
+import { StatusMaps } from '@/config';
 import { OPENAI_COMPATIBLE, tableSorter } from '@/config/settings';
 import { TargetStatusValueMap } from '@/pages/model-routes/config';
 import { usePluginListColumns } from '@/plugins/list-extra-columns';
-import { QuestionCircleOutlined } from '@ant-design/icons';
+import { InfoCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import {
   AutoTooltip,
   DropdownButtons,
   GrafanaIcon,
   icons,
+  StatusTag,
+  ThemeTag,
   type TableColumnProps
 } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { useMemoizedFn } from 'ahooks';
 import { Flex, Tooltip } from 'antd';
+import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
 import { useAtomValue } from 'jotai';
 import _ from 'lodash';
 import { useMemo } from 'react';
 import ModelTag from '../../_components/model-tag';
+import PDMarkers from '../components/pd/pd-markers';
+import RoleStatusDetail from '../components/pd/role-status-detail';
+import {
+  isModelServable,
+  isPDModel,
+  modelReplicaCounts,
+  ModelStateLabelMap,
+  ModelStateMap,
+  ModelStateValueMap,
+  MyModelsStatusLabelMap,
+  MyModelsStatusValueMap
+} from '../config';
 import { generateSource } from '../config/button-actions';
 import { ListItem } from '../config/types';
 interface ActionItem {
@@ -30,19 +46,22 @@ interface ActionItem {
   };
 }
 
-const Dot = ({ color }: { color: string }) => {
-  return (
-    <span
-      style={{
-        backgroundColor: color,
-        borderRadius: '50%',
-        height: 8,
-        width: 8,
-        display: 'flex'
-      }}
-    ></span>
-  );
-};
+const useStyles = createStyles(({ css }) => ({
+  // Suppressing the inline editor on one row only.
+  //
+  // core-ui's editable cell renders its pencil as the *next sibling* of
+  // whatever the column's `render` returned, and `editable` is a column-level
+  // prop with no per-row form — so `render` is the only per-row hook there is.
+  // A PD row uses it to take the pencil away, since its replica counts live on
+  // the roles and are edited in the drawer. Every other row is untouched,
+  // which is what keeps a role-less model's replica cell exactly what it is
+  // today.
+  readonlyReplicas: css`
+    & + span {
+      display: none;
+    }
+  `
+}));
 
 const ActionList: ActionItem[] = [
   {
@@ -107,12 +126,19 @@ const useModelsColumns = ({
   const intl = useIntl();
   const systemConfig = useAtomValue(systemConfigAtom);
   const pluginCols = usePluginListColumns('llmodels');
+  const { styles } = useStyles();
 
   const setModelActionList = useMemoizedFn((record: any) => {
     return _.filter(ActionList, (action: any) => {
       if (action.key === 'chat') {
+        // `isModelServable` is the whole servability half of this gate: under
+        // PD a running-instance count no longer implies the model can answer
+        // (a 3P1D with its router down is four RUNNING instances and zero
+        // service), so the counter is not it. The route-target half stays —
+        // it is a different question, "is there a live route to send the
+        // playground at", and the playground is opened by route name.
         return (
-          record.ready_replicas > 0 &&
+          isModelServable(record) &&
           targetList?.find(
             (target) =>
               target.model_id === record.id &&
@@ -136,20 +162,38 @@ const useModelsColumns = ({
     });
   });
 
-  const getColor = (record: ListItem) => {
-    if (!record.replicas && !record.ready_replicas) {
-      return 'var(--ant-color-fill-secondary)';
+  // The replica cell's status, straight off `Model.state` — the UI never
+  // recomputes that judgement, because a second implementation of it would
+  // drift from the backend's.
+  //
+  // Two reads around it, neither of them a judgement:
+  //  - `state` is NULL between a model's creation and the first reconcile
+  //    pass over it. `isModelServable` handles that window by reading the
+  //    counter; the same fallback here keeps the cell from going blank.
+  //  - `replicas === 0` with nothing left running is the deployment switch
+  //    being off, which the lifecycle has no value for — it reports PENDING.
+  //    That is the one case today's cell greys out, and it stays grey.
+  const replicaStatus = useMemoizedFn((record: ListItem, ready: number) => {
+    if (!record.replicas && !ready) {
+      return {
+        status: StatusMaps.inactive,
+        text: intl.formatMessage({
+          id: MyModelsStatusLabelMap[MyModelsStatusValueMap.Stopped]
+        }),
+        message: ''
+      };
     }
-
-    if (record.replicas > 0 && !record.ready_replicas) {
-      return 'var(--ant-color-warning)';
-    }
-
-    if (record.ready_replicas > 0 && record.replicas > 0) {
-      return 'var(--ant-color-success)';
-    }
-    return 'var(--ant-color-warning)';
-  };
+    const state =
+      record.state ||
+      (ready > 0 ? ModelStateValueMap.Running : ModelStateValueMap.Pending);
+    return {
+      status: ModelStateMap[state] || StatusMaps.inactive,
+      text: ModelStateLabelMap[state]
+        ? intl.formatMessage({ id: ModelStateLabelMap[state] })
+        : state,
+      message: record.state_message || ''
+    };
+  });
 
   return useMemo(() => {
     // Two prebuilt span maps for the 24-unit SealTable grid: one for
@@ -196,6 +240,22 @@ const useModelsColumns = ({
               <span className="text-primary font-400">{text}</span>
             </AutoTooltip>
             <ModelTag categoryKey={record.categories?.[0] || ''} />
+            {/* Gated on the mode, not on `roles`: roles alone are plain
+                multi-role orchestration, and only a mode makes it PD. The
+                mode itself goes in the tooltip — the catalog's display names
+                come from an endpoint the list does not call, and the column
+                has no room for a slug beside the category tag. */}
+            {!!record.disaggregation?.mode && (
+              <Tooltip
+                title={`${intl.formatMessage({
+                  id: 'models.form.pd.mode'
+                })}: ${record.disaggregation.mode}`}
+              >
+                <ThemeTag>
+                  {intl.formatMessage({ id: 'models.pd.tag' })}
+                </ThemeTag>
+              </Tooltip>
+            )}
           </Flex>
         )
       },
@@ -248,20 +308,84 @@ const useModelsColumns = ({
           valueType: 'number',
           title: intl.formatMessage({ id: 'models.table.replicas.edit' })
         },
-        render: (text: number, record: ListItem) => (
-          <span
-            style={{
-              minWidth: '23px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              color: 'var(--ant-color-text)'
-            }}
-          >
-            <Dot color={getColor(record)}></Dot>
-            {record.ready_replicas} / {record.replicas}
-          </span>
-        )
+        render: (text: number, record: ListItem) => {
+          // Not `ready_replicas / replicas`: under PD `Model.replicas` is a
+          // 0/1 deployment switch, so a 4P1D would render "5 / 1". The
+          // declared size of a group is the sum of its roles' counts, which is
+          // what `modelReplicaCounts` returns — and it degenerates to
+          // `replicas` for a model without roles, leaving that cell's numbers
+          // unchanged.
+          const { ready, total } = modelReplicaCounts(record);
+          const isPD = isPDModel(record);
+          const cell = (
+            <Flex
+              component="span"
+              align="center"
+              gap={8}
+              className={isPD ? styles.readonlyReplicas : undefined}
+              style={{
+                minWidth: 23,
+                color: 'var(--ant-color-text)',
+                cursor: isPD ? 'default' : undefined
+              }}
+            >
+              <StatusTag statusValue={replicaStatus(record, ready)} />
+              <span style={{ flexShrink: 0 }}>
+                {ready} / {total}
+              </span>
+              {isPD && (
+                <>
+                  {/* Markers, never a replacement for the colour above:
+                      a stale group is usually still serving and a degraded one
+                      is serving worse than asked for. Both carry their
+                      reason. */}
+                  <PDMarkers
+                    stale={record.stale}
+                    degradations={record.degradations}
+                  />
+                  <InfoCircleOutlined
+                    style={{
+                      flexShrink: 0,
+                      color: 'var(--ant-color-text-tertiary)'
+                    }}
+                  />
+                </>
+              )}
+            </Flex>
+          );
+          if (!isPD) {
+            return cell;
+          }
+          // The per-role breakdown has to work on the list response, which
+          // carries no instances — hence `role_status` rather than a count of
+          // the expanded row's children. The footer is where the missing
+          // pencil is accounted for.
+          return (
+            <Tooltip
+              title={
+                <RoleStatusDetail
+                  roleStatus={record.role_status}
+                  roles={record.roles}
+                  footer={
+                    <span
+                      style={{
+                        marginTop: 4,
+                        color: 'var(--ant-color-text-light-solid)',
+                        opacity: 0.75
+                      }}
+                    >
+                      {intl.formatMessage({
+                        id: 'models.pd.replicas.readonly'
+                      })}
+                    </span>
+                  }
+                ></RoleStatusDetail>
+              }
+            >
+              {cell}
+            </Tooltip>
+          );
+        }
       },
       {
         title: intl.formatMessage({ id: 'common.table.createTime' }),
@@ -294,7 +418,9 @@ const useModelsColumns = ({
     intl,
     handleSelect,
     setModelActionList,
-    pluginCols
+    replicaStatus,
+    pluginCols,
+    styles.readonlyReplicas
   ]);
 };
 

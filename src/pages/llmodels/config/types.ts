@@ -51,6 +51,121 @@ export interface ListItem {
   };
   gpu_type_selector?: GPUTypeSelector | null;
   worker_selector?: object;
+
+  // --- PD: user intent ---
+  roles?: RoleSpec[] | null;
+  disaggregation?: DisaggregationSpec | null;
+
+  // --- PD: server-owned status, read-only ---
+  //
+  // `state` answers exactly one question: can this serve. It is NOT
+  // `ready_replicas > 0` under PD — a 3P1D whose router is down is four
+  // running instances and zero service. Being up but worse than asked for
+  // lives beside it in `degradations`, never inside it, so `state === 'running'`
+  // is the servability gate everywhere with no per-shape special case.
+  state?: string | null;
+  state_message?: string | null;
+  // Per-role detail for the row's hover panel, and the source of the replica
+  // column's denominator under PD.
+  role_status?: Record<string, RoleStatus> | null;
+  // A member predates the config it is shown with. Orthogonal to `state`: a
+  // stale group is usually still serving.
+  stale?: boolean | null;
+  // `DegradationValueMap` values, and a list because they coexist.
+  degradations?: string[] | null;
+}
+
+// ---------------------------------------------------------------------------
+// Prefill/decode disaggregation.
+//
+// A model with `roles` set is a *group*: one pool, one router, one generation
+// at a time. `roles` alone is plain multi-role orchestration; both together is
+// PD. `roles` absent is every model that exists today, and that path must stay
+// byte-for-byte what it is.
+// ---------------------------------------------------------------------------
+
+// One role's overrides. Every deployment field left undefined inherits the
+// Model-level field of the same name, which is what lets a homogeneous 1P1D
+// be "flip a switch and type two numbers" rather than three full forms. The
+// override surface is the *whole* of `backend_parameters` and `env` on
+// purpose: measured on Ascend 910B2, prefill and decode differ in nearly every
+// performance-related parameter.
+export interface RoleSpec {
+  name: string;
+  replicas: number;
+  backend?: string | null;
+  backend_version?: string | null;
+  image_name?: string | null;
+  run_command?: string | null;
+  backend_parameters?: string[] | null;
+  env?: Record<string, any> | null;
+  gpu_selector?: {
+    gpu_ids?: string[];
+    gpus_per_replica?: number;
+  } | null;
+  worker_selector?: Record<string, any> | null;
+  // The only entry point for a heterogeneous group, and the precondition for
+  // gang admission.
+  gpu_type_selector?: GPUTypeSelector | null;
+  extended_kv_cache?: Record<string, any> | null;
+  dependencies?: string[] | null;
+  cpu_only?: boolean;
+}
+
+// The form's shape for a role: `RoleSpec` plus the per-group override
+// switches, which are UI-only and stripped before submit. A switch left off
+// means the group's fields submit as null, so the form and the payload are the
+// same shape and nothing has to guess which fields to drop.
+export interface RoleFormItem extends RoleSpec {
+  overrides?: Record<string, boolean>;
+  // Router only: "managed by the system" versus hand-written.
+  managed?: boolean;
+}
+
+export interface DisaggregationSpec {
+  mode: string;
+  readiness?: 'any_per_role' | 'all';
+  kv_load_failure_policy?: 'fail' | 'recompute';
+  router_kind?: string | null;
+}
+
+// Per-role readiness detail, carried on the model row rather than computed per
+// request: the list endpoint returns models without their instances, and the
+// list needs per-role detail on a row the user has not expanded.
+export interface RoleStatus {
+  desired: number;
+  ready: number;
+}
+
+// One entry of `GET /v2/pd-modes`. Deliberately loose below the fields the UI
+// reads: the catalog's whole point is that adding an engine is a YAML change,
+// so the UI must not mirror its full schema.
+export interface PDMode {
+  name: string;
+  display_name: string;
+  description?: string;
+  backends: string[];
+  backend_versions?: Record<string, string> | null;
+  runtime?: string | null;
+  roles?: Record<string, any>;
+  router?: {
+    protocol?: string;
+    image?: string | null;
+    command?: string | null;
+    health_path?: string | null;
+    capabilities?: Record<string, boolean>;
+    peers?: Record<string, any>;
+  } | null;
+  kv_lease?: {
+    connector?: string;
+    param?: string | null;
+    inject_to?: string | null;
+    settable?: boolean;
+    engine_default?: number | null;
+    gpustack_default?: number | null;
+    expired_metric?: string | null;
+    description?: string | null;
+  } | null;
 }
 
 // vGPU scheduling (issue #5192): deploy onto a GPU provided by a
@@ -164,6 +279,13 @@ export interface FormData {
   };
   scaling_schedule?: ScalingSchedule | null;
   max_context_len: number;
+
+  // --- PD ---
+  // UI-only: which of the Segmented's modes is selected. Stripped before
+  // submit; `disaggregation` is what carries the intent.
+  pdMode?: string;
+  roles?: RoleFormItem[] | null;
+  disaggregation?: DisaggregationSpec | null;
 }
 
 export interface ScalingScheduleRule {
@@ -199,6 +321,18 @@ export interface DistributedServers {
   subordinate_workers: DistributedServerItem[];
 }
 export interface ModelInstanceListItem {
+  // --- PD ---
+  // Which role of the parent Model this instance serves; absent for a plain
+  // single-role deployment.
+  role?: string | null;
+  // Shared by every member of one group. A group is a *generation*, not a
+  // replica index — pairing binds to this rather than to peer addresses,
+  // because serving ports were measured to change on every rebuild.
+  group_id?: string | null;
+  // The generation this instance was created from. Differing from the model's
+  // current digest is what makes the model stale.
+  spec_digest?: string | null;
+  named_ports?: Record<string, { base: number; count: number }> | null;
   backend?: string;
   cluster_id: number;
   // Inherited from the parent Model's owner_principal_id on the

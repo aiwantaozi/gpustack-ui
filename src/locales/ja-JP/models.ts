@@ -381,7 +381,100 @@ export default {
   // Model catalog source configuration
   'models.catalog.source.title': 'カタログのソース',
   'models.catalog.source.official':
-    'Follows the catalog GPUStack publishes, on top of the one packaged with this release.'
+    'Follows the catalog GPUStack publishes, on top of the one packaged with this release.',
+
+  // --- Prefill/decode disaggregation ---
+  'models.form.pd.enable': 'PD 分離',
+  'models.form.pd.enable.off': '無効',
+  'models.form.pd.enable.on': 'PD 分離',
+  'models.form.pd.enable.tips':
+    'プレフィル（Prefill）とデコード（Decode）を別インスタンスに分割します。代償はネットワーク 1 ホップと KV 転送 1 回です。同時実行数が少ない、プロンプトが短い、プレフィックスキャッシュのヒット率が高い場合は、集約デプロイの方が高速なことが多いです。まずベンチマークを取ることを推奨します。',
+  'models.form.pd.mode': 'PD モード',
+  'models.form.pd.mode.holder': 'PD モードを選択',
+  'models.form.pd.mode.tips':
+    '接続関連のパラメータ（connector・ポート・対向アドレス）はすべて選択したモードから導出されます。手動設定は不要です。',
+  'models.form.pd.mode.custom.tips':
+    'カスタムモードでは接続パラメータを一切注入しません。--kv-transfer-config、ポート、対向アドレスを自身で指定してください。',
+  'models.form.pd.mode.backend.mismatch':
+    '{targets} が必要ですが、現在のエンジンは {backend} です。ロール間でエンジンを混在させる場合は「カスタム」モードを選択してください。',
+  'models.form.pd.replicas.moved':
+    'PD デプロイのレプリカ数は各ロールで個別に設定します。',
+  'models.form.pd.disabled.gguf':
+    'PD 分離は vLLM / SGLang エンジンのみ対応しています。現在のモデルは GGUF 形式です。',
+  'models.form.pd.disabled.backend':
+    'PD 分離は vLLM / SGLang エンジンのみ対応です。他のエンジンは「カスタム」モードで利用できます。',
+  'models.form.pd.disabled.schedule':
+    'PD デプロイは定時スケーリングに未対応です。各ロールのレプリカ数で調整してください。',
+  'models.form.pd.cache.cleared':
+    'PD デプロイでは KV キャッシュをロール単位で設定します。モデルレベルの設定はクリアされました。必要なロールで個別に選択してください。',
+  'models.form.roles': 'ロール設定',
+  'models.form.roles.prefill': 'Prefill',
+  'models.form.roles.decode': 'Decode',
+  'models.form.roles.router': 'Router',
+  'models.form.roles.inherit': 'モデルと同じ',
+  'models.form.roles.override': 'カスタム',
+  'models.form.roles.inherited': '継承',
+  'models.form.roles.group.backend': 'エンジンとイメージ',
+  'models.form.roles.group.parameters': 'エンジンパラメータと環境変数',
+  'models.form.roles.group.scheduling': 'リソースとスケジューリング',
+  'models.form.roles.group.cache': '共有 KV キャッシュ',
+  'models.form.roles.replicas': 'レプリカ数',
+  'models.form.roles.router.managed': 'システム管理',
+  'models.form.roles.router.replicas.tips':
+    '本リリースの Router はシングルレプリカです。',
+  'models.form.roles.router.order.tips':
+    'Router は Prefill と Decode が準備できた後に作成されます。',
+  'models.form.roles.router.custom.forced':
+    'カスタム PD モードでは Router を導出しません。イメージと起動コマンドを指定してください。',
+  'models.form.roles.router.peers':
+    'デプロイ後にシステムが Prefill / Decode インスタンスのアドレスを注入します。',
+  'models.form.roles.cache.holder': '使用しない',
+  'models.form.roles.cache.tips':
+    '接続方式と優先順位はシステムが導出します。設定は不要です。',
+  'models.form.roles.cache.custom.conflict':
+    'カスタム PD モードではエンジンパラメータで --kv-transfer-config を指定するため、キャッシュサービスは同時に選択できません。',
+  'models.form.roles.cache.param.conflict':
+    '選択した PD モードと競合します。「カスタム」PD モードに切り替えるか、このパラメータを削除してください。',
+  'models.state.pending': '待機中',
+  'models.state.partial': '一部準備完了',
+  'models.state.running': '実行中',
+  'models.state.error': 'エラー',
+  'models.pd.tag': 'PD',
+  'models.pd.roles.detail': 'ロール別の状態',
+  'models.pd.role.waiting': '待機中',
+  'models.pd.replicas.readonly':
+    'PD デプロイのレプリカ数は「編集」から各ロールで調整してください。',
+  'models.pd.degraded.cache':
+    '共有 KV キャッシュが接続されていません。キャッシュなしで稼働中です。',
+  'models.pd.degraded.ratio':
+    '準備完了のメンバー数が要求より少なく、能力を下げて稼働しています。',
+  'models.pd.heterogeneous.warning':
+    'Prefill と Decode で GPU 種別が異なるため原子的な受け入れができません。同時投入時に一部のロールのみ起動する可能性があります。',
+  'models.pd.admission.infeasible':
+    '利用可能な容量ではこのグループを収容できません（必要 {required}、利用可能 {available}）。レプリカ数を減らす、分割カード種別に変える、ノードを追加してください。',
+  'models.pd.effectiveness.degraded':
+    'PD が集約方式に退化しています —— KV 転送が検出されません。PD モードとエンジンパラメータを確認してください。',
+  'models.pd.bandwidth.degraded':
+    'KV 転送経路が劣化している可能性があります：現在 {actual}、起動時の基準 {baseline}（{delta} 低下）。',
+  'models.pd.ratio.waiting':
+    '配分 {configured}（現在 {current}、{role} を待機中）',
+  'models.pd.group.restarting':
+    'グループを再起動中：停止 {stopped}/{total}・再作成 {ready}/{total} 準備完了',
+  'models.pd.group.restart.confirm':
+    'この変更には PD グループ全体の再起動が必要です：まず {total} 個すべてのインスタンスを停止し、新しい設定で再作成します。その間モデルは利用できません。',
+  'models.pd.instance.stale':
+    'このインスタンスは古い設定で稼働しています。グループ全体を再起動すると反映されます。',
+  'models.pd.stale':
+    '設定が変更されました。グループ全体を再起動すると反映されます。',
+  'models.pd.group.id': 'グループ',
+  'models.form.pd.disabled.gpus':
+    'PD 分離には少なくとも 2 枚の利用可能な GPU（Prefill 1 枚 + Decode 1 枚）が必要です。現在のクラスターの利用可能数は {count} 枚です。',
+  'models.pd.ratio': '配分',
+  'models.form.roles.router.health': 'ヘルスチェック',
+  'models.form.roles.router.peerslabel': '対向',
+  'models.form.roles.cpuonly': 'CPU のみ',
+  'models.form.roles.cpuonly.tips':
+    'Router はリクエストを転送するだけでモデルの重みを保持しないため、GPU を使用しません。'
 };
 
 // ========== To-Do: Translate Keys (Remove After Translation) ==========

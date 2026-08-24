@@ -2,6 +2,7 @@ import { PageAction } from '@/config';
 import {
   InstanceStatusMap,
   InstanceStatusMapValue,
+  isModelServable,
   modelCategoriesMap
 } from '@/pages/llmodels/config';
 import { useBenchmarkTargetInstance } from '@/pages/llmodels/hooks/use-run-benchmark';
@@ -140,7 +141,11 @@ const ModelInstanceForm: React.FC = () => {
         disabled: modelCategoriesMap.llm !== model.categories?.[0],
         id: model.id,
         isLeaf: false,
-        ready_replicas: model.ready_replicas,
+        // Whether the model can actually answer, which under PD is no longer
+        // implied by a running-instance count: a group whose router is down
+        // has RUNNING members and serves nothing, and benchmarking it would
+        // measure a connection error.
+        servable: isModelServable(model),
         children: []
       }));
 
@@ -151,7 +156,7 @@ const ModelInstanceForm: React.FC = () => {
 
     // preload instances for the first model
     const selectedllmModel = modelOptions.find(
-      (model) => !model.disabled && model.ready_replicas > 0
+      (model) => !model.disabled && model.servable
     );
     if (!selectedllmModel) {
       setModelList(modelOptions);

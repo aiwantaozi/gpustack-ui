@@ -384,7 +384,100 @@ export default {
   // Model catalog source configuration
   'models.catalog.source.title': 'Источник каталога',
   'models.catalog.source.official':
-    'Follows the catalog GPUStack publishes, on top of the one packaged with this release.'
+    'Follows the catalog GPUStack publishes, on top of the one packaged with this release.',
+
+  // --- Prefill/decode disaggregation ---
+  'models.form.pd.enable': 'Разделение PD',
+  'models.form.pd.enable.off': 'Выключено',
+  'models.form.pd.enable.on': 'Разделение PD',
+  'models.form.pd.enable.tips':
+    'Разделяет префилл и декодирование по разным экземплярам за счёт дополнительного сетевого перехода и одной передачи KV. При низкой конкурентности, коротких запросах или высоком попадании в кэш префиксов агрегированное развёртывание обычно быстрее. Сначала снимите базовые показатели.',
+  'models.form.pd.mode': 'Режим PD',
+  'models.form.pd.mode.holder': 'Выберите режим PD',
+  'models.form.pd.mode.tips':
+    'Все параметры соединения - connector, порты, адреса узлов - выводятся из выбранного режима и не задаются вручную.',
+  'models.form.pd.mode.custom.tips':
+    'В пользовательском режиме параметры соединения не подставляются: --kv-transfer-config, порты и адреса узлов задаёте вы.',
+  'models.form.pd.mode.backend.mismatch':
+    'Требуется {targets}, выбран движок {backend}. Для смешивания движков по ролям используйте режим «Пользовательский».',
+  'models.form.pd.replicas.moved':
+    'Количество реплик в развёртывании PD задаётся для каждой роли отдельно.',
+  'models.form.pd.disabled.gguf':
+    'Разделение PD поддерживается только движками vLLM и SGLang; эта модель в формате GGUF.',
+  'models.form.pd.disabled.backend':
+    'Разделение PD поддерживается только движками vLLM и SGLang. Остальные доступны через режим «Пользовательский».',
+  'models.form.pd.disabled.schedule':
+    'Плановое масштабирование недоступно для развёртывания PD. Меняйте число реплик по ролям.',
+  'models.form.pd.cache.cleared':
+    'В развёртывании PD кэш KV настраивается по ролям; настройка на уровне модели очищена. Выберите её для нужных ролей.',
+  'models.form.roles': 'Роли',
+  'models.form.roles.prefill': 'Prefill',
+  'models.form.roles.decode': 'Decode',
+  'models.form.roles.router': 'Router',
+  'models.form.roles.inherit': 'Как у модели',
+  'models.form.roles.override': 'Пользовательские',
+  'models.form.roles.inherited': 'Наследуется',
+  'models.form.roles.group.backend': 'Движок и образ',
+  'models.form.roles.group.parameters': 'Параметры и переменные среды',
+  'models.form.roles.group.scheduling': 'Ресурсы и планирование',
+  'models.form.roles.group.cache': 'Общий кэш KV',
+  'models.form.roles.replicas': 'Реплики',
+  'models.form.roles.router.managed': 'Управляется системой',
+  'models.form.roles.router.replicas.tips':
+    'В этом выпуске Router работает в одной реплике.',
+  'models.form.roles.router.order.tips':
+    'Router создаётся после готовности Prefill и Decode.',
+  'models.form.roles.router.custom.forced':
+    'Режим «Пользовательский» не выводит Router. Укажите его образ и команду запуска.',
+  'models.form.roles.router.peers':
+    'Адреса экземпляров Prefill / Decode подставляются системой после развёртывания.',
+  'models.form.roles.cache.holder': 'Не используется',
+  'models.form.roles.cache.tips':
+    'Способ подключения и порядок приоритета выводятся системой; настройка не требуется.',
+  'models.form.roles.cache.custom.conflict':
+    'В пользовательском режиме нужен --kv-transfer-config в параметрах движка, поэтому кэш-сервис выбрать нельзя.',
+  'models.form.roles.cache.param.conflict':
+    'Конфликтует с выбранным режимом PD. Переключитесь на «Пользовательский» или удалите --kv-transfer-config.',
+  'models.state.pending': 'Ожидание',
+  'models.state.partial': 'Частично готово',
+  'models.state.running': 'Работает',
+  'models.state.error': 'Ошибка',
+  'models.pd.tag': 'PD',
+  'models.pd.roles.detail': 'Состояние по ролям',
+  'models.pd.role.waiting': 'Ожидание',
+  'models.pd.replicas.readonly':
+    'Для развёртывания PD меняйте число реплик по ролям в разделе «Изменить».',
+  'models.pd.degraded.cache':
+    'Общий кэш KV не подключён; группа работает без него.',
+  'models.pd.degraded.ratio':
+    'Готовых участников меньше, чем запрошено; развёртывание работает с меньшей ёмкостью.',
+  'models.pd.heterogeneous.warning':
+    'Prefill и Decode используют разные типы GPU, поэтому группа не может быть принята атомарно: при одновременной отправке могут запуститься лишь некоторые роли.',
+  'models.pd.admission.infeasible':
+    'Доступной ёмкости недостаточно для этой группы (требуется {required}, доступно {available}). Уменьшите число реплик, выберите нарезанный тип карты или добавьте узлы.',
+  'models.pd.effectiveness.degraded':
+    'PD деградировал до агрегированного режима - передача KV не обнаружена. Проверьте режим PD и параметры движка.',
+  'models.pd.bandwidth.degraded':
+    'Путь передачи KV мог деградировать: сейчас {actual}, при запуске группы {baseline} (снижение {delta}).',
+  'models.pd.ratio.waiting':
+    'Соотношение {configured} (сейчас {current}, ожидается {role})',
+  'models.pd.group.restarting':
+    'Перезапуск группы: остановлено {stopped}/{total}, пересоздано и готово {ready}/{total}',
+  'models.pd.group.restart.confirm':
+    'Это изменение требует перезапуска всей группы PD: сначала останавливаются все {total} экземпляров, затем они пересоздаются с новой конфигурацией; в это время модель недоступна.',
+  'models.pd.instance.stale':
+    'Этот экземпляр работает на старой конфигурации; перезапустите группу, чтобы применить изменение.',
+  'models.pd.stale':
+    'Конфигурация изменена; перезапустите группу, чтобы применить.',
+  'models.pd.group.id': 'Группа',
+  'models.form.pd.disabled.gpus':
+    'Для разделения PD нужно не менее 2 доступных GPU (один Prefill, один Decode); в выбранном кластере доступно {count}.',
+  'models.pd.ratio': 'Соотношение',
+  'models.form.roles.router.health': 'Проверка состояния',
+  'models.form.roles.router.peerslabel': 'Узлы',
+  'models.form.roles.cpuonly': 'Только CPU',
+  'models.form.roles.cpuonly.tips':
+    'Router только пересылает запросы и не хранит веса модели, поэтому GPU не занимает.'
 };
 
 // ========== To-Do: Translate Keys (Remove After Translation) ==========

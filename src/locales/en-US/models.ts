@@ -485,6 +485,8 @@ export default {
   'models.pd.ratio': 'Ratio',
   'models.form.roles.router.health': 'Health check',
   'models.form.roles.router.peerslabel': 'Peers',
+  'models.form.roles.router.image.tips':
+    'Leave empty to use the image derived from the selected PD mode. Set it only when that image does not contain the router binary — the command is still derived, so naming an image that carries it is the whole change.',
   'models.form.roles.cpuonly': 'CPU only',
   'models.form.roles.cpuonly.tips':
     'The router forwards requests and holds no model weights, so it takes no GPU.'

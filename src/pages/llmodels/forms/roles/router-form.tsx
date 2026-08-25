@@ -67,10 +67,6 @@ const RouterForm: React.FC<RouterFormProps> = ({
   // last.
   const derived: { label: string; value?: string | null }[] = [
     {
-      label: intl.formatMessage({ id: 'backend.imageName' }),
-      value: router?.image
-    },
-    {
       label: intl.formatMessage({ id: 'backend.runCommand' }),
       value: router?.command
     },
@@ -176,16 +172,39 @@ const RouterForm: React.FC<RouterFormProps> = ({
             </Form.Item>
           </>
         ) : (
-          <div className={styles.derived}>
-            {derived.map((item) => (
-              <Flex key={item.label} className="derived-row" gap={8}>
-                <span className="derived-label">{item.label}</span>
-                <AutoTooltip ghost maxWidth="100%">
-                  {item.value || '-'}
-                </AutoTooltip>
-              </Flex>
-            ))}
-          </div>
+          <>
+            {/* The two halves of a managed router yield to the role
+                independently, so the image is overridable without also making
+                the user write the invocation. That is not a corner case: the
+                engine runner images do not all ship the router binary, and
+                when one does not, naming an image that does is the whole fix —
+                the catalog still knows how to invoke it. Left empty it stays
+                derived, which is why the derived value is the placeholder. */}
+            <Form.Item
+              name={['roles', index, 'image_name']}
+              label={intl.formatMessage({ id: 'backend.imageName' })}
+              style={{ marginBottom: 8 }}
+              extra={intl.formatMessage({
+                id: 'models.form.roles.router.image.tips'
+              })}
+            >
+              <Input
+                allowClear
+                placeholder={router?.image || ''}
+                data-testid="router-image-name"
+              />
+            </Form.Item>
+            <div className={styles.derived}>
+              {derived.map((item) => (
+                <Flex key={item.label} className="derived-row" gap={8}>
+                  <span className="derived-label">{item.label}</span>
+                  <AutoTooltip ghost maxWidth="100%">
+                    {item.value || '-'}
+                  </AutoTooltip>
+                </Flex>
+              ))}
+            </div>
+          </>
         )}
       </RoleSection>
 

@@ -455,6 +455,8 @@ export default {
   'models.pd.ratio': '配比',
   'models.form.roles.router.health': '健康检查',
   'models.form.roles.router.peerslabel': '对端',
+  'models.form.roles.router.image.tips':
+    '留空则使用所选 PD 模式推导出的镜像。仅当该镜像不含 router 可执行文件时才需要填写——此时只需换镜像，启动命令仍由系统推导。',
   'models.form.roles.cpuonly': '仅使用 CPU',
   'models.form.roles.cpuonly.tips':
     'Router 只转发请求、不持有模型权重，因此不占用 GPU。'

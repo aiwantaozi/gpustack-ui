@@ -486,6 +486,8 @@ export default {
   'models.pd.ratio': 'Oran',
   'models.form.roles.router.health': 'Sağlık kontrolü',
   'models.form.roles.router.peerslabel': 'Karşı taraflar',
+  'models.form.roles.router.image.tips':
+    'Seçilen PD modundan türetilen görüntüyü kullanmak için boş bırakın. Yalnızca o görüntüde router çalıştırılabiliri yoksa doldurun — başlatma komutu yine türetilir.',
   'models.form.roles.cpuonly': 'Yalnızca CPU',
   'models.form.roles.cpuonly.tips':
     'Router yalnızca istekleri iletir ve model ağırlığı tutmaz, bu yüzden GPU kullanmaz.'

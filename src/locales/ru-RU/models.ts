@@ -490,6 +490,8 @@ export default {
   'models.pd.ratio': 'Соотношение',
   'models.form.roles.router.health': 'Проверка состояния',
   'models.form.roles.router.peerslabel': 'Узлы',
+  'models.form.roles.router.image.tips':
+    'Оставьте пустым, чтобы использовать образ, выведенный из выбранного режима PD. Указывайте только если в этом образе нет исполняемого файла router — команда запуска всё равно выводится автоматически.',
   'models.form.roles.cpuonly': 'Только CPU',
   'models.form.roles.cpuonly.tips':
     'Router только пересылает запросы и не хранит веса модели, поэтому GPU не занимает.'

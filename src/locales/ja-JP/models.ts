@@ -487,6 +487,8 @@ export default {
   'models.pd.ratio': '配分',
   'models.form.roles.router.health': 'ヘルスチェック',
   'models.form.roles.router.peerslabel': '対向',
+  'models.form.roles.router.image.tips':
+    '空欄の場合は選択した PD モードから導出されたイメージを使用します。そのイメージに router の実行ファイルが含まれていない場合にのみ指定してください。起動コマンドは引き続き自動導出されます。',
   'models.form.roles.cpuonly': 'CPU のみ',
   'models.form.roles.cpuonly.tips':
     'Router はリクエストを転送するだけでモデルの重みを保持しないため、GPU を使用しません。'

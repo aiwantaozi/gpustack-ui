@@ -447,6 +447,10 @@ export default {
     'Paylaşılan KV önbelleği bağlanmadı; grup onsuz hizmet veriyor.',
   'models.pd.degraded.ratio':
     'Hazır üye sayısı istenenden az; dağıtım düşük kapasiteyle hizmet veriyor.',
+  'models.pd.degraded.placement':
+    'Bazı üyeler hâlâ yükseltmeden önceki ad alanında dağıtılmış durumda. Hizmet etkilenmez, ancak bu üyelerin tuttuğu hızlandırıcılar kiracı kota defterinde yer almadığından grubun atomik kabulü o kadar iyimserdir. Taşımak için modeli yeniden başlatın.',
+  'models.pd.degraded.ineffective':
+    'Grup hizmet veriyor ancak hiç KV aktarımı olmuyor — ayrıştırma sessizce toplu çıkarıma geriledi. Eşleştirmeyi ve KV bağlayıcı yapılandırmasını denetleyin.',
   'models.pd.heterogeneous.warning':
     'Prefill ve Decode farklı GPU türleri kullanıyor; grup atomik olarak kabul edilemez: eşzamanlı gönderimde yalnızca bazı roller başlayabilir.',
   'models.pd.admission.infeasible':

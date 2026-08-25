@@ -619,14 +619,25 @@ export const DegradationValueMap = {
   CacheNotInjected: 'cache_not_injected',
   BandwidthDegraded: 'bandwidth_degraded',
   RatioUnmet: 'ratio_unmet',
-  NoAtomicAdmission: 'no_atomic_admission'
+  NoAtomicAdmission: 'no_atomic_admission',
+  // Serving with no KV moving at all: disaggregation has collapsed into
+  // aggregated serving. Kept apart from `bandwidth_degraded` because the two
+  // have different fixes — slow transfer is a transport problem, no transfer
+  // is a pairing that never formed.
+  PDIneffective: 'pd_ineffective',
+  // Members still in the namespace they were in before the upgrade. They
+  // serve normally; what they do not do is appear in the tenant's quota
+  // ledger, which is what atomic admission is decided on.
+  PlacementDrifted: 'placement_drifted'
 };
 
 export const DegradationLabelMap = {
   [DegradationValueMap.CacheNotInjected]: 'models.pd.degraded.cache',
   [DegradationValueMap.BandwidthDegraded]: 'models.pd.bandwidth.degraded',
   [DegradationValueMap.RatioUnmet]: 'models.pd.degraded.ratio',
-  [DegradationValueMap.NoAtomicAdmission]: 'models.pd.heterogeneous.warning'
+  [DegradationValueMap.NoAtomicAdmission]: 'models.pd.heterogeneous.warning',
+  [DegradationValueMap.PDIneffective]: 'models.pd.degraded.ineffective',
+  [DegradationValueMap.PlacementDrifted]: 'models.pd.degraded.placement'
 };
 
 // The four override groups of a role tab. A group left on "same as model"

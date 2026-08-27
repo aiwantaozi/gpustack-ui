@@ -302,7 +302,6 @@ const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
   }, [flatBackendOptions, kvCacheEnabled, sharedSupported, kvCacheMode]);
 
   const isLocal = (kvCacheMode ?? 'local') !== 'shared';
-  const backendValue = isLocal ? IN_PROCESS : (cacheServiceId ?? undefined);
 
   // in-process first, then each compatible cache service as "name (provider)"
   const backendOptions = useMemo(() => {
@@ -321,6 +320,29 @@ const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
       }))
     ];
   }, [sharedSupported, cacheServiceOptions, intl]);
+
+  // A saved shared selection is an id; its name only exists in the fetched
+  // service list. Two windows have the id but no option for it, and antd
+  // renders an unmatched value as the raw value — so the field shows a bare
+  // "4", which reads as a name the user picked rather than as "still
+  // loading".
+  //
+  // The second window is the one that lasts long enough to be seen and
+  // clicked: `sharedSupported` is false while `flatBackendOptions` is still
+  // empty because the answer is *unknown*, not because sharing is
+  // unsupported — the same indeterminacy the effect above guards the rewrite
+  // against. While it is unknown the service list is never fetched, so
+  // `loading` is false too and the field looks settled.
+  const backendsResolved = flatBackendOptions.length > 0;
+  const resolvingShared = !isLocal && (!backendsResolved || loading);
+  // Withheld rather than shown unresolved: undefined leaves the placeholder,
+  // and the value is display-only (the submitted mode and id live in the two
+  // hidden fields above), so nothing is lost by not naming it yet.
+  const backendValue = isLocal
+    ? IN_PROCESS
+    : backendOptions.some((option) => option.value === cacheServiceId)
+      ? cacheServiceId
+      : undefined;
 
   const backendOptionRender = (option: any) => {
     const { data } = option;
@@ -369,7 +391,7 @@ const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
           </Form.Item>
           <Form.Item>
             <SealSelect
-              loading={loading}
+              loading={loading || resolvingShared}
               value={backendValue}
               options={backendOptions}
               optionRender={backendOptionRender}

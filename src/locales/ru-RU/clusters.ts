@@ -240,9 +240,29 @@ export default {
   'clusters.topology.preview.capacity':
     '{workers} workers · {gpus} GPUs · {free} free',
   'clusters.topology.preview.noWorkers': 'This cluster has no workers yet.',
-  'clusters.topology.preview.failed': 'Could not preview this declaration.'
-};
+  'clusters.topology.preview.failed': 'Could not preview this declaration.',
 
+  'clusters.topology.layer.under': 'Under {parent}',
+  'clusters.topology.layer.underCluster': 'Under the cluster root',
+  'clusters.topology.layer.moveUp': 'Move up (closer to the cluster)',
+  'clusters.topology.layer.moveDown': 'Move down (closer to the host)',
+  'clusters.topology.insertPreset': 'Insert layer',
+  'clusters.topology.reset': 'Reset',
+  'clusters.topology.reset.tips':
+    'Back to the default template. Nothing is saved until you click Save.',
+  'clusters.topology.leaf.under': 'Host (built in) — under {parent}',
+  'clusters.topology.discard': 'Discard these changes?',
+  'clusters.topology.discard.tips':
+    'Nothing here has been saved yet. The preview does not change the cluster.',
+  'clusters.topology.discard.ok': 'Discard',
+  'clusters.topology.preset.region': 'Cloud region or datacentre',
+  'clusters.topology.preset.zone': 'Availability zone or hall',
+  'clusters.topology.preset.row': 'Row of racks',
+  'clusters.topology.preset.rack': 'Rack or cabinet',
+
+  'clusters.topology.chain.unnamed': 'Layer {index}',
+  'clusters.topology.chain.host': 'Host'
+};
 // ========== To-Do: Translate Keys (Remove After Translation) ==========
 // 1. 'clusters.addworker.hygonNotes': `If <span class="bold-text">/opt/hyhal</span> or <span class="bold-text">/opt/dtk</span> does not exist, create symbolic links pointing to the corresponding Hygon installation paths, for example: <span class="desc-fill">ln -s /path/to/hyhal /opt/hyhal</span> <span class="desc-fill">ln -s /path/to/dtk /opt/dtk</span>.`,
 // 2. 'clusters.addworker.noClusters': 'No available Docker clusters found',

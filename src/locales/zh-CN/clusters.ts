@@ -230,5 +230,24 @@ export default {
   'clusters.topology.preview.capacity':
     '{workers} 台 · {gpus} 卡 · 空闲 {free}',
   'clusters.topology.preview.noWorkers': '这个集群还没有 worker。',
-  'clusters.topology.preview.failed': '无法预览这份声明。'
+  'clusters.topology.preview.failed': '无法预览这份声明。',
+
+  'clusters.topology.layer.under': '在「{parent}」之下',
+  'clusters.topology.layer.underCluster': '直接挂在集群根下',
+  'clusters.topology.layer.moveUp': '上移（更靠近集群）',
+  'clusters.topology.layer.moveDown': '下移（更靠近主机）',
+  'clusters.topology.insertPreset': '插入层级',
+  'clusters.topology.reset': '重置',
+  'clusters.topology.reset.tips': '恢复成默认模板。不点保存就不会生效。',
+  'clusters.topology.leaf.under': '主机（内置）—— 在「{parent}」之下',
+  'clusters.topology.discard': '放弃这些修改？',
+  'clusters.topology.discard.tips': '这里的内容还没有保存，预览不会改动集群。',
+  'clusters.topology.discard.ok': '放弃',
+  'clusters.topology.preset.region': '云地域或数据中心',
+  'clusters.topology.preset.zone': '可用区或机房',
+  'clusters.topology.preset.row': '机柜列',
+  'clusters.topology.preset.rack': '机柜',
+
+  'clusters.topology.chain.unnamed': '第 {index} 层',
+  'clusters.topology.chain.host': '主机'
 };

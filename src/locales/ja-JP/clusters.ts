@@ -239,9 +239,29 @@ export default {
   'clusters.topology.preview.capacity':
     '{workers} workers · {gpus} GPUs · {free} free',
   'clusters.topology.preview.noWorkers': 'This cluster has no workers yet.',
-  'clusters.topology.preview.failed': 'Could not preview this declaration.'
-};
+  'clusters.topology.preview.failed': 'Could not preview this declaration.',
 
+  'clusters.topology.layer.under': 'Under {parent}',
+  'clusters.topology.layer.underCluster': 'Under the cluster root',
+  'clusters.topology.layer.moveUp': 'Move up (closer to the cluster)',
+  'clusters.topology.layer.moveDown': 'Move down (closer to the host)',
+  'clusters.topology.insertPreset': 'Insert layer',
+  'clusters.topology.reset': 'Reset',
+  'clusters.topology.reset.tips':
+    'Back to the default template. Nothing is saved until you click Save.',
+  'clusters.topology.leaf.under': 'Host (built in) — under {parent}',
+  'clusters.topology.discard': 'Discard these changes?',
+  'clusters.topology.discard.tips':
+    'Nothing here has been saved yet. The preview does not change the cluster.',
+  'clusters.topology.discard.ok': 'Discard',
+  'clusters.topology.preset.region': 'Cloud region or datacentre',
+  'clusters.topology.preset.zone': 'Availability zone or hall',
+  'clusters.topology.preset.row': 'Row of racks',
+  'clusters.topology.preset.rack': 'Rack or cabinet',
+
+  'clusters.topology.chain.unnamed': 'Layer {index}',
+  'clusters.topology.chain.host': 'Host'
+};
 // ========== To-Do: Translate Keys (Remove After Translation) ==========
 // 1. 'clusters.title': 'Cluster',
 // 2. 'clusters.table.provider': 'Provider',

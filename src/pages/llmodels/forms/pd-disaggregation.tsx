@@ -4,7 +4,7 @@ import {
   useAppUtils
 } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Flex, Form, Segmented, Tooltip } from 'antd';
+import { Flex, Form, Switch, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import React, { useEffect, useState } from 'react';
 import {
@@ -68,6 +68,14 @@ export interface PDEffects {
   // `custom` injects nothing, so the per-role cache dropdowns are illegal under
   // it and the router cannot be system-managed.
   isCustomMode: boolean;
+  // 🆕 Every GPU-bearing role has its own "Resources and scheduling" override,
+  // so the model-level card would show the same two fields a second time — and
+  // the role card's "Same as model" would point at it. Removed under PD, and
+  // the fields *cleared* rather than only hidden: a hidden value that still
+  // projects onto every role is worse than a cluttered form, because nothing
+  // on screen explains why all three members landed on the same labelled
+  // workers.
+  clearModelScheduling?: boolean;
   // Model-level `replicas` is a 0/1 deployment switch under PD, never a group
   // count: pin the field to 1 and make it read-only.
   replicasLocked: boolean;
@@ -117,7 +125,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   const roles = Form.useWatch('roles', { form, preserve: true });
   const kvCacheEnabled = Form.useWatch(['extended_kv_cache', 'enabled'], form);
 
-  // The Segmented is deliberately NOT a form field: with `roles` empty the
+  // The toggle is deliberately NOT a form field: with `roles` empty the
   // block must leave the form store exactly as it found it, and an off state
   // written anywhere would ride the submit. Everything PD writes is registered
   // below, inside the enabled branch only.
@@ -181,6 +189,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     enabled: boolean;
     mode: string | null;
     clearModelKVCache: boolean;
+    clearModelScheduling?: boolean;
   }) => {
     onEffectsChange?.({
       enabled: next.enabled,
@@ -195,7 +204,8 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       scalingDisabledReason: next.enabled
         ? intl.formatMessage({ id: 'models.form.pd.disabled.schedule' })
         : undefined,
-      clearModelKVCache: next.clearModelKVCache
+      clearModelKVCache: next.clearModelKVCache,
+      clearModelScheduling: next.clearModelScheduling
     });
   };
 
@@ -222,6 +232,9 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     // hand decode a cost it cannot use. The mount site clears it; the notice
     // below is what makes that visible.
     const clearModelKVCache = next && !!kvCacheEnabled;
+    // Only on the way in. Turning PD off leaves the roles behind too, so
+    // re-clearing would wipe values the user is about to see again.
+    const clearModelScheduling = next;
     if (next) {
       // Opening the branch IS the action, so this is where the catalog request
       // belongs — the drawer's open is not this component's to hook.
@@ -246,7 +259,8 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     notifyEffects({
       enabled: next,
       mode: form.getFieldValue(['disaggregation', 'mode']) ?? null,
-      clearModelKVCache
+      clearModelKVCache,
+      clearModelScheduling
     });
     // Let the conditional fields register/unregister first: what the form hands
     // out is what is mounted at that moment.
@@ -333,33 +347,32 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
           label={intl.formatMessage({ id: 'models.form.pd.enable' })}
           description={intl.formatMessage({ id: 'models.form.pd.enable.tips' })}
         ></LabelInfo>
-        {/* Segmented, not Switch: phase two adds a homogeneous `kv_both` pool
-            as a third state, and a Segmented takes that extra cell without
-            changing the interaction. Defaults to off — every vendor's own docs
-            say to benchmark the aggregated deployment first. */}
+        {/* A `Switch`, matching every other feature toggle in this form
+            (Scheduled Scaling, Shared KV cache — that one was a checkbox when
+            this comment was first written and has since been aligned too). The
+            first version used
+            a `Segmented` reasoning that phase two adds a third state
+            (a homogeneous `kv_both` pool) and a Segmented takes the extra cell
+            for free — but a control that is binary today should look like the
+            other binary controls, and a third state can change the control
+            then. Consistency now beats a saving later.
+
+            Defaults to off: every vendor's own docs say to benchmark the
+            aggregated deployment first. */}
         <Tooltip title={blockedReason || false}>
           <span>
-            <Segmented
-              size="middle"
-              type="rounded"
-              style={{ fontSize: 12 }}
+            <Switch
+              size="small"
               disabled={blocked}
-              value={
-                active ? PDEnableValueMap.Disaggregated : PDEnableValueMap.Off
+              checked={active}
+              data-field="pdMode"
+              onChange={(checked: boolean) =>
+                handleEnableChange(
+                  checked
+                    ? PDEnableValueMap.Disaggregated
+                    : PDEnableValueMap.Off
+                )
               }
-              onChange={handleEnableChange}
-              options={[
-                {
-                  label: intl.formatMessage({
-                    id: 'models.form.pd.enable.off'
-                  }),
-                  value: PDEnableValueMap.Off
-                },
-                {
-                  label: intl.formatMessage({ id: 'models.form.pd.enable.on' }),
-                  value: PDEnableValueMap.Disaggregated
-                }
-              ]}
             />
           </span>
         </Tooltip>
@@ -367,7 +380,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
 
       {active && (
         <>
-          {/* The Segmented's own state, registered only while on so the off
+          {/* The toggle's own state, registered only while on so the off
               path leaves the store untouched. Self-seeding on (re)mount, and
               removed again by the form's `preserve={false}` on unmount. */}
           <Form.Item
@@ -392,10 +405,11 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
           >
             <SealSelect
               required
+              // No placeholder: this field's label floats *inside* the input,
+              // so an empty value renders the label and the placeholder on
+              // top of each other. Every other SealSelect in this form passes
+              // label alone for the same reason.
               label={intl.formatMessage({ id: 'models.form.pd.mode' })}
-              placeholder={intl.formatMessage({
-                id: 'models.form.pd.mode.holder'
-              })}
               description={intl.formatMessage({
                 id: 'models.form.pd.mode.tips'
               })}

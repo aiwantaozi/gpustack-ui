@@ -26,6 +26,16 @@ import ModeField from './mode-field';
 import OnlineSource from './online-source';
 
 interface BasicFormProps {
+  /**
+   * PD is on, so this deployment is a *group* and its size lives in
+   * `roles[].replicas`.
+   *
+   * `Model.replicas` degrades to a 0/1 deployment switch under PD (D20), and
+   * the form already forces it back to 1 — which left a number field the user
+   * could edit and that silently reverted. A control whose value is
+   * overwritten is worse than no control, so it goes rather than greys out.
+   */
+  hideReplicas?: boolean;
   sourceDisable?: boolean;
   sourceList?: Global.BaseOption<string>[];
   clusterList: ClusterOption[];
@@ -251,9 +261,13 @@ const BasicForm: React.FC<BasicFormProps> = (props) => {
       <CustomBackend></CustomBackend>
       <Form.Item<FormData>
         name="replicas"
+        hidden={props.hideReplicas}
         rules={[
           {
-            required: true,
+            // Not required while hidden: the field is still registered (the
+            // payload needs the 0/1 switch) but an untouched hidden field
+            // must not block submit.
+            required: !props.hideReplicas,
             message: getRuleMessage('input', 'models.form.replicas')
           }
         ]}

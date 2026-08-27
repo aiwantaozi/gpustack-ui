@@ -6,7 +6,7 @@ import {
 } from '@/pages/cluster-management/config/types';
 import { IconFont } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Flex, Form, Radio, Spin } from 'antd';
+import { Button, Flex, Form, Radio, Space, Spin } from 'antd';
 import { createStyles } from 'antd-style';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FormData } from '../config/types';
@@ -20,9 +20,15 @@ import { FormData } from '../config/types';
 const FEASIBILITY_DEBOUNCE_MS = 500;
 
 const useStyles = createStyles(({ css }) => ({
-  option: css`
-    display: block;
-    line-height: 2;
+  /* Laid out with `Space direction="vertical"`, not with `display: block` on
+     the Radio. Blocking the Radio breaks its own `input + label` row and the
+     dot ends up on the line above its text — which is exactly what it did. */
+  group: css`
+    width: 100%;
+    .ant-radio-wrapper {
+      align-items: baseline;
+      margin-inline-end: 0;
+    }
     .verdict {
       font-size: 12px;
       margin-left: 8px;
@@ -69,6 +75,16 @@ const GatherLocality: React.FC = () => {
     null
   );
   const [loading, setLoading] = useState(false);
+  /**
+   * The server does not have this endpoint.
+   *
+   * Told apart from a failed check on purpose: a 404 means the feature is not
+   * there, which no amount of retrying fixes, and offering a Retry button for
+   * it trains people to ignore the one that matters. A UI newer than the
+   * server it talks to is the normal case during a rollout, and it should look
+   * like "not available here", not like "something went wrong".
+   */
+  const [unsupported, setUnsupported] = useState(false);
   /** Rotated per fetch so a slow answer cannot paint over a fresher one. */
   const sessionRef = useRef(0);
   const timerRef = useRef<any>(null);
@@ -95,9 +111,13 @@ const GatherLocality: React.FC = () => {
         return;
       }
       setFeasibility(result);
-    } catch (e) {
+      setUnsupported(false);
+    } catch (e: any) {
       if (sessionRef.current !== session) {
         return;
+      }
+      if (e?.response?.status === 404) {
+        setUnsupported(true);
       }
       // 🔴 Never an error state. A feasibility answer we could not get is not
       // a deployment problem — the deployment is still legal and will still
@@ -186,7 +206,7 @@ const GatherLocality: React.FC = () => {
   };
 
   return (
-    <Spin spinning={loading} size="small">
+    <>
       {/* Registered so the pair reaches the payload; driven by the radio
           group below rather than by fields of their own, because the two
           together are one decision. */}
@@ -197,32 +217,26 @@ const GatherLocality: React.FC = () => {
         <input />
       </Form.Item>
 
-      {/* The refresh sits on the wrapper, not on Radio.Group, which takes no
-          onClick. Refreshed on interaction rather than only on mount because
-          capacity moves under an open form — someone else's deployment can
-          take the rack while this one is being filled in. */}
-      <div
-        onMouseEnter={() => {
-          clearTimeout(timerRef.current);
-          fetchFeasibility();
-        }}
+      {/* 🔴 Not wrapped in `Spin`. A spinning Spin lays a mask over its
+          children, and a mask over a radio group is a control nobody can
+          click. The first version compounded it by refetching on mouseenter,
+          so moving the pointer in to click re-raised the mask that blocked the
+          click. Loading is reported next to the options instead, where it
+          cannot intercept anything. */}
+      <Radio.Group
+        className={styles.group}
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
       >
-        <Radio.Group
-          value={value}
-          onChange={(e) => handleChange(e.target.value)}
-        >
-          <Radio value="prefer" className={styles.option}>
+        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Radio value="prefer">
             {intl.formatMessage({ id: 'models.form.gather.prefer' })}
             <span className="verdict no">
               {intl.formatMessage({ id: 'models.form.gather.prefer.tips' })}
             </span>
           </Radio>
           {tiers.map((tier) => (
-            <Radio
-              key={tier.layer}
-              value={`must:${tier.layer}`}
-              className={styles.option}
-            >
+            <Radio key={tier.layer} value={`must:${tier.layer}`}>
               {tier.layer === NODE_LAYER
                 ? intl.formatMessage({ id: 'models.form.gather.sameHost' })
                 : intl.formatMessage(
@@ -232,8 +246,33 @@ const GatherLocality: React.FC = () => {
               {verdict(tier)}
             </Radio>
           ))}
-        </Radio.Group>
-      </div>
+        </Space>
+      </Radio.Group>
+
+      {/* The stricter options come from the server, so until it answers there
+          is exactly one radio on screen — which reads as a broken control
+          rather than as a pending one. Saying which it is costs a line. */}
+      {loading && !tiers.length && (
+        <Flex align="center" gap={6} className={styles.hint}>
+          <Spin size="small" />
+          <span>
+            {intl.formatMessage({ id: 'models.form.gather.checking' })}
+          </span>
+        </Flex>
+      )}
+      {/* Nothing at all when the server lacks the endpoint: the control still
+          works (the default is the correct answer), and a notice about a
+          capability this deployment does not have is noise on every form. */}
+      {!loading && !tiers.length && !unsupported && (
+        <Flex align="center" gap={6} className={styles.hint}>
+          <span>
+            {intl.formatMessage({ id: 'models.form.gather.unavailable' })}
+          </span>
+          <Button size="small" type="link" onClick={fetchFeasibility}>
+            {intl.formatMessage({ id: 'models.form.gather.retry' })}
+          </Button>
+        </Flex>
+      )}
 
       {/* Where the coarser tiers come from, said once and pointing at the
           place that creates them. Without this the absence of "at least in the
@@ -246,7 +285,7 @@ const GatherLocality: React.FC = () => {
           </span>
         </Flex>
       )}
-    </Spin>
+    </>
   );
 };
 

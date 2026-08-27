@@ -513,9 +513,17 @@ export default {
   'models.form.gather.declare':
     'Declare topology layers in the cluster settings to choose a coarser level (e.g. rack or zone).',
   'models.form.gather.largeGroup':
-    'At this size about {percent}% of requests pair on the same host, whatever the topology. For KV transfer locality, consider several smaller disaggregated groups instead.'
-};
+    'At this size about {percent}% of requests pair on the same host, whatever the topology. For KV transfer locality, consider several smaller disaggregated groups instead.',
 
+  'models.form.gather.checking': 'Checking what fits…',
+  'models.form.gather.unavailable':
+    'Could not check what fits right now, so only the default is offered.',
+  'models.form.gather.retry': 'Retry',
+
+  'models.form.groupSettings': 'Group Settings',
+  'models.form.groupSettings.tips':
+    'These cannot differ between roles: one value is applied to Prefill and Decode alike.'
+};
 // ========== To-Do: Translate Keys (Remove After Translation) ==========
 // 1. 'models.form.maxContextLength': 'Maximum Context Length',
 // 2. 'models.form.backend.helperText': 'Not enabled yet. Will be enabled after deployment. ',

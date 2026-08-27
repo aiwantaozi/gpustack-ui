@@ -7,6 +7,7 @@ import BackendFields from '../backend';
 import BackendParametersList from '../backend-parameters-list';
 import CustomBackend from '../custom-backend';
 import ScheduleTypeForm from '../schedule-type';
+import SpeculativeDecode from '../speculative-decode';
 import OverrideSection, { RoleSection } from './override-section';
 import RoleKVCache from './role-kv-cache';
 
@@ -79,6 +80,14 @@ const RoleForm: React.FC<RoleFormProps> = ({ index, cacheDisabledReason }) => {
           ></LabelSelector>
         </Form.Item>
       </OverrideSection>
+
+      {/* Per role because prefill and decode need different values — upstream
+          runs prefill at 1 draft token and decode at 3+, and a prefill that
+          skips an MTP draft head fails the NIXL compatibility check outright
+          (open-questions F17). Not an override group: there is no "same as
+          model" story worth offering when the whole point is that the two
+          sides differ. */}
+      <SpeculativeDecode namePrefix={['roles', index]}></SpeculativeDecode>
 
       {/* `gpu_type_selector` lives in here, and it is the only way to express a
           heterogeneous group — which is also the precondition for gang

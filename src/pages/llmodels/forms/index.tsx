@@ -40,6 +40,7 @@ import { useQueryContextLength } from '../services/use-query-context-length';
 import { derivesNativeAnthropicApi, generateGPUIds } from '../utils';
 import AdvanceConfig from './advance-config';
 import BasicForm from './basic';
+import GroupSettings from './group-settings';
 import PDDisaggregation, { PDEffects } from './pd-disaggregation';
 import Performance from './performance';
 import Roles from './roles';
@@ -86,6 +87,10 @@ const TABKeysMap = {
   ROLES: 'roles',
   SCHEDULING: 'scheduling',
   PERFORMANCE: 'performance',
+  // PD only: the fields a role cannot override, gathered where the fact is
+  // stated rather than scattered through sections that imply per-deployment
+  // scope. See ui-design.md §2.0b.
+  GROUP: 'group',
   ADVANCED: 'advanced'
 };
 
@@ -138,6 +143,17 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
   // arrives rather than letting it sit true and re-clear on every render.
   const handlePDEffectsChange = (next: PDEffects) => {
     setPDEffects(next);
+    if (next.clearModelScheduling) {
+      // Cleared, not just hidden. `role_effective_model` projects the model's
+      // value onto any role that has none, so a leftover selector would keep
+      // constraining every member with nothing on screen saying so.
+      form.setFieldsValue({
+        gpu_selector: null,
+        gpu_type_selector: null,
+        worker_selector: {},
+        placement_strategy: undefined
+      } as any);
+    }
     if (next.clearModelKVCache) {
       form.setFieldValue('extended_kv_cache', { enabled: false });
     }
@@ -175,12 +191,27 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
           }
         ]
       : []),
-    {
-      value: TABKeysMap.PERFORMANCE,
-      label: intl.formatMessage({ id: 'models.form.performance' }),
-      icon: <IconFont type="icon-speed" />,
-      field: 'extended_kv_cache.enabled'
-    },
+    // Performance is model-level, and under PD both of its fields have moved:
+    // the KV cache down to the roles, speculative decoding across to the
+    // group block. An empty section with a familiar name is worse than no
+    // section — it reads as "nothing to tune here".
+    ...(pdEffects.enabled
+      ? [
+          {
+            value: TABKeysMap.GROUP,
+            label: intl.formatMessage({ id: 'models.form.groupSettings' }),
+            icon: <IconFont type="icon-speed" />,
+            field: 'speculative_config.enabled'
+          }
+        ]
+      : [
+          {
+            value: TABKeysMap.PERFORMANCE,
+            label: intl.formatMessage({ id: 'models.form.performance' }),
+            icon: <IconFont type="icon-speed" />,
+            field: 'extended_kv_cache.enabled'
+          }
+        ]),
     {
       value: TABKeysMap.SCHEDULING,
       label: intl.formatMessage({ id: 'models.form.scheduling' }),
@@ -597,6 +628,7 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
           }}
         >
           <BasicForm
+            hideReplicas={pdEffects.enabled}
             sourceList={sourceList}
             clusterList={clusterList}
             sourceDisable={sourceDisable}
@@ -639,23 +671,50 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
                     }
                   ]
                 : []),
-              {
-                key: TABKeysMap.PERFORMANCE,
-                label: intl.formatMessage({ id: 'models.form.performance' }),
-                forceRender: true,
-                children: <Performance></Performance>
-              },
-              {
-                key: TABKeysMap.SCHEDULING,
-                label: intl.formatMessage({ id: 'models.form.scheduling' }),
-                forceRender: true,
-                children: (
-                  <>
-                    <ScheduleTypeForm></ScheduleTypeForm>
-                    <ScheduledScalingForm></ScheduledScalingForm>
-                  </>
-                )
-              },
+              ...(pdEffects.enabled
+                ? [
+                    {
+                      key: TABKeysMap.GROUP,
+                      label: intl.formatMessage({
+                        id: 'models.form.groupSettings'
+                      }),
+                      forceRender: true,
+                      children: <GroupSettings></GroupSettings>
+                    }
+                  ]
+                : [
+                    {
+                      key: TABKeysMap.PERFORMANCE,
+                      label: intl.formatMessage({
+                        id: 'models.form.performance'
+                      }),
+                      forceRender: true,
+                      children: <Performance></Performance>
+                    }
+                  ]),
+              // Gone entirely under PD: every GPU-bearing role carries its own
+              // "Resources and scheduling" override, so this card showed the
+              // same two fields again and the role card's "Same as model"
+              // pointed back at it. The fields are cleared on enable (see
+              // `clearModelScheduling`), so "Same as model" now means the
+              // defaults — Auto, no selector.
+              ...(pdEffects.enabled
+                ? []
+                : [
+                    {
+                      key: TABKeysMap.SCHEDULING,
+                      label: intl.formatMessage({
+                        id: 'models.form.scheduling'
+                      }),
+                      forceRender: true,
+                      children: (
+                        <>
+                          <ScheduleTypeForm></ScheduleTypeForm>
+                          <ScheduledScalingForm></ScheduledScalingForm>
+                        </>
+                      )
+                    }
+                  ]),
               {
                 key: TABKeysMap.ADVANCED,
                 label: intl.formatMessage({ id: 'resources.form.advanced' }),

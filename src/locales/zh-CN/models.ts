@@ -477,5 +477,14 @@ export default {
   'models.form.gather.declare':
     '在集群设置里声明拓扑层级后，可以选择更粗的档次（如机柜、可用区）。',
   'models.form.gather.largeGroup':
-    '这个规模下约 {percent}% 的请求会落在同一台机上，与拓扑和上面的选择都无关。若追求 KV 传输局部性，考虑部署多个较小的分离组。'
+    '这个规模下约 {percent}% 的请求会落在同一台机上，与拓扑和上面的选择都无关。若追求 KV 传输局部性，考虑部署多个较小的分离组。',
+
+  'models.form.gather.checking': '正在检查放得下哪一档…',
+  'models.form.gather.unavailable':
+    '暂时查不到放得下哪一档，所以只给出默认项。',
+  'models.form.gather.retry': '重试',
+
+  'models.form.groupSettings': '组级设置',
+  'models.form.groupSettings.tips':
+    '这些无法按角色区分：同一个值会同时作用于 Prefill 和 Decode。'
 };

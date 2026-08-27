@@ -92,9 +92,22 @@ interface ScheduleTypeFormProps {
    * model-level path, byte-for-byte what it was.
    */
   namePrefix?: (string | number)[];
+  /**
+   * This is a PD group, so `placement_strategy` no longer applies.
+   *
+   * It spreads or bin-packs a model's *replicas*, and a group has none — its
+   * members are roles, and where the group as a whole may sit is decided by
+   * "KV transfer locality" (the gather policy) instead. Rendering both would
+   * be two placement policies that can contradict each other, with nothing
+   * saying which wins.
+   */
+  groupDeployment?: boolean;
 }
 
-const ScheduleTypeForm: React.FC<ScheduleTypeFormProps> = ({ namePrefix }) => {
+const ScheduleTypeForm: React.FC<ScheduleTypeFormProps> = ({
+  namePrefix,
+  groupDeployment
+}) => {
   const intl = useIntl();
   const { styles } = useStyles();
   const {
@@ -415,7 +428,7 @@ const ScheduleTypeForm: React.FC<ScheduleTypeFormProps> = ({ namePrefix }) => {
             model's. Rendering the field per role would be a control that
             silently does nothing — the one failure mode this feature exists to
             avoid — so the prefix is what takes it out of the section. */}
-          {!namePrefix && (
+          {!namePrefix && !groupDeployment && (
             <Form.Item<FormData> name="placement_strategy">
               <SealSelect
                 label={intl.formatMessage({

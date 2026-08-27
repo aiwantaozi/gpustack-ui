@@ -21,17 +21,44 @@ const AlgorithmMap = {
   Ngram: 'ngram'
 };
 
-const SpeculativeDecode = () => {
+interface SpeculativeDecodeProps {
+  /**
+   * Renders the same fields at a nested Form path (e.g. `['roles', 1]`) so a
+   * role can carry its own speculative config.
+   *
+   * Prefill and decode need *different* values, not one of them switched off:
+   * for MTP-style speculation the draft head is part of the model, and the
+   * NIXL handshake hashes the model — so a prefill that skips it fails the
+   * compatibility check. Upstream runs prefill at 1 draft token and decode at
+   * 3 or more. Absent means the model-level path, byte-for-byte what it was.
+   */
+  namePrefix?: (string | number)[];
+}
+
+const SpeculativeDecode: React.FC<SpeculativeDecodeProps> = ({
+  namePrefix
+}) => {
   const intl = useIntl();
   const { source, flatBackendOptions, onValuesChange } = useFormContext();
   const { getRuleMessage } = useAppUtils();
   const form = Form.useFormInstance();
-  const backend = Form.useWatch('backend', form);
+  // Every `speculative_config` path goes through this, so the section can
+  // move under a role without any field knowing about roles.
+  const path = (...field: (string | number)[]) =>
+    namePrefix ? [...namePrefix, ...field] : field;
+  // The engine is context, not this section's own field: a role that
+  // overrides speculation without overriding its engine runs the model's.
+  const roleBackend = Form.useWatch(path('backend'), form);
+  const modelBackend = Form.useWatch('backend', form);
+  const backend = namePrefix ? (roleBackend ?? modelBackend) : modelBackend;
   const speculativeEnabled = Form.useWatch(
-    ['speculative_config', 'enabled'],
+    path('speculative_config', 'enabled'),
     form
   );
-  const algorithm = Form.useWatch(['speculative_config', 'algorithm'], form);
+  const algorithm = Form.useWatch(
+    path('speculative_config', 'algorithm'),
+    form
+  );
   const speculativeConfigRef = useRef<any>({});
 
   const { draftModelList, loading, resetDraftModels, onSearch } =
@@ -46,7 +73,7 @@ const SpeculativeDecode = () => {
 
   const handleSpeculativeEnabledChange = (e: any) => {
     if (e.target.checked) {
-      form.setFieldValue('speculative_config', {
+      form.setFieldValue(path('speculative_config'), {
         enabled: true,
         algorithm:
           speculativeConfigRef.current.algorithm || AlgorithmMap.Eagle3,
@@ -58,7 +85,9 @@ const SpeculativeDecode = () => {
           speculativeConfigRef.current.ngram_max_match_length || 10
       });
     } else {
-      speculativeConfigRef.current = form.getFieldValue('speculative_config');
+      speculativeConfigRef.current = form.getFieldValue(
+        path('speculative_config')
+      );
     }
     onValuesChangeDebounced();
   };
@@ -93,7 +122,7 @@ const SpeculativeDecode = () => {
   return (
     <>
       <Form.Item<FormData>
-        name={['speculative_config', 'enabled']}
+        name={path('speculative_config', 'enabled')}
         valuePropName="checked"
         style={{ marginBottom: 8 }}
         extra={
@@ -120,7 +149,7 @@ const SpeculativeDecode = () => {
       {speculativeEnabled && (
         <>
           <Form.Item<FormData>
-            name={['speculative_config', 'algorithm']}
+            name={path('speculative_config', 'algorithm')}
             rules={[
               {
                 required: true,
@@ -145,7 +174,7 @@ const SpeculativeDecode = () => {
           </Form.Item>
           {algorithm === AlgorithmMap.Eagle3 && (
             <Form.Item<FormData>
-              name={['speculative_config', 'draft_model']}
+              name={path('speculative_config', 'draft_model')}
               rules={[
                 {
                   required: true,
@@ -180,7 +209,7 @@ const SpeculativeDecode = () => {
           )}
 
           <Form.Item<FormData>
-            name={['speculative_config', 'num_draft_tokens']}
+            name={path('speculative_config', 'num_draft_tokens')}
           >
             <CInputNumber
               label={intl.formatMessage({ id: 'models.form.numDraftTokens' })}
@@ -193,7 +222,7 @@ const SpeculativeDecode = () => {
           {algorithm === AlgorithmMap.Ngram && (
             <>
               <Form.Item<FormData>
-                name={['speculative_config', 'ngram_min_match_length']}
+                name={path('speculative_config', 'ngram_min_match_length')}
               >
                 <CInputNumber
                   label={intl.formatMessage({
@@ -204,7 +233,7 @@ const SpeculativeDecode = () => {
                 />
               </Form.Item>
               <Form.Item<FormData>
-                name={['speculative_config', 'ngram_max_match_length']}
+                name={path('speculative_config', 'ngram_max_match_length')}
               >
                 <CInput.Input
                   label={intl.formatMessage({

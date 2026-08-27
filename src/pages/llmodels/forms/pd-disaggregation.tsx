@@ -17,6 +17,7 @@ import { useFormContext } from '../config/form-context';
 import { FormData, PDMode, RoleFormItem } from '../config/types';
 import { backendOptionsMap } from '../constants/backend-parameters';
 import useQueryPDModes from '../hooks/use-query-pd-modes';
+import GatherLocality from './gather-locality';
 import { createDefaultRoles } from './roles/transform';
 
 // 1 prefill + 1 decode is the smallest group that can exist, so a cluster with
@@ -281,6 +282,30 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   const heterogeneous =
     !!prefillType && !!decodeType && prefillType !== decodeType;
 
+  /**
+   * The share of requests whose prefill and decode land on the same host, as a
+   * percentage — or null when the group is small enough that nobody is
+   * surprised.
+   *
+   * `P(same host) = 1/x` where x is the prefill count, and it depends on
+   * neither the topology nor the gather choice: the router pairs a request with
+   * some prefill and some decode, and only one of x prefills is the one sitting
+   * next to the chosen decode. So a perfectly declared fabric still pairs
+   * on-host 1/8 of the time at 8P8D. Surfaced above the threshold only, because
+   * at 1P1D or 2P2D the number is high enough to need no comment and a notice
+   * on every deployment is a notice nobody reads.
+   */
+  const largeGroupPairing = (() => {
+    const prefillReplicas = Number(
+      (roles || []).find((r: RoleFormItem) => r.name === RoleValueMap.Prefill)
+        ?.replicas ?? 0
+    );
+    if (!prefillReplicas || prefillReplicas < 4) {
+      return null;
+    }
+    return Math.round((1 / prefillReplicas) * 100);
+  })();
+
   // Options come from the catalog, filtered by engine: a recipe that targets
   // another engine stays visible but disabled, carrying why.
   const modeOptions = buildOptions(backend);
@@ -379,7 +404,34 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
               onChange={handleModeChange}
             ></SealSelect>
           </Form.Item>
+          {/* Locality lives in this block because gather describes the
+              relationship *between* the group's members, which only exists
+              once there are roles. Model-level, not per-role: a role cannot
+              have its own opinion about how far it sits from its peers. */}
+          <Form.Item label={null} style={{ marginBottom: 8 }}>
+            <LabelInfo
+              label={intl.formatMessage({ id: 'models.form.gather.label' })}
+              description={intl.formatMessage({
+                id: 'models.form.gather.tips'
+              })}
+            ></LabelInfo>
+            <GatherLocality></GatherLocality>
+          </Form.Item>
           <Flex vertical gap={4}>
+            {/* §2.5.4: P(same host) = 1/x, and it depends on neither the
+                topology nor the gather choice — so at 8P8D even a perfectly
+                declared fabric pairs on-host about 12% of the time. Told here
+                because the alternative is finding out from a latency graph a
+                week later. Non-blocking on purpose: the deployment is fine,
+                it is the expectation that needs correcting. */}
+            {largeGroupPairing !== null && (
+              <div className="note">
+                {intl.formatMessage(
+                  { id: 'models.form.gather.largeGroup' },
+                  { percent: largeGroupPairing }
+                )}
+              </div>
+            )}
             {!pdCapableBackend && backend && (
               <div className="note">
                 {intl.formatMessage({ id: 'models.form.pd.disabled.backend' })}

@@ -459,5 +459,23 @@ export default {
     '留空则使用所选 PD 模式推导出的镜像。仅当该镜像不含 router 可执行文件时才需要填写——此时只需换镜像，启动命令仍由系统推导。',
   'models.form.roles.cpuonly': '仅使用 CPU',
   'models.form.roles.cpuonly.tips':
-    'Router 只转发请求、不持有模型权重，因此不占用 GPU。'
+    'Router 只转发请求、不持有模型权重，因此不占用 GPU。',
+
+  'models.form.gather.label': 'KV 传输局部性',
+  'models.form.gather.tips':
+    '这一组必须放在多紧的范围内。调度器本来就会往放得下的最紧域里塞，这里决定的是放不下时「拒绝」还是「摊开」。',
+  'models.form.gather.prefer': '尽量靠近',
+  'models.form.gather.prefer.tips': '放不下就摊开，仍然部署。默认。',
+  'models.form.gather.sameHost': '至少同机，否则不部署',
+  'models.form.gather.sameLayer': '至少同{layer}，否则不部署',
+  'models.form.gather.fits': '放得下',
+  'models.form.gather.fits.domain': '{domain} 放得下',
+  'models.form.gather.short':
+    '最大的 {domain} 只能放 {available}，需要 {needed}',
+  'models.form.gather.noRoom': '这一档没有任何域放得下',
+  'models.form.gather.unknown': '{count} 台 worker 容量读不到，这一档无法判断',
+  'models.form.gather.declare':
+    '在集群设置里声明拓扑层级后，可以选择更粗的档次（如机柜、可用区）。',
+  'models.form.gather.largeGroup':
+    '这个规模下约 {percent}% 的请求会落在同一台机上，与拓扑和上面的选择都无关。若追求 KV 传输局部性，考虑部署多个较小的分离组。'
 };

@@ -494,7 +494,26 @@ export default {
     'Оставьте пустым, чтобы использовать образ, выведенный из выбранного режима PD. Указывайте только если в этом образе нет исполняемого файла router — команда запуска всё равно выводится автоматически.',
   'models.form.roles.cpuonly': 'Только CPU',
   'models.form.roles.cpuonly.tips':
-    'Router только пересылает запросы и не хранит веса модели, поэтому GPU не занимает.'
+    'Router только пересылает запросы и не хранит веса модели, поэтому GPU не занимает.',
+
+  'models.form.gather.label': 'KV Transfer Locality',
+  'models.form.gather.tips':
+    'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
+  'models.form.gather.prefer': 'As close as possible',
+  'models.form.gather.prefer.tips': 'Spread out rather than fail. Default.',
+  'models.form.gather.sameHost': 'Same host, or do not deploy',
+  'models.form.gather.sameLayer': 'Same {layer}, or do not deploy',
+  'models.form.gather.fits': 'fits',
+  'models.form.gather.fits.domain': 'fits in {domain}',
+  'models.form.gather.short':
+    '{domain} is the roomiest and holds {available} of {needed}',
+  'models.form.gather.noRoom': 'nothing at this level has room',
+  'models.form.gather.unknown':
+    'capacity unknown on {count} worker(s), so this cannot be checked',
+  'models.form.gather.declare':
+    'Declare topology layers in the cluster settings to choose a coarser level (e.g. rack or zone).',
+  'models.form.gather.largeGroup':
+    'At this size about {percent}% of requests pair on the same host, whatever the topology. For KV transfer locality, consider several smaller disaggregated groups instead.'
 };
 
 // ========== To-Do: Translate Keys (Remove After Translation) ==========

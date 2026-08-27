@@ -55,6 +55,18 @@ export interface ListItem {
   // --- PD: user intent ---
   roles?: RoleSpec[] | null;
   disaggregation?: DisaggregationSpec | null;
+  /**
+   * How far apart this group's members may sit. Beside `roles` rather than
+   * inside `disaggregation`, mirroring the backend: gather describes the
+   * relationship between *members*, and members come from `roles`.
+   *
+   * A layer without a strategy is refused server-side, so the two always move
+   * together.
+   */
+  gather?: {
+    strategy?: 'MustGather' | 'PreferGather' | null;
+    layer?: string | null;
+  } | null;
 
   // --- PD: server-owned status, read-only ---
   //
@@ -297,6 +309,18 @@ export interface FormData {
   pdMode?: string;
   roles?: RoleFormItem[] | null;
   disaggregation?: DisaggregationSpec | null;
+  /**
+   * How far apart this group's members may sit. Beside `roles` rather than
+   * inside `disaggregation`, mirroring the backend: gather describes the
+   * relationship between *members*, and members come from `roles`.
+   *
+   * A layer without a strategy is refused server-side, so the two always move
+   * together.
+   */
+  gather?: {
+    strategy?: 'MustGather' | 'PreferGather' | null;
+    layer?: string | null;
+  } | null;
 }
 
 export interface ScalingScheduleRule {

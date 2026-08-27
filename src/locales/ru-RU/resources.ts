@@ -124,7 +124,12 @@ export default {
   'resources.server.version': 'Server Version: {version}',
   'resources.worker.currentVersion': 'Current Version: {version}',
   'resources.worker.targetVersion': 'Target Version: {version}',
-  'resources.driver.version': 'Driver Version: {version}'
+  'resources.driver.version': 'Driver Version: {version}',
+
+  'resources.worker.setLabels': 'Set Labels',
+  'resources.worker.setLabels.count': '{count} workers selected',
+  'resources.worker.setLabels.partial':
+    'Labels updated on {done} workers, {failed} failed.'
 };
 
 // ========== To-Do: Translate Keys (Remove After Translation) ==========

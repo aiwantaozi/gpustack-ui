@@ -77,6 +77,10 @@ const Workers: React.FC<WorkersProps> = ({ clusterId, source }) => {
   });
 
   const intl = useIntl();
+  // Non-empty means the labels modal is writing to the selection rather than
+  // to one row. Held as ids and not rows so a background refresh cannot leave
+  // the modal pointed at stale copies.
+  const [batchLabelTargets, setBatchLabelTargets] = useState<number[]>([]);
   const [updateLabelsData, setUpdateLabelsData] = useState<{
     open: boolean;
     data: ListItem;
@@ -156,12 +160,40 @@ const Workers: React.FC<WorkersProps> = ({ clusterId, source }) => {
 
   const handleUpdateLabelsOk = async (values: Record<string, any>) => {
     try {
-      await updateWorker(updateLabelsData.data.id, {
-        ...updateLabelsData.data,
-        labels: values.labels
-      });
-      message.success(intl.formatMessage({ id: 'common.message.success' }));
+      if (batchLabelTargets.length) {
+        // The endpoint is a per-worker PUT taking the whole row, so a batch is
+        // N writes. Sent with `allSettled` and reported by count: labelling
+        // thirty workers and failing on one must not roll back the
+        // twenty-nine that worked, and must not claim success either.
+        const rows = (dataSource.dataList || []).filter((item: ListItem) =>
+          batchLabelTargets.includes(item.id)
+        );
+        const results = await Promise.allSettled(
+          rows.map((row: ListItem) =>
+            updateWorker(row.id, { ...row, labels: values.labels })
+          )
+        );
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed) {
+          message.warning(
+            intl.formatMessage(
+              { id: 'resources.worker.setLabels.partial' },
+              { done: results.length - failed, failed }
+            )
+          );
+        } else {
+          message.success(intl.formatMessage({ id: 'common.message.success' }));
+        }
+        rowSelection?.clearSelections?.();
+      } else {
+        await updateWorker(updateLabelsData.data.id, {
+          ...updateLabelsData.data,
+          labels: values.labels
+        });
+        message.success(intl.formatMessage({ id: 'common.message.success' }));
+      }
       fetchData();
+      setBatchLabelTargets([]);
       setUpdateLabelsData({ open: false, data: {} as ListItem });
     } catch (error) {
       console.log('error', error);
@@ -169,6 +201,7 @@ const Workers: React.FC<WorkersProps> = ({ clusterId, source }) => {
   };
 
   const handleCancelUpdateLabels = () => {
+    setBatchLabelTargets([]);
     setUpdateLabelsData({
       ...updateLabelsData,
       open: false
@@ -176,11 +209,30 @@ const Workers: React.FC<WorkersProps> = ({ clusterId, source }) => {
   };
 
   const handleUpdateLabels = (record: ListItem) => {
+    setBatchLabelTargets([]);
     setUpdateLabelsData({
       open: true,
       data: {
         ...record
       }
+    });
+  };
+
+  /**
+   * Bulk labelling: the same modal, pointed at the selection.
+   *
+   * Topology is declared once and maintained by labelling, and a fleet is
+   * labelled forty machines at a time — a modal per host is not a workflow.
+   */
+  const handleUpdateLabelsByBatch = () => {
+    const ids = (rowSelection?.selectedRowKeys || []) as number[];
+    if (!ids.length) {
+      return;
+    }
+    setBatchLabelTargets(ids);
+    setUpdateLabelsData({
+      open: true,
+      data: {} as ListItem
     });
   };
 
@@ -305,6 +357,7 @@ const Workers: React.FC<WorkersProps> = ({ clusterId, source }) => {
             ) : (
               <WorkerRightActions
                 handleDeleteByBatch={handleDeleteBatch}
+                handleUpdateLabelsByBatch={handleUpdateLabelsByBatch}
                 handleClickPrimary={handleOnAddWorker}
                 rowSelection={rowSelection}
                 MonitorButton={ActionButton()}
@@ -348,6 +401,7 @@ const Workers: React.FC<WorkersProps> = ({ clusterId, source }) => {
           open={updateLabelsData.open}
           onOk={handleUpdateLabelsOk}
           onCancel={handleCancelUpdateLabels}
+          count={batchLabelTargets.length || 1}
           data={{
             name: updateLabelsData.data.name,
             labels: updateLabelsData.data.labels

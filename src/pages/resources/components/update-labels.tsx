@@ -18,6 +18,15 @@ type ViewModalProps = {
     name: string;
     labels: object;
   };
+  /**
+   * How many workers this write will land on, when it is a batch.
+   *
+   * Absent or 1 keeps the single-worker form byte-for-byte. Above 1 the name
+   * field becomes a count and the labels start empty, because there is no
+   * single "current" value to prefill from — and prefilling from the first
+   * selected worker would silently copy its labels onto the other thirty-nine.
+   */
+  count?: number;
 };
 interface FormData {
   labels: object;
@@ -25,9 +34,10 @@ interface FormData {
 }
 
 const UpdateLabels: React.FC<ViewModalProps> = (props) => {
-  const { open, onCancel, data, onOk } = props || {};
+  const { open, onCancel, data, onOk, count } = props || {};
   const intl = useIntl();
   const [form] = Form.useForm();
+  const batch = (count ?? 1) > 1;
 
   const handleSumit = () => {
     form.submit();
@@ -58,8 +68,16 @@ const UpdateLabels: React.FC<ViewModalProps> = (props) => {
         preserve={false}
         clearOnDestroy={true}
         initialValues={{
-          name: data.name,
-          labels: data.labels
+          name: batch
+            ? intl.formatMessage(
+                { id: 'resources.worker.setLabels.count' },
+                { count }
+              )
+            : data.name,
+          // Empty on a batch: see `count`. The labels entered here are what
+          // every selected worker ends up with, so starting from one of them
+          // would be a silent overwrite of the rest.
+          labels: batch ? {} : data.labels
         }}
       >
         <Form.Item<FormData> name="name">

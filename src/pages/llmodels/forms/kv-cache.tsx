@@ -1,10 +1,10 @@
 import {
-  CheckboxField,
   InputNumber as CInputNumber,
+  LabelInfo,
   Select as SealSelect
 } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Form, Input } from 'antd';
+import { Flex, Form, Input, Switch, Tooltip } from 'antd';
 import _ from 'lodash';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFormContext } from '../config/form-context';
@@ -28,6 +28,40 @@ interface KVCacheFormProps {
    */
   namePrefix?: (string | number)[];
 }
+
+/**
+ * The enable row: label on the left, switch on the right.
+ *
+ * A component rather than inline JSX because `Form.Item` injects `checked` and
+ * `onChange` into its single child — inline, the injection would land on the
+ * `Flex` and the switch would never see it.
+ */
+const ExtendedKVCacheSwitch: React.FC<{
+  checked?: boolean;
+  disabled?: boolean;
+  onChange?: (checked: boolean) => void;
+}> = ({ checked, disabled, onChange }) => {
+  const intl = useIntl();
+  const reason = intl.formatMessage({ id: 'models.form.kvCache.tips2' });
+  return (
+    <Flex align="center" justify="space-between">
+      <LabelInfo
+        label={intl.formatMessage({ id: 'models.form.extendedkvcache' })}
+        description={reason}
+      ></LabelInfo>
+      <Tooltip title={disabled ? reason : false}>
+        <span>
+          <Switch
+            size="small"
+            checked={checked}
+            disabled={disabled}
+            onChange={onChange}
+          ></Switch>
+        </span>
+      </Tooltip>
+    </Flex>
+  );
+};
 
 const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
   const intl = useIntl();
@@ -106,8 +140,8 @@ const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
     ram_size: configCacheRef.current?.ram_size || null
   });
 
-  const handleEnableOnChange = async (e: any) => {
-    if (e.target.checked) {
+  const handleEnableOnChange = async (checked: boolean) => {
+    if (checked) {
       // fall back to in-process when the stashed shared selection is no
       // longer supported
       const mode =
@@ -141,7 +175,7 @@ const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
     }
     await notifyValuesChangeDelayed({
       extended_kv_cache: {
-        enabled: e.target.checked
+        enabled: checked
       }
     });
   };
@@ -356,20 +390,29 @@ const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
 
   return (
     <>
+      {/* A `Switch` in a label row, the shape every other feature toggle in
+          this form uses (PD Disaggregation, Scheduled Scaling). It was a
+          checkbox, which read as one item in a list of options rather than as
+          the gate for the whole section below it — and it sat next to a PD
+          switch that gates its section exactly the same way.
+
+          The disabled state carries its reason in a tooltip. A control that is
+          greyed out with no explanation is the silent-failure mode this form
+          keeps having to fix: the answer here ("built-in backends only") is
+          already written, it just was not reachable from the disabled control. */}
       <Form.Item<FormData>
         data-field="extended_kv_cache.enabled"
         name={path('extended_kv_cache', 'enabled')}
         valuePropName="checked"
         style={{ marginBottom: 8 }}
       >
-        <CheckboxField
-          description={intl.formatMessage({
-            id: 'models.form.kvCache.tips2'
-          })}
+        {/* `onChange` here is NOT overridden by the one Form.Item injects —
+            antd wraps it, so the field's own write runs and then this does the
+            mode / cache_service_id work that actually turns the section on. */}
+        <ExtendedKVCacheSwitch
           disabled={!sharedSupported}
           onChange={handleEnableOnChange}
-          label={intl.formatMessage({ id: 'models.form.extendedkvcache' })}
-        ></CheckboxField>
+        />
       </Form.Item>
       {kvCacheEnabled && (
         <>

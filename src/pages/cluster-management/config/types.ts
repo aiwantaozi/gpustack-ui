@@ -140,6 +140,10 @@ export interface ClusterListItem {
   state_message: string;
   worker_pools: NodePoolListItem[];
   k8s_options?: K8sOptions;
+  // Stored alongside k8s_options and handled identically. Absent is not a
+  // degraded state: it means no layers declared, which the tree already
+  // handles by giving every worker a leaf of its own under the root.
+  topology?: ClusterTopology | null;
   // Backend ClusterPublic carries this; admin-"All" namespace
   // resolution falls back to the cluster's owner Org name.
   owner_principal_id?: number;
@@ -169,4 +173,104 @@ export interface SystemConfig {
   showMonitoring?: boolean;
   // Platform-wide business timezone (IANA name) resolved from GPUSTACK_TIMEZONE.
   timezone?: string;
+}
+
+// --------------------------------------------------------------------------
+// Topology: how far apart this cluster's workers are.
+//
+// The wire form is camelCase, matching the neighbouring `k8s_options` blob —
+// the backend declares aliases for exactly this.
+// --------------------------------------------------------------------------
+
+/**
+ * The built-in leaf. It takes the worker's *name* rather than a label, which is
+ * why the tightest gather choice exists even for a cluster that has declared
+ * nothing — and why a missing label can only cost resolution, never
+ * schedulability.
+ */
+export const NODE_LAYER = 'NodeTopologyLayer';
+
+/** The domain a worker lands in when every one of a layer's label keys misses. */
+export const UNCLASSIFIED = '<unclassified>';
+
+export type GatherStrategy = 'MustGather' | 'PreferGather';
+
+export interface TopologyLayer {
+  /**
+   * Operator-chosen, and shown verbatim in the deployment form's "at least in
+   * the same ___" choices — so it is the display name as well as the id. That
+   * is deliberate: there is no separate display field, which forces the name
+   * to be something an operator actually recognises.
+   */
+  name: string;
+  /**
+   * any-of, tried in order, first present wins. The same physical layer is
+   * spelled differently by every vendor and cloud, and a mixed fleet must not
+   * have to be relabelled before topology works at all.
+   */
+  labelKeys?: string[];
+  /**
+   * A chain rather than an ordered list: inserting a layer into a list
+   * renumbers every layer below it, and these names are referenced from saved
+   * model configurations. Unset means "hangs off the cluster root".
+   */
+  parentLayer?: string | null;
+}
+
+export interface ClusterTopology {
+  layers?: TopologyLayer[];
+  defaultGatherStrategy?: GatherStrategy | null;
+  defaultGatherLayer?: string | null;
+}
+
+export interface TopologyDomain {
+  layer: string;
+  name: string;
+  /** Its label keys all missed. Rendered as a prompt to act, not as a domain. */
+  unclassified?: boolean;
+  /** Which of the layer's any-of keys actually matched here. */
+  matched_label_key?: string | null;
+  workers: number;
+  gpus: number;
+  /** GPUs with nothing allocated. The number "can my 2P2D fit here" needs. */
+  free_gpus: number;
+  /** Carried only on the unclassified bucket and the leaf — see the API doc. */
+  worker_ids?: number[];
+  children?: TopologyDomain[];
+}
+
+export interface TopologyPreview {
+  /** Root-to-leaf, leaf included. */
+  layers: string[];
+  /** Layer name -> its declared any-of keys, so the page can name the missing key. */
+  label_keys: Record<string, string[]>;
+  total_workers: number;
+  /** Deduplicated across layers: one worker missing two labels is one problem. */
+  unclassified_workers: number;
+  root: TopologyDomain;
+}
+
+export interface GatherTier {
+  layer: string;
+  feasible: boolean;
+  /** Where the group would land, when it fits. */
+  domain?: string | null;
+  /** The solver's own words — "the roomiest rack holds 6". */
+  reason?: string | null;
+  best_domain?: string | null;
+  needed: number;
+  available: number;
+  /**
+   * Workers whose capacity could not be established. Non-zero makes
+   * `available` a floor, and the form must not present a floor as a capacity
+   * verdict: "we could not look" and "there is no room" call for opposite
+   * reactions.
+   */
+  unmeasured: number;
+}
+
+export interface GatherFeasibility {
+  /** Leaf-first: the tightest choice is the one that always exists. */
+  tiers: GatherTier[];
+  prefer?: GatherTier | null;
 }

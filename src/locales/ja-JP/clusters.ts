@@ -210,7 +210,36 @@ export default {
   'clusters.gpuInstances.setting.enabled': 'Enabled',
   'clusters.gpuInstances.setting.disabled': 'Disabled',
   'clusters.gpuInstances.setting.unmanaged':
-    'Unmanaged (the cluster keeps its own value)'
+    'Unmanaged (the cluster keeps its own value)',
+
+  // Topology: how far apart this cluster's workers are.
+  'clusters.topology.title': 'Topology',
+  'clusters.topology.layers': 'Layers',
+  'clusters.topology.addLayer': 'Add Layer',
+  'clusters.topology.layer.name': 'Layer Name',
+  'clusters.topology.layer.name.tips':
+    'Shown verbatim in the deployment form, so use a word your operators recognise (e.g. Rack, not L2).',
+  'clusters.topology.layer.name.duplicate':
+    'This name is already used by another layer.',
+  'clusters.topology.layer.labelKeys': 'Worker Label Keys',
+  'clusters.topology.layer.labelKeys.tips':
+    'Tried in order; the first key present on a worker wins. Add several when your fleet spells the same layer differently.',
+  'clusters.topology.layer.addKey': 'Add Key',
+  'clusters.topology.leaf': 'Host (built in)',
+  'clusters.topology.leaf.tips':
+    'Always grouped by host name, never by a label, so it cannot collapse when a label is missing. This is why an unlabelled worker only loses resolution and stays schedulable.',
+  'clusters.topology.noRebalance':
+    'Only affects later scheduling. Running deployments are not moved.',
+  'clusters.topology.cluster': 'Cluster',
+  'clusters.topology.unclassified': 'Unclassified',
+  'clusters.topology.unclassified.missing': 'missing {keys}',
+  'clusters.topology.unclassified.summary':
+    '{count} of {total} workers cannot be told apart yet. They still schedule normally.',
+  'clusters.topology.unclassified.label': 'Label these workers',
+  'clusters.topology.preview.capacity':
+    '{workers} workers · {gpus} GPUs · {free} free',
+  'clusters.topology.preview.noWorkers': 'This cluster has no workers yet.',
+  'clusters.topology.preview.failed': 'Could not preview this declaration.'
 };
 
 // ========== To-Do: Translate Keys (Remove After Translation) ==========

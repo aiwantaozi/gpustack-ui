@@ -43,6 +43,7 @@ import {
 } from './components/add-worker/config';
 import PoolRows from './components/pool-rows';
 import RightActions from './components/right-actions';
+import TopologyDrawer from './components/topology';
 import { isCloudProvider, ProviderType, ProviderValueMap } from './config';
 import {
   ClusterListItem,
@@ -224,6 +225,11 @@ const Clusters: React.FC = () => {
     }
   };
 
+  // Held as the row itself rather than an id: the drawer opens on the saved
+  // declaration, and re-fetching the cluster to read a field the list already
+  // has would put a spinner in front of the operator for nothing.
+  const [topologyCluster, setTopologyCluster] = useState<any>(null);
+
   const handleSelect = useMemoizedFn((val: any, row: ListItem, item?: any) => {
     if (item?.onClick) {
       item.onClick(row);
@@ -247,6 +253,8 @@ const Clusters: React.FC = () => {
       });
     } else if (val === 'metrics') {
       goToGrafana(row);
+    } else if (val === 'topology') {
+      setTopologyCluster(row as any);
     }
   });
 
@@ -495,6 +503,11 @@ const Clusters: React.FC = () => {
         pendingProviderHint={pendingProviderHint}
         onClose={handleClusterModalClose}
       ></ClusterModal>
+      <TopologyDrawer
+        open={!!topologyCluster}
+        cluster={topologyCluster}
+        onClose={() => setTopologyCluster(null)}
+      ></TopologyDrawer>
       {AddWorkerModal}
       {AccessDrawer && <AccessDrawer />}
     </>

@@ -202,5 +202,33 @@ export default {
     '同一个节点是否可以同时提供加速型和纯 CPU 实例类型。启用：节点会被归入其所能承载的每一种类型。禁用：带加速卡的节点只产生加速型实例类型，纯 CPU 节点只产生通用实例类型。Operator 默认值：启用。',
   'clusters.gpuInstances.setting.enabled': '启用',
   'clusters.gpuInstances.setting.disabled': '禁用',
-  'clusters.gpuInstances.setting.unmanaged': '未托管（沿用集群自身的设置）'
+  'clusters.gpuInstances.setting.unmanaged': '未托管（沿用集群自身的设置）',
+
+  // 拓扑：这个集群的 worker 相距多远。
+  'clusters.topology.title': '拓扑',
+  'clusters.topology.layers': '层级',
+  'clusters.topology.addLayer': '添加层级',
+  'clusters.topology.layer.name': '层级名称',
+  'clusters.topology.layer.name.tips':
+    '会原样出现在部署表单里，请用运维看得懂的词（如「机柜」而不是 L2）。',
+  'clusters.topology.layer.name.duplicate': '这个名称已被另一个层级占用。',
+  'clusters.topology.layer.labelKeys': 'Worker 标签键',
+  'clusters.topology.layer.labelKeys.tips':
+    '按顺序尝试，worker 上第一个存在的键生效。同一层级在不同机器上写法不同时，可以多填几个。',
+  'clusters.topology.layer.addKey': '添加键',
+  'clusters.topology.leaf': '主机（内置）',
+  'clusters.topology.leaf.tips':
+    '始终按主机名归组，不读任何标签，所以不会因为标签缺失而塌掉。这也是未打标签的 worker 只会失去分辨度、仍然可被调度的原因。',
+  'clusters.topology.noRebalance':
+    '仅影响之后的调度，已运行的部署不会被重新放置。',
+  'clusters.topology.cluster': '集群',
+  'clusters.topology.unclassified': '未归类',
+  'clusters.topology.unclassified.missing': '缺少 {keys}',
+  'clusters.topology.unclassified.summary':
+    '{total} 台 worker 中有 {count} 台还无法区分远近，它们仍会正常参与调度。',
+  'clusters.topology.unclassified.label': '给这些 worker 打标签',
+  'clusters.topology.preview.capacity':
+    '{workers} 台 · {gpus} 卡 · 空闲 {free}',
+  'clusters.topology.preview.noWorkers': '这个集群还没有 worker。',
+  'clusters.topology.preview.failed': '无法预览这份声明。'
 };

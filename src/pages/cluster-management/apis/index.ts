@@ -5,11 +5,14 @@ import { getCloudProviderAdapter } from '../config/cloud-providers';
 import {
   ClusterFormData,
   ClusterListItem,
+  ClusterTopology,
   CredentialFormData,
   CredentialListItem,
+  GatherFeasibility,
   NodePoolFormData,
   NodePoolListItem,
-  SystemConfig
+  SystemConfig,
+  TopologyPreview
 } from '../config/types';
 
 export const CREDENTIALS_API = '/cloud-credentials';
@@ -222,4 +225,50 @@ export async function setDefaultCluster(params: { id: number }) {
   return request(`${CLUSTERS_API}/${params.id}/set-default`, {
     method: 'POST'
   });
+}
+
+/**
+ * The tree a topology declaration would produce over this cluster's workers.
+ *
+ * A POST carrying the declaration, not a GET over the saved one, and that is
+ * the point: the question is "what happens if this layer matched a different
+ * key", asked *before* saving. Omit `topology` to preview the committed state.
+ */
+export async function previewClusterTopology(params: {
+  id: number;
+  topology?: ClusterTopology | null;
+}) {
+  return request<TopologyPreview>(
+    `${CLUSTERS_API}/${params.id}/topology/preview`,
+    {
+      method: 'POST',
+      data: { topology: params.topology ?? null }
+    }
+  );
+}
+
+/**
+ * Whether a group would deploy at each gather tier, right now.
+ *
+ * Takes the whole model spec because capacity is decided by the resource-fit
+ * selectors, and those read the backend, the engine parameters and the
+ * per-role overrides. A summary would make the answer disagree with the real
+ * scheduling, which is the one thing a feasibility check must not do.
+ *
+ * Every tier comes back in one response: the alternative is a round trip per
+ * option while the dropdown renders.
+ */
+export async function queryGatherFeasibility(
+  params: { id: number; model_spec: Record<string, any> },
+  options?: any
+) {
+  return request<GatherFeasibility>(
+    `${CLUSTERS_API}/${params.id}/topology/gather-feasibility`,
+    {
+      method: 'POST',
+      data: { model_spec: params.model_spec },
+      cancelToken: options?.token,
+      skipErrorHandler: options?.skipErrorHandler
+    }
+  );
 }

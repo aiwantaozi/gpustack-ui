@@ -471,14 +471,29 @@ export default {
   'models.pd.ttft': 'TTFT',
   'models.pd.tpot': 'TPOT',
   'models.pd.queue': 'Queue',
-  'models.pd.ttft.tips': 'Time to first token belongs to prefill: that is what a user waited for. Decode\'s TTFT is measured from its own first forward pass and is not comparable.',
-  'models.pd.tpot.tips': 'Time per output token belongs to decode. Prefill emits one token and hands over, so its inter-token latency is not a steady-state figure.',
-  'models.pd.queue.tips': 'Mean queue depth. The only objective signal for whether the prefill:decode ratio is right and which way it is wrong: a queue that only ever builds on one side is that side asking for more replicas. Read the shape, not the value -- a queue that drains is healthy at any depth.',
+  'models.pd.ttft.tips':
+    "Time to first token belongs to prefill: that is what a user waited for. Decode's TTFT is measured from its own first forward pass and is not comparable.",
+  'models.pd.tpot.tips':
+    'Time per output token belongs to decode. Prefill emits one token and hands over, so its inter-token latency is not a steady-state figure.',
+  'models.pd.queue.tips':
+    'Mean queue depth. The only objective signal for whether the prefill:decode ratio is right and which way it is wrong: a queue that only ever builds on one side is that side asking for more replicas. Read the shape, not the value -- a queue that drains is healthy at any depth.',
   'models.pd.failedTransfers': 'KV Transfer Failures',
   'models.pd.kvExpired': 'KV Leases Expired',
-  'models.pd.kvExpired.tips': 'Requests dropped between the two hops, whose prefill was computed for nothing. A rising value means requests are being lost between hop 1 and hop 2.',
+  'models.pd.kvExpired.tips':
+    'Requests dropped between the two hops, whose prefill was computed for nothing. A rising value means requests are being lost between hop 1 and hop 2.',
+  // The requirement beside the reading. `0.42 GB/s` is fine for an MLA model
+  // and a catastrophe for a 70B GQA one, so the measured rate alone is not a
+  // judgement -- and the assumption it was computed under has to travel with
+  // it, since a requirement is a property of a workload, not of a model.
+  'models.pd.bandwidth.sentence':
+    'Transmitting the {seqLen}-token KV cache ({perRequest}) within {budget} ms requires a link bandwidth of {required}.',
+  'models.pd.bandwidth.kvMath':
+    '2 (K and V) × {kvHeads} KV heads × {headDim} head dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
+  'models.pd.bandwidth.kvMath.mla':
+    '{latentDim} latent dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
   'models.pd.denominator.weak': 'coarse denominator',
-  'models.pd.denominator.weak.tips': 'The ratio came from the router\'s route-aggregated total rather than per-worker counters: it still answers whether anything was routed, but no longer points at which decode stopped pulling.',
+  'models.pd.denominator.weak.tips':
+    "The ratio came from the router's route-aggregated total rather than per-worker counters: it still answers whether anything was routed, but no longer points at which decode stopped pulling.",
   'models.pd.ratio.waiting':
     'Ratio {configured} (currently {current}, waiting for {role})',
   'models.pd.group.restarting':

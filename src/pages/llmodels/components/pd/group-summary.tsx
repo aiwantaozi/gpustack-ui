@@ -12,6 +12,7 @@ import {
 import styles from '../../style/group-summary.module.less';
 import PDMarkers from './pd-markers';
 import { orderedRoleStatus, roleLabel, roleRatio } from './role-status';
+import useKVTransferBudget, { ASSUMED_SEQ_LEN } from './use-kv-transfer-budget';
 import usePDMetrics from './use-pd-metrics';
 
 interface GroupSummaryProps {
@@ -37,9 +38,18 @@ const formatRate = (value: number): string => {
 const formatSeconds = (value: number): string =>
   value < 1 ? `${(value * 1000).toFixed(1)} ms` : `${value.toFixed(2)} s`;
 
+/**
+ * Three rungs because this now formats two quantities four orders of magnitude
+ * apart: one transfer's payload (KB to MB) and a whole request's KV cache,
+ * which is 448 MB for a 0.6B model and several GB for a 70B one. Without the
+ * GB rung the latter read as `2560.00 MB`.
+ */
 const formatBytes = (value: number): string => {
   const mb = value / 1024 ** 2;
-  return mb < 1 ? `${(value / 1024).toFixed(0)} KB` : `${mb.toFixed(2)} MB`;
+  if (mb < 1) {
+    return `${(value / 1024).toFixed(0)} KB`;
+  }
+  return mb < 1024 ? `${mb.toFixed(2)} MB` : `${(mb / 1024).toFixed(2)} GB`;
 };
 
 /**
@@ -142,13 +152,19 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
 }) => {
   const intl = useIntl();
   const { metrics, fetchMetrics } = usePDMetrics();
+  const { budget, fetchBudget } = useKVTransferBudget();
 
   // Action-driven: this component only mounts when the row is expanded, so
   // mounting IS the action. Keyed on the model id so re-expanding a different
   // row refetches, and a collapsed row never costs a Prometheus round trip.
+  //
+  // Two independent requests, so they go together rather than in sequence:
+  // the requirement is read from the model's config and the telemetry from
+  // Prometheus, and neither is an input to the other.
   React.useEffect(() => {
     fetchMetrics(modelData?.id);
-  }, [modelData?.id, fetchMetrics]);
+    fetchBudget(modelData?.id);
+  }, [modelData?.id, fetchMetrics, fetchBudget]);
   const items = orderedRoleStatus(modelData?.role_status, modelData?.roles);
   const ratio = roleRatio(items);
 
@@ -182,6 +198,83 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
       role.time_to_first_token_seconds != null ||
       role.time_per_output_token_seconds != null ||
       role.pending_requests != null
+  );
+
+  // How much bandwidth this model's KV transfer needs, from its own config.
+  // Rendered wherever the measured rate is — and also where it is not, which is
+  // the point: an idle group cannot tell you whether its network is adequate,
+  // and this figure can, because it never depended on traffic.
+  //
+  // 🔴 A sentence, not a row of label/value pairs like the measured figures
+  // above it. Those are readings a user scans and compares over time; this is
+  // one derivation whose three parts only mean anything in order -- this much
+  // KV, in this long, therefore this fast. Split into `KV per 4096 tokens
+  // 448 MB` and `Link needs 2.19 GB/s`, the eye reads two independent metrics
+  // and has to reassemble the sentence to see that one causes the other.
+  //
+  // Both premises are in it rather than in the tooltip: the request size and
+  // the window are figures this panel picked and the reader never configured,
+  // so hidden they make the number unarguable rather than merely unexplained.
+  //
+  // And a reference, deliberately not a verdict -- judging a link against a
+  // window we chose would be judging a deployment by an SLO its owner never
+  // set.
+  const perRequestBytes = budget.budget?.bytes_per_request ?? 0;
+  const perTokenBytes = budget.budget?.bytes_per_token ?? 0;
+  const layers = budget.budget?.layers ?? 0;
+  const latentDim = budget.budget?.latent_dim;
+  // Derived from the byte count rather than mapped from the dtype name, so the
+  // product in the tooltip always multiplies out to the figure beside it --
+  // a table keyed on "fp8" / "bf16" would drift the moment the server learns a
+  // dtype this file does not know.
+  const divisor = latentDim
+    ? latentDim * layers
+    : 2 *
+      (budget.budget?.kv_heads ?? 0) *
+      (budget.budget?.head_dim ?? 0) *
+      layers;
+  const elementBytes = divisor > 0 ? Math.round(perTokenBytes / divisor) : 0;
+  const bandwidthRequirement = budget.requiredBytesPerSecond != null && (
+    <Tooltip
+      // Only the arithmetic behind the size. Everything else that stood here --
+      // why the KV crosses at all, whose SLO the window is, which flags shrink
+      // it -- was answering questions the reader had not asked yet.
+      //
+      // Two formulas because there are two KV layouts, and the `2 ×` belongs to
+      // exactly one of them: MLA stores a single compressed latent rather than
+      // per-head K and V, and applying the doubling there would inflate the one
+      // number that makes those models cheap to disaggregate.
+      title={intl.formatMessage(
+        {
+          id: latentDim
+            ? 'models.pd.bandwidth.kvMath.mla'
+            : 'models.pd.bandwidth.kvMath'
+        },
+        {
+          kvHeads: budget.budget?.kv_heads,
+          headDim: budget.budget?.head_dim,
+          latentDim,
+          element: elementBytes,
+          dtype: budget.budget?.kv_cache_dtype,
+          layers,
+          perToken: formatBytes(perTokenBytes),
+          seqLen: ASSUMED_SEQ_LEN,
+          perRequest: formatBytes(perRequestBytes)
+        }
+      )}
+    >
+      <span style={labelStyle}>
+        {intl.formatMessage(
+          { id: 'models.pd.bandwidth.sentence' },
+          {
+            seqLen: ASSUMED_SEQ_LEN,
+            perRequest: formatBytes(perRequestBytes),
+            budget: Math.round(budget.budget?.transfer_budget_ms ?? 0),
+            required: formatRate(budget.requiredBytesPerSecond)
+          }
+        )}
+      </span>
+    </Tooltip>
   );
 
   return (
@@ -364,6 +457,13 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
                         </Tooltip>
                       )}
                     </Flex>
+                    {/* Its own line, below everything measured. What sits above
+                      is what this deployment did; this is what its model would
+                      need, computed from a config file — and read side by side
+                      on one line, `KV transfer 0.15 GB/s` and `Link needs 2.19
+                      GB/s` are two numbers in the same unit with no cue that
+                      only one of them was observed. */}
+                    {bandwidthRequirement}
                   </Flex>
                 </Col>
                 <Col xs={24} lg={13}>
@@ -465,11 +565,22 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
                 </Col>
               </Row>
             )}
-            {!metrics.available && !!metrics.reason && (
+            {!metrics.available && (
               // Why nothing could be measured, in the server's words. Kept
               // distinct from every verdict above: "we cannot tell" and "PD
               // stopped working" call for opposite reactions.
-              <span style={labelStyle}>{metrics.reason}</span>
+              //
+              // The requirement still shows here, and this is the state where
+              // it earns the most: with no telemetry at all it is the only
+              // thing on the panel, and "this model needs 4.52 GB/s" is exactly
+              // what a user checks their network against before the first
+              // request rather than after.
+              <Flex align="center" gap={16} wrap="wrap">
+                {!!metrics.reason && (
+                  <span style={labelStyle}>{metrics.reason}</span>
+                )}
+                {bandwidthRequirement}
+              </Flex>
             )}
             {effectivenessDegraded && (
               <span style={{ color: 'var(--ant-color-error)' }}>

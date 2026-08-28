@@ -144,6 +144,57 @@ export interface PDRoleMetrics {
   time_per_output_token_seconds?: number | null;
 }
 
+// How much bandwidth this model's KV transfer needs, from `POST
+// /models/kv-transfer-budget`. Derived from the model's own config, so it is
+// answerable before a deployment exists — and, with `measured` filled in from
+// the group's own transfer rate, it turns "0.42 GB/s" from a reading into a
+// judgement about whether the link is fast enough for what is running on it.
+export interface KVTransferBudget {
+  seq_len: number;
+  kv_cache_dtype: string;
+  bytes_per_token: number;
+  bytes_per_request: number;
+
+  layers: number;
+  kv_heads?: number | null;
+  head_dim?: number | null;
+  // Set instead of kv_heads/head_dim on MLA models, which store one compressed
+  // latent rather than per-head K and V. It is what makes them an order of
+  // magnitude cheaper to disaggregate, so it is reported rather than folded
+  // into the byte count.
+  latent_dim?: number | null;
+
+  // What is left of the TTFT budget once prefill has taken its share — the
+  // window the transfer has to fit inside, and the denominator of the
+  // requirement.
+  transfer_budget_ms: number;
+  required_bandwidth_bytes_per_second: number;
+  // Common links scored against this model: a bare "you need 4.5 GB/s" is not
+  // actionable to someone who does not know what their NIC delivers.
+  reference_links: KVTransferReferenceLink[];
+  measured?: KVTransferMeasuredComparison | null;
+}
+
+export interface KVTransferReferenceLink {
+  name: string;
+  bandwidth_bytes_per_second: number;
+  transfer_ms: number;
+  sufficient: boolean;
+}
+
+export interface KVTransferMeasuredComparison {
+  bandwidth_bytes_per_second: number;
+  // Measured over required. Thresholds are ratios rather than absolute GB/s
+  // because an MLA model and a 70B GQA model differ by 10x in what they need.
+  ratio: number;
+  transfer_ms: number;
+  // `sufficient` | `tight` | `insufficient`.
+  verdict: string;
+  // Populated only on `insufficient`, where they are the point; attached to a
+  // sufficient link they would read as a warning about something that is fine.
+  remedies?: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Prefill/decode disaggregation.
 //

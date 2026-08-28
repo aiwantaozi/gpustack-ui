@@ -169,9 +169,13 @@ const roleFormToPayload = (role: RoleFormItem): RoleSpec => {
     });
   });
 
-  // Only meaningful for a hand-written router: a managed one has no container
-  // of its own to place, and P/D always take GPUs.
-  if (isRouter && isGroupOn(OverrideGroupMap.Backend)) {
+  // Carried for every router, not only the hand-written one. The checkbox is
+  // rendered on the custom branch alone, and emitting the field only where it
+  // is rendered meant a managed router's stored value vanished the first time
+  // anyone opened the drawer and pressed Save -- a value the form could
+  // neither show nor keep. What the user configured has to survive an edit
+  // that never touched it, so the stored flag rides through untouched.
+  if (isRouter) {
     payload.cpu_only = !!role.cpu_only;
   }
   if (role.dependencies) {

@@ -204,6 +204,24 @@ const RouterForm: React.FC<RouterFormProps> = ({
                 </Flex>
               ))}
             </div>
+            {/* Shown here rather than hidden, for the same reason the command
+                and the health path are: this branch's job is to say what the
+                system decided, and a setting that exists on the custom branch
+                and simply disappears on this one reads as a setting that was
+                lost. Disabled and forced on because that is the truth of it --
+                the server derives "takes no accelerator" from the absence of an
+                image and a command, so a managed router never claims a GPU
+                whatever the stored flag says. */}
+            <Form.Item style={{ marginBottom: 0 }}>
+              <CheckboxField
+                checked
+                disabled
+                label={intl.formatMessage({ id: 'models.form.roles.cpuonly' })}
+                description={intl.formatMessage({
+                  id: 'models.form.roles.cpuonly.tips'
+                })}
+              ></CheckboxField>
+            </Form.Item>
           </>
         )}
       </RoleSection>

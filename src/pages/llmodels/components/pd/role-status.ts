@@ -77,6 +77,16 @@ export const roleRatio = (items: RoleStatusItem[]): RoleRatio | null => {
   if (!waiting.length) {
     return null;
   }
+  // Nothing running yet is not a ratio. `0:0` is not a shape the group is
+  // holding, it is the absence of one, and the role headings below already say
+  // which roles are still waiting -- so on a group that has just been created
+  // this line said, in a third place and in alarm colour, what two other
+  // places said plainly. The comparison only becomes information once the
+  // group is running a shape other than the one it asked for: a 3P1D serving
+  // as 1P1D.
+  if (!shaping.some((item) => item.ready > 0)) {
+    return null;
+  }
   return {
     configured: shaping.map((item) => item.desired).join(':'),
     current: shaping.map((item) => item.ready).join(':'),

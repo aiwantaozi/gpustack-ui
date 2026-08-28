@@ -2,7 +2,7 @@ import { ClockCircleFilled, ExclamationCircleFilled } from '@ant-design/icons';
 import { useIntl } from '@umijs/max';
 import { Flex, Tooltip } from 'antd';
 import React from 'react';
-import { DegradationLabelMap, DegradationValueMap } from '../../config';
+import { DegradationLabelMap } from '../../config';
 
 type IntlShape = ReturnType<typeof useIntl>;
 
@@ -26,17 +26,6 @@ export const degradationReason = (intl: IntlShape, reason: string) => {
   const id = DegradationLabelMap[reason];
   if (!id) {
     return reason;
-  }
-  if (reason === DegradationValueMap.BandwidthDegraded) {
-    // This message is worded around three metric figures that no endpoint
-    // serves yet (see `use-pd-metrics.ts`). Leaving the placeholders unfilled
-    // makes react-intl drop the whole sentence, so they read as a dash until
-    // the numbers exist — the backend flags the degradation, we just cannot
-    // quantify it.
-    return intl.formatMessage(
-      { id },
-      { actual: '—', baseline: '—', delta: '—' }
-    );
   }
   return intl.formatMessage({ id });
 };

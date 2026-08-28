@@ -1,0 +1,76 @@
+// The one row in the expansion whose height is not a row's height.
+//
+// `ExpandedRowGrid` wraps every child in core-ui's `.row-children`, which is
+// pinned to `height: 54px` — correct for a row of cells, wrong for this one.
+// The summary is a panel, and how tall it is depends on how much there is to
+// say about the group: state and role counts, then the ratio when the group is
+// short of members, then mode / group id / router, then effectiveness and KV
+// bandwidth once the metrics land. That last pair took it past 54px.
+//
+// Overflow here does not clip, it *overlaps*: the next `.row-children` is
+// `position: relative` and paints a hover background, so the role heading below
+// covered the line that spilled — it read as a rendering glitch rather than as
+// a height that ran out.
+//
+// `:global` because the class being relaxed is core-ui's, not ours. Scoped to
+// this block rather than fixed at the source because core-ui is a published
+// dependency here; the durable fix is `min-height` in `.row-children`, which is
+// what its consumers already mean by it — three places in this codebase push
+// back against the fixed value (`role-group-header`'s `minHeight`,
+// `route-targets`' `height: 100%`, `kv-cache/instance-rows` re-declaring the
+// same 54px).
+.autoHeightRow {
+  :global(.row-children) {
+    height: auto;
+    min-height: 54px;
+  }
+}
+
+// The headline. `PD Effectiveness` answers the one question the panel exists
+// for -- did disaggregation actually happen -- so it is the only figure here
+// that gets its own line and a larger size. Everything below is detail that
+// explains it.
+.headline {
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--ant-color-text);
+}
+
+// A metric's unit, set apart from its number. On a row that is scanned rather
+// than read, the number has to be the loudest thing in it; `7.6` and `ms`
+// rendered identically make the eye parse a string instead of reading a value.
+.unit {
+  margin-left: 2px;
+  font-size: 12px;
+  color: var(--ant-color-text-tertiary);
+}
+
+// The role's name owns the metrics after it, so it is a column rather than
+// another item in the row. Read inline, `Prefill TTFT 7.6ms TPOT 0.0ms Queue 0
+// Decode TTFT ...` gives the eye a 12px gap as its only cue for where one
+// role's figures end and the next role's begin.
+.role-name {
+  display: inline-block;
+  min-width: 64px;
+  font-weight: 500;
+  color: var(--ant-color-text);
+}
+
+// Mode, group id and router address: looked up when something needs copying,
+// never scanned. Below the fold of the card and quieter than the telemetry, so
+// the figures that change keep the top of the panel.
+.identity {
+  padding-top: 6px;
+  margin-top: 2px;
+  border-top: 1px solid var(--ant-color-split);
+  font-size: 12px;
+  color: var(--ant-color-text-tertiary);
+}
+
+// The period the figures cover, beside the headline. Quiet, because it is a
+// qualifier rather than a reading -- but present, because without it "1.00"
+// and "(no traffic)" are both unfalsifiable.
+.window {
+  font-size: 12px;
+  color: var(--ant-color-text-tertiary);
+}

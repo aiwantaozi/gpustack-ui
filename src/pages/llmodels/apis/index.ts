@@ -19,6 +19,7 @@ import {
   ModelInstanceListItem,
   ModelLoraAdapterResult,
   ModelRestartResult,
+  PDMetrics,
   PDMode
 } from '../config/types';
 
@@ -70,6 +71,24 @@ export async function queryModelsList(
       ...options
     }
   );
+}
+
+/**
+ * Whether a disaggregated group is actually disaggregating.
+ *
+ * Server-side it is a PromQL query scoped to this model, so the caller never
+ * learns a metric name and can only read the series of a model it can already
+ * see. Fetched on expand rather than with the list: it is the only field that
+ * costs a Prometheus round trip, and a collapsed row does not show it.
+ */
+export async function queryModelPDMetrics(
+  id: number,
+  params?: { window?: string }
+) {
+  return request<PDMetrics>(`${MODELS_API}/${id}/pd-metrics`, {
+    method: 'GET',
+    params
+  });
 }
 
 export async function queryGPUList<T extends Record<string, any>>(

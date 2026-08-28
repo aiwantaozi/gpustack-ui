@@ -617,7 +617,6 @@ export const ModelStateLabelMap = {
 // badge beside its colour rather than replacing it.
 export const DegradationValueMap = {
   CacheNotInjected: 'cache_not_injected',
-  BandwidthDegraded: 'bandwidth_degraded',
   RatioUnmet: 'ratio_unmet',
   NoAtomicAdmission: 'no_atomic_admission',
   // Serving with no KV moving at all: disaggregation has collapsed into
@@ -633,7 +632,6 @@ export const DegradationValueMap = {
 
 export const DegradationLabelMap = {
   [DegradationValueMap.CacheNotInjected]: 'models.pd.degraded.cache',
-  [DegradationValueMap.BandwidthDegraded]: 'models.pd.bandwidth.degraded',
   [DegradationValueMap.RatioUnmet]: 'models.pd.degraded.ratio',
   [DegradationValueMap.NoAtomicAdmission]: 'models.pd.heterogeneous.warning',
   [DegradationValueMap.PDIneffective]: 'models.pd.degraded.ineffective',

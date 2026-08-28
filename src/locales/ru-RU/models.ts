@@ -462,8 +462,27 @@ export default {
     'Доступной ёмкости недостаточно для этой группы (требуется {required}, доступно {available}). Уменьшите число реплик, выберите нарезанный тип карты или добавьте узлы.',
   'models.pd.effectiveness.degraded':
     'PD деградировал до агрегированного режима - передача KV не обнаружена. Проверьте режим PD и параметры движка.',
-  'models.pd.bandwidth.degraded':
-    'Путь передачи KV мог деградировать: сейчас {actual}, при запуске группы {baseline} (снижение {delta}).',
+  'models.pd.stat.avg': 'сред.',
+  'models.pd.window': 'за последние {window}',
+  'models.pd.effectiveness': 'PD Effectiveness',
+  'models.pd.bandwidth': 'KV Transfer',
+  // Neither is a degradation, and they are different answers: nobody
+  // called the model vs this mode's router exports no request counter.
+  'models.pd.effectiveness.idle': '(no traffic)',
+  'models.pd.effectiveness.unmeasurable': 'no denominator',
+  'models.pd.transferP99': 'Transfer p99',
+  'models.pd.bytesPerTransfer': 'Per transfer',
+  'models.pd.ttft': 'TTFT',
+  'models.pd.tpot': 'TPOT',
+  'models.pd.queue': 'Queue',
+  'models.pd.ttft.tips': 'Time to first token belongs to prefill: that is what a user waited for. Decode\'s TTFT is measured from its own first forward pass and is not comparable.',
+  'models.pd.tpot.tips': 'Time per output token belongs to decode. Prefill emits one token and hands over, so its inter-token latency is not a steady-state figure.',
+  'models.pd.queue.tips': 'Mean queue depth. The only objective signal for whether the prefill:decode ratio is right and which way it is wrong: a queue that only ever builds on one side is that side asking for more replicas. Read the shape, not the value -- a queue that drains is healthy at any depth.',
+  'models.pd.failedTransfers': 'KV Transfer Failures',
+  'models.pd.kvExpired': 'KV Leases Expired',
+  'models.pd.kvExpired.tips': 'Requests dropped between the two hops, whose prefill was computed for nothing. A rising value means requests are being lost between hop 1 and hop 2.',
+  'models.pd.denominator.weak': 'coarse denominator',
+  'models.pd.denominator.weak.tips': 'The ratio came from the router\'s route-aggregated total rather than per-worker counters: it still answers whether anything was routed, but no longer points at which decode stopped pulling.',
   'models.pd.ratio.waiting':
     'Соотношение {configured} (сейчас {current}, ожидается {role})',
   'models.pd.group.restarting':

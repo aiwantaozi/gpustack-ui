@@ -433,8 +433,27 @@ export default {
     '当前可用算力放不下这一组（需要 {required}，可用 {available}）。可减少副本数、换用切分卡型，或增加节点。',
   'models.pd.effectiveness.degraded':
     'PD 已退化为聚合式 —— 未检测到 KV 传输。请检查 PD 模式与引擎参数。',
-  'models.pd.bandwidth.degraded':
-    'KV 传输路径可能已降级：当前 {actual}，起组基线 {baseline}（下降 {delta}）。',
+  'models.pd.stat.avg': '均值',
+  'models.pd.window': '最近 {window}',
+  'models.pd.effectiveness': 'PD 有效性',
+  'models.pd.bandwidth': 'KV 传输',
+  // Neither is a degradation, and they are different answers: nobody
+  // called the model vs this mode's router exports no request counter.
+  'models.pd.effectiveness.idle': '（无流量）',
+  'models.pd.effectiveness.unmeasurable': '无分母',
+  'models.pd.transferP99': '传输 p99',
+  'models.pd.bytesPerTransfer': '每次传输',
+  'models.pd.ttft': '首 token',
+  'models.pd.tpot': '每 token',
+  'models.pd.queue': '排队',
+  'models.pd.ttft.tips': '首 token 延迟属于 Prefill —— 那才是用户真正等待的时间。Decode 的首 token 是从它自己第一次前向开始算的，两者不可比。',
+  'models.pd.tpot.tips': '每 token 延迟属于 Decode。Prefill 只出第一个 token 就交接了，它的 token 间延迟不是稳态值。',
+  'models.pd.queue.tips': '平均排队深度。判断配比是否正确、以及错在哪一侧的唯一客观依据：只在一侧持续堆积，就是那一侧在要副本。看趋势而不是看数值 —— 能排空的队列在任何深度都是健康的。',
+  'models.pd.failedTransfers': 'KV 传输失败',
+  'models.pd.kvExpired': 'KV 租约到期',
+  'models.pd.kvExpired.tips': '请求在两跳之间被丢弃，其 prefill 的算力白付了。持续上涨说明有请求在 hop1 与 hop2 之间丢失。',
+  'models.pd.denominator.weak': '分母较粗',
+  'models.pd.denominator.weak.tips': '该比率来自 router 的路由级总计数，而非 per-worker 计数：它仍能回答「有没有请求被路由」，但定位不到是哪个 Decode 停止拉取。',
   'models.pd.ratio.waiting': '配比 {configured}（当前 {current}，等待 {role}）',
   'models.pd.group.restarting':
     '组级重启中：已停止 {stopped}/{total} · 重建 {ready}/{total} 就绪',

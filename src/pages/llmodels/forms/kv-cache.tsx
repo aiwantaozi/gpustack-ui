@@ -11,6 +11,7 @@ import { useFormContext } from '../config/form-context';
 import { FormData } from '../config/types';
 import { backendOptionsMap } from '../constants/backend-parameters';
 import useQueryCacheServices from '../services/use-query-cache-services';
+import { RoleSection } from './roles/override-section';
 
 // Sentinel for the in-process (local) cache in the merged backend dropdown;
 // real options carry the cache service's numeric id.
@@ -27,6 +28,16 @@ interface KVCacheFormProps {
    * byte-for-byte what it was.
    */
   namePrefix?: (string | number)[];
+  /**
+   * Renders the fields inside a titled card and moves the enable switch into
+   * that card's title row.
+   *
+   * A caller that already has a heading for this section would otherwise show
+   * the same fact twice: "Shared KV cache" as the card title and "Enable
+   * Extended KV Cache" as the row under it, one switch between them. Absent
+   * (the model level) the labelled row IS the heading, so it stays.
+   */
+  section?: { label: string; description?: React.ReactNode };
 }
 
 /**
@@ -39,31 +50,40 @@ interface KVCacheFormProps {
 const ExtendedKVCacheSwitch: React.FC<{
   checked?: boolean;
   disabled?: boolean;
+  /** Drop the label and render the switch alone, for a caller that already
+      has a heading to sit it beside. */
+  bare?: boolean;
   onChange?: (checked: boolean) => void;
-}> = ({ checked, disabled, onChange }) => {
+}> = ({ checked, disabled, bare, onChange }) => {
   const intl = useIntl();
   const reason = intl.formatMessage({ id: 'models.form.kvCache.tips2' });
+  const control = (
+    <Tooltip title={disabled ? reason : false}>
+      <span>
+        <Switch
+          size="small"
+          checked={checked}
+          disabled={disabled}
+          onChange={onChange}
+        ></Switch>
+      </span>
+    </Tooltip>
+  );
+  if (bare) {
+    return control;
+  }
   return (
     <Flex align="center" justify="space-between">
       <LabelInfo
         label={intl.formatMessage({ id: 'models.form.extendedkvcache' })}
         description={reason}
       ></LabelInfo>
-      <Tooltip title={disabled ? reason : false}>
-        <span>
-          <Switch
-            size="small"
-            checked={checked}
-            disabled={disabled}
-            onChange={onChange}
-          ></Switch>
-        </span>
-      </Tooltip>
+      {control}
     </Flex>
   );
 };
 
-const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
+const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix, section }) => {
   const intl = useIntl();
   const form = Form.useFormInstance();
   const { onValuesChange, flatBackendOptions } = useFormContext();
@@ -388,32 +408,42 @@ const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
     );
   };
 
-  return (
-    <>
-      {/* A `Switch` in a label row, the shape every other feature toggle in
-          this form uses (PD Disaggregation, Scheduled Scaling). It was a
-          checkbox, which read as one item in a list of options rather than as
-          the gate for the whole section below it — and it sat next to a PD
-          switch that gates its section exactly the same way.
+  // A `Switch`, the shape every other feature toggle in this form uses (PD
+  // Disaggregation, Scheduled Scaling). It was a checkbox, which read as one
+  // item in a list of options rather than as the gate for the whole section
+  // below it.
+  //
+  // Where it sits depends on whether the caller brought a heading. Under a
+  // role it goes in the card's title row beside "Shared KV cache", because a
+  // titled card plus a labelled enable row is the same fact twice with a
+  // switch between them. At the model level there is no card, so the labelled
+  // row is the heading and stays one.
+  //
+  // The disabled state carries its reason in a tooltip either way. A control
+  // greyed out with no explanation is the silent-failure mode this form keeps
+  // having to fix: the answer ("built-in backends only") was already written,
+  // it just was not reachable from the disabled control.
+  const toggle = (
+    <Form.Item<FormData>
+      data-field="extended_kv_cache.enabled"
+      name={path('extended_kv_cache', 'enabled')}
+      valuePropName="checked"
+      noStyle={!!section}
+      style={section ? undefined : { marginBottom: 8 }}
+    >
+      {/* `onChange` here is NOT overridden by the one Form.Item injects —
+          antd wraps it, so the field's own write runs and then this does the
+          mode / cache_service_id work that actually turns the section on. */}
+      <ExtendedKVCacheSwitch
+        bare={!!section}
+        disabled={!sharedSupported}
+        onChange={handleEnableOnChange}
+      />
+    </Form.Item>
+  );
 
-          The disabled state carries its reason in a tooltip. A control that is
-          greyed out with no explanation is the silent-failure mode this form
-          keeps having to fix: the answer here ("built-in backends only") is
-          already written, it just was not reachable from the disabled control. */}
-      <Form.Item<FormData>
-        data-field="extended_kv_cache.enabled"
-        name={path('extended_kv_cache', 'enabled')}
-        valuePropName="checked"
-        style={{ marginBottom: 8 }}
-      >
-        {/* `onChange` here is NOT overridden by the one Form.Item injects —
-            antd wraps it, so the field's own write runs and then this does the
-            mode / cache_service_id work that actually turns the section on. */}
-        <ExtendedKVCacheSwitch
-          disabled={!sharedSupported}
-          onChange={handleEnableOnChange}
-        />
-      </Form.Item>
+  const fields = (
+    <>
       {kvCacheEnabled && (
         <>
           {/* mode + service persist through these registered fields; the
@@ -501,6 +531,25 @@ const KVCacheForm: React.FC<KVCacheFormProps> = ({ namePrefix }) => {
           )}
         </>
       )}
+    </>
+  );
+
+  if (section) {
+    return (
+      <RoleSection
+        label={section.label}
+        description={section.description}
+        extra={toggle}
+      >
+        {fields}
+      </RoleSection>
+    );
+  }
+
+  return (
+    <>
+      {toggle}
+      {fields}
     </>
   );
 };

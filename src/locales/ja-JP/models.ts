@@ -439,6 +439,7 @@ export default {
   'models.state.partial': '一部準備完了',
   'models.state.running': '実行中',
   'models.state.error': 'エラー',
+  'models.form.speculativeDecoding': 'Speculative Decoding',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'ロール別の状態',
   'models.pd.role.waiting': '待機中',

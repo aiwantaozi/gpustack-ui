@@ -81,14 +81,6 @@ const RoleForm: React.FC<RoleFormProps> = ({ index, cacheDisabledReason }) => {
         </Form.Item>
       </OverrideSection>
 
-      {/* Per role because prefill and decode need different values — upstream
-          runs prefill at 1 draft token and decode at 3+, and a prefill that
-          skips an MTP draft head fails the NIXL compatibility check outright
-          (open-questions F17). Not an override group: there is no "same as
-          model" story worth offering when the whole point is that the two
-          sides differ. */}
-      <SpeculativeDecode namePrefix={['roles', index]}></SpeculativeDecode>
-
       {/* `gpu_type_selector` lives in here, and it is the only way to express a
           heterogeneous group — which is also the precondition for gang
           admission, so this group is load-bearing rather than a convenience. */}
@@ -100,6 +92,25 @@ const RoleForm: React.FC<RoleFormProps> = ({ index, cacheDisabledReason }) => {
         index={index}
         disabledReason={cacheDisabledReason}
       ></RoleKVCache>
+
+      {/* Per role because prefill and decode need different values — upstream
+          runs prefill at 1 draft token and decode at 3+, and a prefill that
+          skips an MTP draft head fails the NIXL compatibility check outright
+          (open-questions F17). Not an override group: there is no "same as
+          model" story worth offering when the whole point is that the two
+          sides differ.
+
+          After the KV cache and shaped like it: both are optional capabilities
+          the role either has or does not, gated by the same "built-in backends
+          only" rule and refused with the same sentence. A bare checkbox above
+          the scheduling card read as a stray option rather than as the gate
+          for the fields under it. */}
+      <SpeculativeDecode
+        namePrefix={['roles', index]}
+        section={{
+          label: intl.formatMessage({ id: 'models.form.speculativeDecoding' })
+        }}
+      ></SpeculativeDecode>
     </>
   );
 };

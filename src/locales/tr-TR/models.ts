@@ -438,6 +438,7 @@ export default {
   'models.state.partial': 'Kısmen hazır',
   'models.state.running': 'Çalışıyor',
   'models.state.error': 'Hata',
+  'models.form.speculativeDecoding': 'Speculative Decoding',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'Rol başına durum',
   'models.pd.role.waiting': 'Bekliyor',

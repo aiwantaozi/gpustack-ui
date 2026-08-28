@@ -416,6 +416,7 @@ export default {
   'models.state.partial': '部分就绪',
   'models.state.running': '运行中',
   'models.state.error': '异常',
+  'models.form.speculativeDecoding': '推测解码',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': '各角色状态',
   'models.pd.role.waiting': '等待中',

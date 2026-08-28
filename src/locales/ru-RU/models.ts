@@ -442,6 +442,7 @@ export default {
   'models.state.partial': 'Частично готово',
   'models.state.running': 'Работает',
   'models.state.error': 'Ошибка',
+  'models.form.speculativeDecoding': 'Speculative Decoding',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'Состояние по ролям',
   'models.pd.role.waiting': 'Ожидание',

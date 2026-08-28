@@ -37,22 +37,29 @@ interface RoleKVCacheProps {
 const RoleKVCache: React.FC<RoleKVCacheProps> = ({ index, disabledReason }) => {
   const intl = useIntl();
 
-  return (
-    <RoleSection
-      label={intl.formatMessage({ id: 'models.form.roles.group.cache' })}
-      description={intl.formatMessage({ id: 'models.form.roles.cache.tips' })}
-    >
-      {disabledReason ? (
+  const section = {
+    label: intl.formatMessage({ id: 'models.form.roles.group.cache' }),
+    description: intl.formatMessage({ id: 'models.form.roles.cache.tips' })
+  };
+
+  // The card is drawn by whoever owns the switch. `KVCacheForm` puts the
+  // switch in the title row, so it draws its own; the disabled branch has no
+  // switch to place and draws the card here.
+  if (disabledReason) {
+    return (
+      <RoleSection label={section.label} description={section.description}>
         <Alert
           type="warning"
           showIcon
           message={disabledReason}
           style={{ marginBottom: 12 }}
         ></Alert>
-      ) : (
-        <KVCacheForm namePrefix={['roles', index]}></KVCacheForm>
-      )}
-    </RoleSection>
+      </RoleSection>
+    );
+  }
+
+  return (
+    <KVCacheForm namePrefix={['roles', index]} section={section}></KVCacheForm>
   );
 };
 

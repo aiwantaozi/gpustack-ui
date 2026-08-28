@@ -438,6 +438,7 @@ export default {
   'models.state.partial': 'Partially ready',
   'models.state.running': 'Running',
   'models.state.error': 'Error',
+  'models.form.speculativeDecoding': 'Speculative Decoding',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'Per-role status',
   'models.pd.role.waiting': 'Waiting',

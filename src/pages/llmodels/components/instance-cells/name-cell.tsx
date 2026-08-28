@@ -55,6 +55,13 @@ const WorkerInfoContent: React.FC<NameCellProps> = ({ record, modelData }) => {
   // carries the worker count. Single-worker instances show the size alone.
   const workerCount =
     (record.distributed_servers?.subordinate_workers?.length || 0) + 1;
+  // An instance that claims no accelerator -- a managed PD router is the case
+  // that produced this -- has nothing to say in either GPU row. Rendered
+  // anyway they read as a fault: `GPU Index: []` looks like a list that failed
+  // to load and `Allocated VRAM: 0` like an allocation that came back empty,
+  // when the truth is that neither was ever asked for. One line that says so
+  // replaces both.
+  const cpuOnly = !record.gpu_indexes?.length && !calcTotalVram(record);
   return (
     <div>
       <div>{record.worker_name}</div>
@@ -62,15 +69,22 @@ const WorkerInfoContent: React.FC<NameCellProps> = ({ record, modelData }) => {
         <HddFilled className="m-r-5" />
         {workerIp}
       </div>
-      <div className="flex-center">
-        <IconFont type="icon-filled-gpu" className="m-r-5" />
-        {intl.formatMessage({ id: 'models.table.gpuindex' })}: [
-        {_.join(
-          record.gpu_indexes?.sort?.((a, b) => a - b),
-          ','
-        )}
-        ]
-      </div>
+      {cpuOnly ? (
+        <div className="flex-center">
+          <IconFont type="icon-filled-gpu" className="m-r-5" />
+          {intl.formatMessage({ id: 'models.form.roles.cpuonly' })}
+        </div>
+      ) : (
+        <div className="flex-center">
+          <IconFont type="icon-filled-gpu" className="m-r-5" />
+          {intl.formatMessage({ id: 'models.table.gpuindex' })}: [
+          {_.join(
+            record.gpu_indexes?.sort?.((a, b) => a - b),
+            ','
+          )}
+          ]
+        </div>
+      )}
       {vgpuAllocation && (
         <div className="flex-center">
           <PartitionOutlined className="m-r-5" />
@@ -85,16 +99,18 @@ const WorkerInfoContent: React.FC<NameCellProps> = ({ record, modelData }) => {
           ? `(${record.backend_version || modelData?.backend_version})`
           : ''}
       </div>
-      <div className="flex-center">
-        <PieChartFilled className="m-r-5" />
-        {intl.formatMessage({ id: 'models.table.vram.allocated' })}:{' '}
-        {convertFileSize(calcTotalVram(record), 1)}
-        {workerCount > 1 &&
-          ` (${intl.formatMessage(
-            { id: 'models.table.vram.workers' },
-            { n: workerCount }
-          )})`}
-      </div>
+      {!cpuOnly && (
+        <div className="flex-center">
+          <PieChartFilled className="m-r-5" />
+          {intl.formatMessage({ id: 'models.table.vram.allocated' })}:{' '}
+          {convertFileSize(calcTotalVram(record), 1)}
+          {workerCount > 1 &&
+            ` (${intl.formatMessage(
+              { id: 'models.table.vram.workers' },
+              { n: workerCount }
+            )})`}
+        </div>
+      )}
     </div>
   );
 };

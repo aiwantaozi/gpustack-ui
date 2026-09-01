@@ -448,6 +448,8 @@ export default {
     'The shared KV cache was not attached; the group is serving without it.',
   'models.pd.degraded.ratio':
     'Fewer members ready than requested; the deployment is serving at reduced capacity.',
+  'models.pd.degraded.pairing':
+    'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
   'models.pd.degraded.placement':
     'Some members are still deployed in the namespace they used before the upgrade. Serving is unaffected, but the accelerators they hold are absent from the tenant quota ledger, so atomic admission for the group is optimistic by that much. Restart the model to move them.',
   'models.pd.degraded.ineffective':

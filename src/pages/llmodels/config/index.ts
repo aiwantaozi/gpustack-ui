@@ -627,7 +627,11 @@ export const DegradationValueMap = {
   // Members still in the namespace they were in before the upgrade. They
   // serve normally; what they do not do is appear in the tenant's quota
   // ledger, which is what atomic admission is decided on.
-  PlacementDrifted: 'placement_drifted'
+  PlacementDrifted: 'placement_drifted',
+  // No prefill and decode member share a host, so every KV transfer crosses
+  // the network. Placement-only, so unlike the bandwidth markers it is known
+  // before any traffic has happened — which is the point of having it.
+  PairingRemote: 'pairing_remote'
 };
 
 export const DegradationLabelMap = {
@@ -635,7 +639,8 @@ export const DegradationLabelMap = {
   [DegradationValueMap.RatioUnmet]: 'models.pd.degraded.ratio',
   [DegradationValueMap.NoAtomicAdmission]: 'models.pd.heterogeneous.warning',
   [DegradationValueMap.PDIneffective]: 'models.pd.degraded.ineffective',
-  [DegradationValueMap.PlacementDrifted]: 'models.pd.degraded.placement'
+  [DegradationValueMap.PlacementDrifted]: 'models.pd.degraded.placement',
+  [DegradationValueMap.PairingRemote]: 'models.pd.degraded.pairing'
 };
 
 // The four override groups of a role tab. A group left on "same as model"

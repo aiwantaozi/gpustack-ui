@@ -452,6 +452,8 @@ export default {
     'Общий кэш KV не подключён; группа работает без него.',
   'models.pd.degraded.ratio':
     'Готовых участников меньше, чем запрошено; развёртывание работает с меньшей ёмкостью.',
+  'models.pd.degraded.pairing':
+    'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
   'models.pd.degraded.placement':
     'Часть участников по-прежнему развёрнута в пространстве имён, которое использовалось до обновления. На обслуживание это не влияет, но занятые ими ускорители отсутствуют в учёте квот арендатора, поэтому атомарный приём группы настолько же оптимистичен. Перезапустите модель, чтобы переместить их.',
   'models.pd.degraded.ineffective':

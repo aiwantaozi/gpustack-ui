@@ -423,6 +423,8 @@ export default {
   'models.pd.replicas.readonly': 'PD 部署请在「编辑」中调整各角色副本数。',
   'models.pd.degraded.cache': '共享 KV 缓存未接上，组在无缓存的情况下服务。',
   'models.pd.degraded.ratio': '就绪成员少于请求数量，当前以降低的容量服务。',
+  'models.pd.degraded.pairing':
+    '没有任何 prefill 与 decode 成员在同一台机器上，因此每次 KV 传输都要走网络。在没有 RDMA 的链路上，这通常比不做分离更慢。请至少让一对同机，或为两个角色选择同一台机器上的 GPU。',
   'models.pd.degraded.placement':
     '部分成员仍部署在升级前的命名空间。服务不受影响，但这些成员占用的加速卡未计入租户配额账本，组级原子准入因此偏乐观。重启该模型即可迁移。',
   'models.pd.degraded.ineffective':

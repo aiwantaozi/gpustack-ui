@@ -448,6 +448,8 @@ export default {
     'Paylaşılan KV önbelleği bağlanmadı; grup onsuz hizmet veriyor.',
   'models.pd.degraded.ratio':
     'Hazır üye sayısı istenenden az; dağıtım düşük kapasiteyle hizmet veriyor.',
+  'models.pd.degraded.pairing':
+    'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
   'models.pd.degraded.placement':
     'Bazı üyeler hâlâ yükseltmeden önceki ad alanında dağıtılmış durumda. Hizmet etkilenmez, ancak bu üyelerin tuttuğu hızlandırıcılar kiracı kota defterinde yer almadığından grubun atomik kabulü o kadar iyimserdir. Taşımak için modeli yeniden başlatın.',
   'models.pd.degraded.ineffective':

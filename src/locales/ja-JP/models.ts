@@ -449,6 +449,8 @@ export default {
     '共有 KV キャッシュが接続されていません。キャッシュなしで稼働中です。',
   'models.pd.degraded.ratio':
     '準備完了のメンバー数が要求より少なく、能力を下げて稼働しています。',
+  'models.pd.degraded.pairing':
+    'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
   'models.pd.degraded.placement':
     '一部のメンバーはアップグレード前の名前空間に残っています。サービスに影響はありませんが、それらが占有するアクセラレータはテナントのクォータ台帳に含まれないため、グループのアトミック受け入れはその分だけ楽観的になります。モデルを再起動すると移動します。',
   'models.pd.degraded.ineffective':

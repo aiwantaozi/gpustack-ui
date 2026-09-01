@@ -116,37 +116,24 @@ const toState = (data: PDMetrics): PDMetricsState => {
 export default function usePDMetrics() {
   const [metrics, setMetrics] = useState<PDMetricsState>(EMPTY);
 
-  /**
-   * @returns the state it just set, so a caller can chain on it. The KV
-   * transfer budget needs the measured rate as an input, and reading it back
-   * out of `metrics` would mean an effect watching for the value to arrive —
-   * one action, two requests, in the handler.
-   */
-  const fetchMetrics = useCallback(
-    async (modelId?: number): Promise<PDMetricsState> => {
-      if (!modelId) {
-        setMetrics(EMPTY);
-        return EMPTY;
-      }
-      setMetrics((current) => ({ ...current, loading: true }));
-      try {
-        const data = await queryModelPDMetrics(modelId);
-        const next = toState(data);
-        setMetrics(next);
-        return next;
-      } catch (error: any) {
-        // A failed request is "we could not tell", not "PD is broken". The two
-        // call for opposite reactions, so an error never renders as a verdict.
-        const next = {
-          ...EMPTY,
-          reason: error?.response?.data?.message || error?.message || null
-        };
-        setMetrics(next);
-        return next;
-      }
-    },
-    []
-  );
+  const fetchMetrics = useCallback(async (modelId?: number) => {
+    if (!modelId) {
+      setMetrics(EMPTY);
+      return;
+    }
+    setMetrics((current) => ({ ...current, loading: true }));
+    try {
+      const data = await queryModelPDMetrics(modelId);
+      setMetrics(toState(data));
+    } catch (error: any) {
+      // A failed request is "we could not tell", not "PD is broken". The two
+      // call for opposite reactions, so an error never renders as a verdict.
+      setMetrics({
+        ...EMPTY,
+        reason: error?.response?.data?.message || error?.message || null
+      });
+    }
+  }, []);
 
   return { metrics, fetchMetrics };
 }

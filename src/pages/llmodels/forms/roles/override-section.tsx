@@ -198,6 +198,24 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
     </Form.Item>
   );
 
+  // A custom group that ends up with nothing in it is stored as inherit: `null`
+  // is the wire's only word for "no value", and `overrides` is UI-only and
+  // stripped before submit — so the group would come back as Inherit next time
+  // the drawer opens, having silently dropped the choice. Said here, where the
+  // choice is made, rather than discovered on the next edit.
+  const emptyOverride =
+    !!overridden &&
+    !disabledReason &&
+    fields.every((field) => {
+      const value = form.getFieldValue(['roles', index, field]);
+      return (
+        value === undefined ||
+        value === null ||
+        (Array.isArray(value) && !value.length) ||
+        value === ''
+      );
+    });
+
   return (
     <RoleSection
       label={intl.formatMessage({ id: OverrideGroupLabelMap[group] })}
@@ -210,7 +228,14 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
       }
     >
       {overridden ? (
-        children
+        <>
+          {emptyOverride && (
+            <div className="note">
+              {intl.formatMessage({ id: 'models.form.roles.override.empty' })}
+            </div>
+          )}
+          {children}
+        </>
       ) : (
         // `shouldUpdate` rather than a watch per field: the summary reads
         // several model-level fields and only exists while collapsed, so

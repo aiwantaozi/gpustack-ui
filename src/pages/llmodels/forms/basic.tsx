@@ -36,6 +36,15 @@ interface BasicFormProps {
    * overwritten is worse than no control, so it goes rather than greys out.
    */
   hideReplicas?: boolean;
+  /**
+   * Rendered immediately above the replica count.
+   *
+   * The deployment shape has to be chosen before the count, because under PD
+   * there is no model-level count at all — it moves to `roles[].replicas`.
+   * Asking for a number and then hiding it the moment the next question is
+   * answered is a worse order than asking the questions the other way round.
+   */
+  pdSlot?: React.ReactNode;
   sourceDisable?: boolean;
   sourceList?: Global.BaseOption<string>[];
   clusterList: ClusterOption[];
@@ -259,6 +268,7 @@ const BasicForm: React.FC<BasicFormProps> = (props) => {
       <CatalogFrom></CatalogFrom>
       <BackendForm></BackendForm>
       <CustomBackend></CustomBackend>
+      {props.pdSlot}
       <Form.Item<FormData>
         name="replicas"
         hidden={props.hideReplicas}

@@ -448,6 +448,10 @@ export default {
     'Paylaşılan KV önbelleği bağlanmadı; grup onsuz hizmet veriyor.',
   'models.pd.degraded.ratio':
     'Hazır üye sayısı istenenden az; dağıtım düşük kapasiteyle hizmet veriyor.',
+  'models.form.roles.override.empty':
+    'This group has no values, so it will be saved as inheriting the model-level configuration. Fill in at least one field to keep it custom.',
+  'models.form.pd.mode.cleared':
+    'The PD mode was cleared when disaggregation was turned off. Please select it again.',
   'models.pd.degraded.pairing':
     'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
   'models.pd.degraded.placement':

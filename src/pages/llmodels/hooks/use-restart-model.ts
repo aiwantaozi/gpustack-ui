@@ -2,6 +2,7 @@ import { useIntl } from '@umijs/max';
 import { useMemoizedFn } from 'ahooks';
 import { App, message } from 'antd';
 import { restartModel } from '../apis';
+import { modelReplicaCounts } from '../config';
 import { ListItem } from '../config/types';
 
 /**
@@ -27,7 +28,11 @@ const useRestartModel = (options?: { onSuccess?: (row: ListItem) => void }) => {
         title: intl.formatMessage({ id: 'models.restart' }),
         content: intl.formatMessage(
           { id: 'models.restart.confirm' },
-          { name: row.name }
+          // The declared size of the group, router included — the same sum the
+          // list's replica column shows, so the confirmation and the row the
+          // user is looking at cannot disagree. A plain model degenerates to
+          // `replicas`.
+          { name: row.name, total: modelReplicaCounts(row).total }
         ),
         okText: intl.formatMessage({ id: 'models.restart' }),
         onOk: () => resolve(true),

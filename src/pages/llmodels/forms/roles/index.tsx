@@ -1,3 +1,4 @@
+import { ThemeTag } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { Alert, Badge, Form, Segmented } from 'antd';
 import React from 'react';
@@ -8,6 +9,8 @@ import {
   RoleValueMap
 } from '../../config';
 import { PDMode, RoleFormItem } from '../../config/types';
+import GatherLocality from '../gather-locality';
+import { RoleSection } from './override-section';
 import RoleForm from './role-form';
 import RouterForm from './router-form';
 
@@ -106,6 +109,31 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName }) => {
 
   return (
     <>
+      {/* Above the role picker, and outside every role card, because its
+          subject is a *pair* rather than a workload. Every other scheduling
+          control here answers "where does THIS go"; this one answers "how far
+          apart may THESE be", which belongs to no single role — the card below
+          is badged "this role only" and a group-wide control inside it would
+          contradict its own label, besides showing four copies of one
+          model-level value that all move together.
+
+          Kept in this tab rather than back in the PD block so scheduling
+          stays one topic in one place, and read before the per-role panels
+          because that is the order the decisions happen in: how close they
+          must be, then where each one goes. */}
+      <RoleSection
+        label={intl.formatMessage({ id: 'models.form.gather.title' })}
+        description={intl.formatMessage({
+          id: 'models.form.gather.title.tips'
+        })}
+        extra={
+          <ThemeTag opacity={0.75}>
+            {intl.formatMessage({ id: 'models.form.roles.group.wide' })}
+          </ThemeTag>
+        }
+      >
+        <GatherLocality></GatherLocality>
+      </RoleSection>
       <Segmented
         block
         value={active}

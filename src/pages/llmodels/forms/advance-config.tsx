@@ -100,6 +100,10 @@ const AdvanceConfig = () => {
           onDelete={handleDeleteEnvSelector}
         ></LabelSelector>
       </Form.Item>
+      {/* `lora_list` has no `RoleSpec` field, so under PD one value lands on
+          every role. That is a reason to say so, not a reason to move it: the
+          section it used to move to held nothing else, and a field that
+          changes place when a switch above it flips has to be found twice. */}
       <ModelLoraList></ModelLoraList>
       {(backend === backendOptionsMap.custom ||
         !currentBackendOptions?.isBuiltIn) && (

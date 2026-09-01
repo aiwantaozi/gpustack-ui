@@ -1,12 +1,8 @@
-import {
-  LabelInfo,
-  Select as SealSelect,
-  useAppUtils
-} from '@gpustack/core-ui';
+import { Select as SealSelect, ThemeTag, useAppUtils } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Flex, Form, Switch, Tooltip } from 'antd';
+import { Flex, Form, Radio, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   isPDModel,
   PD_CAPABLE_BACKENDS,
@@ -17,7 +13,6 @@ import { useFormContext } from '../config/form-context';
 import { FormData, PDMode, RoleFormItem } from '../config/types';
 import { backendOptionsMap } from '../constants/backend-parameters';
 import useQueryPDModes from '../hooks/use-query-pd-modes';
-import GatherLocality from './gather-locality';
 import { createDefaultRoles } from './roles/transform';
 
 // 1 prefill + 1 decode is the smallest group that can exist, so a cluster with
@@ -43,6 +38,52 @@ const useStyles = createStyles(({ css }) => ({
     }
     .note-warning {
       color: var(--ant-color-warning);
+    }
+  `,
+  // Two cards rather than a switch. A binary toggle is right where the two
+  // states are "this feature off / on"; here they are two deployment shapes
+  // with different consequences, and the control now sits at the top of the
+  // form where no PD context exists yet. A bare switch labelled "PD" asks the
+  // reader to already know what it costs; two labelled options carry the
+  // trade-off in the choice itself.
+  shapes: css`
+    display: grid;
+    /* Falls back to one column when the drawer is narrow: two cards at 1fr
+       each squeeze the description into four-word lines long before the
+       drawer is unusably small. */
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    /* The block below is a labelled field; without this its label sits flush
+       against the card border and reads as part of the card. */
+    margin-bottom: 16px;
+    .shape {
+      border: 1px solid var(--ant-color-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      &:hover:not(.disabled) {
+        border-color: var(--ant-color-primary-border-hover);
+      }
+      &.active {
+        border-color: var(--ant-color-primary);
+        background-color: var(--ant-color-primary-bg);
+      }
+      &.disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .shape-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--ant-color-text);
+      }
+      .shape-desc {
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--ant-color-text-tertiary);
+      }
     }
   `
 }));
@@ -115,6 +156,20 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   const { getPDModes, buildOptions, isCustomMode, findMode } =
     useQueryPDModes();
 
+  // The shape as it is deployed right now, read from what the drawer opened
+  // with rather than from the live form — the whole point of the badge is to
+  // survive the user changing their selection. `roles` is the signal because
+  // it is the field that actually makes a deployment disaggregated; `pdMode`
+  // is a UI-only flag that a saved model does not carry.
+  const currentShape = useMemo(() => {
+    if (!initialValues) {
+      return null;
+    }
+    return (initialValues as any)?.roles?.length
+      ? PDEnableValueMap.Disaggregated
+      : PDEnableValueMap.Off;
+  }, [initialValues]);
+
   const backend = Form.useWatch('backend', form);
   const clusterId = Form.useWatch('cluster_id', form);
   const mode = Form.useWatch(['disaggregation', 'mode'], form);
@@ -134,6 +189,11 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       !!initialValues?.disaggregation?.mode
   );
   const [cacheCleared, setCacheCleared] = useState(false);
+  // Turning PD off drops `disaggregation` entirely, mode included. Coming back
+  // in therefore lands on an empty required field with nothing to explain it,
+  // which reads as the form having lost the value by accident. Remembered on
+  // the way out so the way in can say so.
+  const [modeCleared, setModeCleared] = useState(false);
 
   // ---- the disable matrix (§2.1): every entry carries its reason ----------
 
@@ -190,11 +250,25 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     mode: string | null;
     clearModelKVCache: boolean;
     clearModelScheduling?: boolean;
+    /**
+     * The catalog to resolve `modeData` against, when the caller has just
+     * fetched it.
+     *
+     * Needed because `findMode` closes over `pdModes` state: awaiting the
+     * fetch does not re-render inside the same tick, so a caller that awaits
+     * and then notifies would still resolve against the empty list it started
+     * with — and `modeData` would stay undefined for the life of the form.
+     */
+    modes?: PDMode[];
   }) => {
+    const resolve = (name: string | null) =>
+      next.modes
+        ? next.modes.find((mode) => mode.name === name)
+        : findMode(name);
     onEffectsChange?.({
       enabled: next.enabled,
       mode: next.enabled ? next.mode : null,
-      modeData: next.enabled ? findMode(next.mode) : undefined,
+      modeData: next.enabled ? resolve(next.mode) : undefined,
       isCustomMode: next.enabled && isCustomMode(next.mode),
       replicasLocked: next.enabled,
       replicasLockReason: next.enabled
@@ -215,14 +289,22 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   // lifecycle entry point, not a dependency) — every later change comes from a
   // handler below, and a form that opens with PD off fetches nothing.
   useEffect(() => {
-    if (active) {
-      getPDModes();
-    }
-    notifyEffects({
-      enabled: active,
-      mode: form.getFieldValue(['disaggregation', 'mode']) ?? null,
-      clearModelKVCache: false
-    });
+    // The catalog has to land *before* the effects that read it are published:
+    // an edit drawer opens with the mode already chosen, so `modeData` is
+    // resolved exactly once here. Notifying first and fetching after left the
+    // managed router with no derived image, command or health path — rendered
+    // as "-", which reads as "the system derived nothing" rather than as
+    // "the catalog has not arrived".
+    const seed = async () => {
+      const modes = active ? await getPDModes() : undefined;
+      notifyEffects({
+        enabled: active,
+        mode: form.getFieldValue(['disaggregation', 'mode']) ?? null,
+        clearModelKVCache: false,
+        modes
+      });
+    };
+    seed();
   }, []);
 
   const handleEnableChange = async (value: string) => {
@@ -251,6 +333,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     if (!next) {
       // Off means a plain model again: leave no group behind for the payload
       // to pick up.
+      setModeCleared(!!form.getFieldValue(['disaggregation', 'mode']));
       form.setFieldValue('roles', null);
       form.setFieldValue('disaggregation', null);
     }
@@ -271,6 +354,8 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   };
 
   const handleModeChange = (value: string) => {
+    // The notice has done its job once a mode is chosen again.
+    setModeCleared(false);
     notifyEffects({
       enabled: true,
       mode: value ?? null,
@@ -323,60 +408,103 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   // Options come from the catalog, filtered by engine: a recipe that targets
   // another engine stays visible but disabled, carrying why.
   const modeOptions = buildOptions(backend);
+  /**
+   * The reason renders *inline*, not in a Tooltip.
+   *
+   * A disabled antd option carries `pointer-events: none`, so it never
+   * receives the hover a Tooltip needs — the reason would exist in the tree
+   * and be unreachable, which reads to the user exactly like the greying-out
+   * having no explanation at all. Inline also matches what the reason is for:
+   * "kept visible but disabled, carrying why" only pays off if the why is
+   * visible without a discovery step.
+   */
   const modeOptionRender = (option: any) => {
     const reason = option?.data?.reason;
     const label = option?.data?.label ?? option?.label;
-    return reason ? (
-      <Tooltip title={reason} placement="left">
+    if (!reason) {
+      return label;
+    }
+    return (
+      <Flex vertical gap={2}>
         <span>{label}</span>
-      </Tooltip>
-    ) : (
-      label
+        <span
+          style={{
+            fontSize: 12,
+            lineHeight: 1.4,
+            color: 'var(--ant-color-text-tertiary)',
+            whiteSpace: 'normal'
+          }}
+        >
+          {reason}
+        </span>
+      </Flex>
     );
   };
 
   return (
     <div className={styles.sectionCard} data-field="pdMode">
-      <Flex
-        className="section-title"
-        align="center"
-        justify="space-between"
-        style={{ marginBottom: active ? 12 : 0 }}
-      >
-        <LabelInfo
-          label={intl.formatMessage({ id: 'models.form.pd.enable' })}
-          description={intl.formatMessage({ id: 'models.form.pd.enable.tips' })}
-        ></LabelInfo>
-        {/* A `Switch`, matching every other feature toggle in this form
-            (Scheduled Scaling, Shared KV cache — that one was a checkbox when
-            this comment was first written and has since been aligned too). The
-            first version used
-            a `Segmented` reasoning that phase two adds a third state
-            (a homogeneous `kv_both` pool) and a Segmented takes the extra cell
-            for free — but a control that is binary today should look like the
-            other binary controls, and a third state can change the control
-            then. Consistency now beats a saving later.
-
-            Defaults to off: every vendor's own docs say to benchmark the
-            aggregated deployment first. */}
-        <Tooltip title={blockedReason || false}>
-          <span>
-            <Switch
-              size="small"
-              disabled={blocked}
-              checked={active}
-              data-field="pdMode"
-              onChange={(checked: boolean) =>
-                handleEnableChange(
-                  checked
-                    ? PDEnableValueMap.Disaggregated
-                    : PDEnableValueMap.Off
-                )
-              }
-            />
-          </span>
-        </Tooltip>
-      </Flex>
+      {/* Which shape is deployed today, so an edit that switches away still
+          says what it is switching away from. Absent on create, where there is
+          nothing current yet. */}
+      <div className={styles.shapes}>
+        {[
+          {
+            value: PDEnableValueMap.Off,
+            title: intl.formatMessage({ id: 'models.form.pd.shape.mono' }),
+            desc: intl.formatMessage({ id: 'models.form.pd.shape.mono.tips' })
+          },
+          {
+            value: PDEnableValueMap.Disaggregated,
+            title: intl.formatMessage({ id: 'models.form.pd.shape.pd' }),
+            desc: intl.formatMessage({ id: 'models.form.pd.shape.pd.tips' })
+          }
+        ].map((shape) => {
+          const selected =
+            (active ? PDEnableValueMap.Disaggregated : PDEnableValueMap.Off) ===
+            shape.value;
+          // Only the disaggregated card can be blocked; the plain shape is
+          // always available, and greying out the way back would trap a
+          // deployment in a state its backend cannot serve.
+          const unavailable =
+            blocked && shape.value === PDEnableValueMap.Disaggregated;
+          const card = (
+            <div
+              key={shape.value}
+              className={`shape${selected ? ' active' : ''}${
+                unavailable ? ' disabled' : ''
+              }`}
+              role="radio"
+              aria-checked={selected}
+              tabIndex={unavailable ? -1 : 0}
+              onClick={() => !unavailable && handleEnableChange(shape.value)}
+              onKeyDown={(e) => {
+                if (!unavailable && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  handleEnableChange(shape.value);
+                }
+              }}
+            >
+              <Flex align="center" gap={8}>
+                <Radio checked={selected} disabled={unavailable}></Radio>
+                <span className="shape-title">{shape.title}</span>
+                {currentShape === shape.value && (
+                  <ThemeTag opacity={0.75}>
+                    {intl.formatMessage({ id: 'models.form.pd.shape.current' })}
+                  </ThemeTag>
+                )}
+              </Flex>
+              <div className="shape-desc">{shape.desc}</div>
+            </div>
+          );
+          return unavailable ? (
+            <Tooltip key={shape.value} title={blockedReason || false}>
+              {card}
+            </Tooltip>
+          ) : (
+            card
+          );
+        })}
+      </div>
 
       {active && (
         <>
@@ -418,19 +546,6 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
               onChange={handleModeChange}
             ></SealSelect>
           </Form.Item>
-          {/* Locality lives in this block because gather describes the
-              relationship *between* the group's members, which only exists
-              once there are roles. Model-level, not per-role: a role cannot
-              have its own opinion about how far it sits from its peers. */}
-          <Form.Item label={null} style={{ marginBottom: 8 }}>
-            <LabelInfo
-              label={intl.formatMessage({ id: 'models.form.gather.label' })}
-              description={intl.formatMessage({
-                id: 'models.form.gather.tips'
-              })}
-            ></LabelInfo>
-            <GatherLocality></GatherLocality>
-          </Form.Item>
           <Flex vertical gap={4}>
             {/* §2.5.4: P(same host) = 1/x, and it depends on neither the
                 topology nor the gather choice — so at 8P8D even a perfectly
@@ -461,6 +576,11 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
             {cacheCleared && (
               <div className="note">
                 {intl.formatMessage({ id: 'models.form.pd.cache.cleared' })}
+              </div>
+            )}
+            {modeCleared && !mode && (
+              <div className="note">
+                {intl.formatMessage({ id: 'models.form.pd.mode.cleared' })}
               </div>
             )}
             {heterogeneous && (

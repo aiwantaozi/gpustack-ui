@@ -40,7 +40,6 @@ import { useQueryContextLength } from '../services/use-query-context-length';
 import { derivesNativeAnthropicApi, generateGPUIds } from '../utils';
 import AdvanceConfig from './advance-config';
 import BasicForm from './basic';
-import GroupSettings from './group-settings';
 import PDDisaggregation, { PDEffects } from './pd-disaggregation';
 import Performance from './performance';
 import Roles from './roles';
@@ -90,7 +89,6 @@ const TABKeysMap = {
   // PD only: the fields a role cannot override, gathered where the fact is
   // stated rather than scattered through sections that imply per-deployment
   // scope. See ui-design.md §2.0b.
-  GROUP: 'group',
   ADVANCED: 'advanced'
 };
 
@@ -191,19 +189,14 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
           }
         ]
       : []),
-    // Performance is model-level, and under PD both of its fields have moved:
-    // the KV cache down to the roles, speculative decoding across to the
-    // group block. An empty section with a familiar name is worse than no
-    // section — it reads as "nothing to tune here".
+    // Performance is model-level, and under PD both of its fields have moved
+    // down to the roles: the KV cache because prefill and decode want
+    // different answers, speculative decoding because the NIXL handshake
+    // hashes the model and a draft head is part of it (F17). An empty section
+    // with a familiar name is worse than no section -- it reads as "nothing
+    // to tune here".
     ...(pdEffects.enabled
-      ? [
-          {
-            value: TABKeysMap.GROUP,
-            label: intl.formatMessage({ id: 'models.form.groupSettings' }),
-            icon: <IconFont type="icon-speed" />,
-            field: 'speculative_config.enabled'
-          }
-        ]
+      ? []
       : [
           {
             value: TABKeysMap.PERFORMANCE,
@@ -212,12 +205,20 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
             field: 'extended_kv_cache.enabled'
           }
         ]),
-    {
-      value: TABKeysMap.SCHEDULING,
-      label: intl.formatMessage({ id: 'models.form.scheduling' }),
-      icon: <IconFont type="icon-model" />,
-      field: 'scheduleType'
-    },
+    // Same reason Performance is excluded: the section itself is gone under PD
+    // (every GPU-bearing role carries its own "Resources and scheduling"), so
+    // a nav entry that survives it scrolls to nothing — the tab looks dead
+    // rather than absent.
+    ...(pdEffects.enabled
+      ? []
+      : [
+          {
+            value: TABKeysMap.SCHEDULING,
+            label: intl.formatMessage({ id: 'models.form.scheduling' }),
+            icon: <IconFont type="icon-model" />,
+            field: 'scheduleType'
+          }
+        ]),
     {
       value: TABKeysMap.ADVANCED,
       label: intl.formatMessage({ id: 'resources.form.advanced' }),
@@ -629,6 +630,14 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
         >
           <BasicForm
             hideReplicas={pdEffects.enabled}
+            // Above the replica count rather than in the panel below it: the
+            // shape decides whether a model-level count exists at all, and a
+            // form that asks for the number first has to take it back.
+            pdSlot={
+              <PDDisaggregation
+                onEffectsChange={handlePDEffectsChange}
+              ></PDDisaggregation>
+            }
             sourceList={sourceList}
             clusterList={clusterList}
             sourceDisable={sourceDisable}
@@ -641,16 +650,6 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
             accordion={false}
             onChange={handleOnCollapseChange}
             items={[
-              {
-                key: TABKeysMap.PD,
-                label: intl.formatMessage({ id: 'models.form.pd.enable' }),
-                forceRender: true,
-                children: (
-                  <PDDisaggregation
-                    onEffectsChange={handlePDEffectsChange}
-                  ></PDDisaggregation>
-                )
-              },
               // The item exists only with PD on, so `forceRender` is safe here
               // and necessary: without it the section's fields register only
               // once the panel is opened, and a group submitted without
@@ -672,16 +671,7 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
                   ]
                 : []),
               ...(pdEffects.enabled
-                ? [
-                    {
-                      key: TABKeysMap.GROUP,
-                      label: intl.formatMessage({
-                        id: 'models.form.groupSettings'
-                      }),
-                      forceRender: true,
-                      children: <GroupSettings></GroupSettings>
-                    }
-                  ]
+                ? []
                 : [
                     {
                       key: TABKeysMap.PERFORMANCE,

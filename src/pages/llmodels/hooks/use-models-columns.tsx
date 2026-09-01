@@ -4,7 +4,11 @@ import { StatusMaps } from '@/config';
 import { OPENAI_COMPATIBLE, tableSorter } from '@/config/settings';
 import { TargetStatusValueMap } from '@/pages/model-routes/config';
 import { usePluginListColumns } from '@/plugins/list-extra-columns';
-import { InfoCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import {
+  InfoCircleOutlined,
+  QuestionCircleOutlined,
+  WarningOutlined
+} from '@ant-design/icons';
 import {
   AutoTooltip,
   DropdownButtons,
@@ -23,7 +27,7 @@ import { useAtomValue } from 'jotai';
 import _ from 'lodash';
 import { cloneElement, useMemo } from 'react';
 import ModelTag from '../../_components/model-tag';
-import PDMarkers from '../components/pd/pd-markers';
+import { MarkerReasons, markerTexts } from '../components/pd/pd-markers';
 import RoleStatusDetail from '../components/pd/role-status-detail';
 import {
   isModelServable,
@@ -346,6 +350,7 @@ const useModelsColumns = ({
           // unchanged.
           const { ready, total } = modelReplicaCounts(record);
           const isPD = isPDModel(record);
+          const markers = markerTexts(intl, record.stale, record.degradations);
           const cell = (
             <Flex
               component="span"
@@ -362,30 +367,44 @@ const useModelsColumns = ({
               <span style={{ flexShrink: 0 }}>
                 {ready} / {total}
               </span>
-              {/* Markers, never a replacement for the colour above: a stale
-                  model is usually still serving and a degraded one is serving
-                  worse than asked for. Both carry their reason.
+              {/* One icon, because there is one tooltip. The markers and the
+                  PD breakdown were separate glyphs with separate hover
+                  surfaces sitting against the same number, and the markers'
+                  tooltip was nested inside the cell's. Which one a reader got
+                  depended on which pixel they landed on.
 
+                  Warning wins the colour when there is something wrong;
+                  otherwise it is the neutral affordance for the breakdown.
                   Outside the `isPD` guard because `stale` is computed for
                   every model, not only groups — an edited plain model is just
-                  as silently un-applied. A model with neither marker renders
-                  nothing at all, so those cells are untouched. */}
-              <PDMarkers
-                stale={record.stale}
-                degradations={record.degradations}
-              />
-              {isPD && (
-                <InfoCircleOutlined
-                  style={{
-                    flexShrink: 0,
-                    color: 'var(--ant-color-text-tertiary)'
-                  }}
-                />
-              )}
+                  as silently un-applied. */}
+              {(isPD || !!markers.length) &&
+                (markers.length ? (
+                  <WarningOutlined
+                    style={{
+                      flexShrink: 0,
+                      color: 'var(--ant-color-warning)'
+                    }}
+                  />
+                ) : (
+                  <InfoCircleOutlined
+                    style={{
+                      flexShrink: 0,
+                      color: 'var(--ant-color-text-tertiary)'
+                    }}
+                  />
+                ))}
             </Flex>
           );
           if (!isPD) {
-            return cell;
+            // A plain model with a marker still owes the reader its reason.
+            return markers.length ? (
+              <Tooltip title={<MarkerReasons texts={markers} />}>
+                {cell}
+              </Tooltip>
+            ) : (
+              cell
+            );
           }
           // The per-role breakdown has to work on the list response, which
           // carries no instances — hence `role_status` rather than a count of
@@ -398,17 +417,22 @@ const useModelsColumns = ({
                   roleStatus={record.role_status}
                   roles={record.roles}
                   footer={
-                    <span
-                      style={{
-                        marginTop: 4,
-                        color: 'var(--ant-color-text-light-solid)',
-                        opacity: 0.75
-                      }}
-                    >
-                      {intl.formatMessage({
-                        id: 'models.pd.replicas.readonly'
-                      })}
-                    </span>
+                    <>
+                      {/* Above the edit hint: why the group is unwell outranks
+                          where its replica counts are edited. */}
+                      <MarkerReasons texts={markers} />
+                      <span
+                        style={{
+                          marginTop: 4,
+                          color: 'var(--ant-color-text-light-solid)',
+                          opacity: 0.75
+                        }}
+                      >
+                        {intl.formatMessage({
+                          id: 'models.pd.replicas.readonly'
+                        })}
+                      </span>
+                    </>
                   }
                 ></RoleStatusDetail>
               }

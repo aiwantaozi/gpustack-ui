@@ -1,12 +1,14 @@
 import { queryGatherFeasibility } from '@/pages/cluster-management/apis';
+import { topologyFieldLabel } from '@/pages/cluster-management/config';
 import {
+  ACCELERATOR_DOMAIN,
   GatherFeasibility,
   GatherTier,
   NODE_LAYER
 } from '@/pages/cluster-management/config/types';
 import { IconFont } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Button, Flex, Form, Radio, Space, Spin } from 'antd';
+import { Alert, Button, Flex, Form, Radio, Space, Spin, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FormData } from '../config/types';
@@ -47,8 +49,28 @@ const useStyles = createStyles(({ css }) => ({
     font-size: 12px;
     color: var(--ant-color-text-tertiary);
     margin-top: 6px;
+  `,
+  /* The line under the domain tier. Indented under its radio because it
+     explains that tier and no other. */
+  explain: css`
+    display: block;
+    font-size: 12px;
+    color: var(--ant-color-text-tertiary);
+    margin-left: 24px;
   `
 }));
+
+/**
+ * The topology drawer of the cluster, in a new tab. The form is half filled;
+ * navigating away and back would need a draft restore, which costs more than a
+ * tab (§8.8). The hash router means the path lives after the `#`.
+ */
+const openTopologyDrawer = (clusterId: number) => {
+  window.open(
+    `${window.location.origin}${window.location.pathname}#/resources/clusters/list?topology=${clusterId}`,
+    '_blank'
+  );
+};
 
 /**
  * "Below what would you rather not deploy" — not "which layer do you want".
@@ -137,13 +159,42 @@ const GatherLocality: React.FC = () => {
     return () => clearTimeout(timerRef.current);
   }, [fetchFeasibility]);
 
+  // Coming back from the topology drawer's tab is exactly when the answer has
+  // changed, so the tab regaining focus re-asks.
+  useEffect(() => {
+    const onFocus = () => fetchFeasibility();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [fetchFeasibility]);
+
   const tiers = feasibility?.tiers || [];
   /**
-   * Only the leaf when nothing is declared. The coarser choices are what a
-   * topology declaration buys, and offering them empty would be offering a
-   * setting with no effect.
+   * Whether any tier comes from a filled-in location. The host and the
+   * accelerator domain exist on their own; the coarser choices are what
+   * filling in a rack buys, and their absence is a nudge, not a bug.
    */
-  const hasDeclaredLayers = tiers.some((tier) => tier.layer !== NODE_LAYER);
+  const hasTreeTiers = tiers.some(
+    (tier) => tier.layer !== NODE_LAYER && tier.layer !== ACCELERATOR_DOMAIN
+  );
+  const selectedTier =
+    strategy === 'MustGather'
+      ? tiers.find((tier) => tier.layer === layer)
+      : undefined;
+  const selectedInfeasible =
+    !!selectedTier && !selectedTier.feasible && !selectedTier.unmeasured;
+
+  const tierLabel = (tier: GatherTier) => {
+    if (tier.layer === NODE_LAYER) {
+      return intl.formatMessage({ id: 'models.form.gather.sameHost' });
+    }
+    if (tier.layer === ACCELERATOR_DOMAIN) {
+      return intl.formatMessage({ id: 'models.form.gather.sameDomain' });
+    }
+    return intl.formatMessage(
+      { id: 'models.form.gather.sameLayer' },
+      { layer: topologyFieldLabel(intl, tier.layer, tier.name) }
+    );
+  };
 
   const verdict = (tier?: GatherTier) => {
     if (!tier) {
@@ -235,19 +286,57 @@ const GatherLocality: React.FC = () => {
               {intl.formatMessage({ id: 'models.form.gather.prefer.tips' })}
             </span>
           </Radio>
-          {tiers.map((tier) => (
-            <Radio key={tier.layer} value={`must:${tier.layer}`}>
-              {tier.layer === NODE_LAYER
-                ? intl.formatMessage({ id: 'models.form.gather.sameHost' })
-                : intl.formatMessage(
-                    { id: 'models.form.gather.sameLayer' },
-                    { layer: tier.layer }
-                  )}
-              {verdict(tier)}
-            </Radio>
-          ))}
+          {tiers.map((tier) => {
+            const isTree =
+              tier.layer !== NODE_LAYER && tier.layer !== ACCELERATOR_DOMAIN;
+            const radio = (
+              <Radio key={tier.layer} value={`must:${tier.layer}`}>
+                {tierLabel(tier)}
+                {verdict(tier)}
+              </Radio>
+            );
+            return (
+              <Flex orientation="vertical" key={tier.layer}>
+                {/* §6.2b: a tier means "transfer no worse than X", so a domain
+                    spanning two racks satisfies "same rack". Said on hover
+                    where the rack tier is, since that is where it surprises. */}
+                {isTree ? (
+                  <Tooltip
+                    placement="right"
+                    title={intl.formatMessage({
+                      id: 'models.form.gather.tree.tips'
+                    })}
+                  >
+                    {radio}
+                  </Tooltip>
+                ) : (
+                  radio
+                )}
+                {tier.layer === ACCELERATOR_DOMAIN && (
+                  <span className={styles.explain}>
+                    {intl.formatMessage({
+                      id: 'models.form.gather.domain.tips'
+                    })}
+                  </span>
+                )}
+              </Flex>
+            );
+          })}
         </Space>
       </Radio.Group>
+
+      {/* Not a validation error: the backend accepts this and the group waits
+          for room. Warned, and the ways out are named, but nothing blocks. */}
+      {selectedInfeasible && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginTop: 8 }}
+          message={intl.formatMessage({
+            id: 'models.form.gather.infeasible.warning'
+          })}
+        />
+      )}
 
       {/* The stricter options come from the server, so until it answers there
           is exactly one radio on screen — which reads as a broken control
@@ -277,12 +366,22 @@ const GatherLocality: React.FC = () => {
       {/* Where the coarser tiers come from, said once and pointing at the
           place that creates them. Without this the absence of "at least in the
           same rack" reads as a missing feature rather than an unset one. */}
-      {!hasDeclaredLayers && !!tiers.length && (
+      {!hasTreeTiers && !!tiers.length && (
         <Flex align="center" gap={6} className={styles.hint}>
           <IconFont type="icon-bulb" />
           <span>
             {intl.formatMessage({ id: 'models.form.gather.declare' })}
           </span>
+          {!!clusterId && (
+            <Button
+              size="small"
+              type="link"
+              style={{ padding: 0 }}
+              onClick={() => openTopologyDrawer(clusterId)}
+            >
+              {intl.formatMessage({ id: 'models.form.gather.goFill' })}
+            </Button>
+          )}
         </Flex>
       )}
     </>

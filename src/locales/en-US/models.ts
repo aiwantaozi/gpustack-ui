@@ -558,5 +558,15 @@ export default {
 
   'models.form.groupSettings': 'Group Settings',
   'models.form.groupSettings.tips':
-    'These cannot differ between roles: one value is applied to Prefill and Decode alike.'
+    'These cannot differ between roles: one value is applied to Prefill and Decode alike.',
+
+  // Topology-aware gather tiers
+  'models.form.gather.sameDomain': 'Same accelerator domain, or do not deploy',
+  'models.form.gather.domain.tips':
+    'Inside a domain, peers address each other’s memory directly; across domains, traffic goes over the network',
+  'models.form.gather.tree.tips':
+    'Transfer within one accelerator domain is faster than within one rack, so a domain also satisfies this',
+  'models.form.gather.goFill': 'Fill it in',
+  'models.form.gather.infeasible.warning':
+    'At current capacity this group cannot be placed; once saved it will wait until room frees up. Options: switch to “as close as possible” (may span hosts, slower KV transfer) · reduce replicas or GPUs per replica'
 };

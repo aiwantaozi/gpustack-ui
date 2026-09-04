@@ -17,6 +17,8 @@ export interface WorkerRightActionsProps {
    * exactly the bar it had.
    */
   handleUpdateLabelsByBatch?: () => void;
+  /** The batch "set location" control, already wired to the selection. */
+  SetLocationAction?: React.ReactNode;
   handleClickPrimary?: () => void;
   MonitorButton?: React.ReactNode;
   rowSelection: {
@@ -27,6 +29,7 @@ export interface WorkerRightActionsProps {
 const WorkerRightActions: React.FC<WorkerRightActionsProps> = ({
   handleDeleteByBatch,
   handleUpdateLabelsByBatch,
+  SetLocationAction,
   handleClickPrimary,
   rowSelection,
   MonitorButton
@@ -57,6 +60,7 @@ const WorkerRightActions: React.FC<WorkerRightActionsProps> = ({
           </span>
         </Button>
       )}
+      {SetLocationAction}
       <Button
         icon={<DeleteOutlined />}
         danger

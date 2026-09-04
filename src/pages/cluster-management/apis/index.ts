@@ -9,10 +9,12 @@ import {
   CredentialFormData,
   CredentialListItem,
   GatherFeasibility,
+  LocationAssignment,
+  LocationsResponse,
   NodePoolFormData,
   NodePoolListItem,
   SystemConfig,
-  TopologyPreview
+  TopologyView
 } from '../config/types';
 
 export const CREDENTIALS_API = '/cloud-credentials';
@@ -227,22 +229,56 @@ export async function setDefaultCluster(params: { id: number }) {
   });
 }
 
+// ===================== Topology =====================
+
+/** Everything the topology drawer paints on open, as the saved mapping sees it. */
+export async function queryClusterTopology(
+  params: { id: number },
+  options?: any
+) {
+  return request<TopologyView>(`${CLUSTERS_API}/${params.id}/topology`, {
+    method: 'GET',
+    cancelToken: options?.token,
+    skipErrorHandler: options?.skipErrorHandler
+  });
+}
+
 /**
- * The tree a topology declaration would produce over this cluster's workers.
+ * Fill in where workers sit. Writes the field's own label key on every worker
+ * listed; `value: null` deletes it. The response carries the inverse
+ * assignments, so undo is this same call with `previous` posted back as-is.
+ */
+export async function setTopologyLocations(params: {
+  id: number;
+  assignments: LocationAssignment[];
+}) {
+  return request<LocationsResponse>(
+    `${CLUSTERS_API}/${params.id}/topology/locations`,
+    {
+      method: 'POST',
+      data: { assignments: params.assignments },
+      skipErrorHandler: true
+    }
+  );
+}
+
+/**
+ * What an *unsaved* field-to-key mapping would make of this cluster's workers.
  *
- * A POST carrying the declaration, not a GET over the saved one, and that is
- * the point: the question is "what happens if this layer matched a different
- * key", asked *before* saving. Omit `topology` to preview the committed state.
+ * A POST carrying the mapping, not a GET over the saved one, and that is the
+ * point: the question is "does this key pick up our old labels", asked before
+ * committing anything to a live cluster.
  */
 export async function previewClusterTopology(params: {
   id: number;
-  topology?: ClusterTopology | null;
+  topology: ClusterTopology;
 }) {
-  return request<TopologyPreview>(
+  return request<TopologyView>(
     `${CLUSTERS_API}/${params.id}/topology/preview`,
     {
       method: 'POST',
-      data: { topology: params.topology ?? null }
+      data: { topology: params.topology },
+      skipErrorHandler: true
     }
   );
 }

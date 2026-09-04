@@ -130,5 +130,8 @@ export default {
   'resources.worker.setLabels': 'Set Labels',
   'resources.worker.setLabels.count': '{count} workers selected',
   'resources.worker.setLabels.partial':
-    'Labels updated on {done} workers, {failed} failed.'
+    'Labels updated on {done} workers, {failed} failed.',
+
+  'resources.table.location': 'Location',
+  'resources.worker.setLocation': 'Set Location'
 };

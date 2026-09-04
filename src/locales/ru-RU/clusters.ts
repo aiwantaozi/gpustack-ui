@@ -213,55 +213,193 @@ export default {
   'clusters.gpuInstances.setting.unmanaged':
     'Unmanaged (the cluster keeps its own value)',
 
-  // Topology: how far apart this cluster's workers are.
-  'clusters.topology.title': 'Topology',
-  'clusters.topology.layers': 'Layers',
-  'clusters.topology.addLayer': 'Add Layer',
-  'clusters.topology.layer.name': 'Layer Name',
-  'clusters.topology.layer.name.tips':
-    'Shown verbatim in the deployment form, so use a word your operators recognise (e.g. Rack, not L2).',
-  'clusters.topology.layer.name.duplicate':
-    'This name is already used by another layer.',
-  'clusters.topology.layer.labelKeys': 'Worker Label Keys',
-  'clusters.topology.layer.labelKeys.tips':
-    'Tried in order; the first key present on a worker wins. Add several when your fleet spells the same layer differently.',
-  'clusters.topology.layer.addKey': 'Add Key',
-  'clusters.topology.leaf': 'Host (built in)',
-  'clusters.topology.leaf.tips':
-    'Always grouped by host name, never by a label, so it cannot collapse when a label is missing. This is why an unlabelled worker only loses resolution and stays schedulable.',
+  // Topology: where this cluster's workers sit.
+  'clusters.topology.title': 'Топология',
   'clusters.topology.noRebalance':
-    'Only affects later scheduling. Running deployments are not moved.',
-  'clusters.topology.cluster': 'Cluster',
-  'clusters.topology.unclassified': 'Unclassified',
-  'clusters.topology.unclassified.missing': 'missing {keys}',
-  'clusters.topology.unclassified.summary':
-    '{count} of {total} workers cannot be told apart yet. They still schedule normally.',
-  'clusters.topology.unclassified.label': 'Label these workers',
+    'Расположение влияет только на последующее планирование. Работающие развёртывания не перемещаются.',
+  'clusters.topology.load.failed': 'Не удалось загрузить топологию.',
+  'clusters.topology.save.failed': 'Не удалось сохранить.',
+  'clusters.topology.preview.failed':
+    'Не удалось показать предпросмотр этого сопоставления.',
+  'clusters.topology.preview.noWorkers': 'В этом кластере пока нет worker.',
   'clusters.topology.preview.capacity':
-    '{workers} workers · {gpus} GPUs · {free} free',
-  'clusters.topology.preview.noWorkers': 'This cluster has no workers yet.',
-  'clusters.topology.preview.failed': 'Could not preview this declaration.',
-
-  'clusters.topology.layer.under': 'Under {parent}',
-  'clusters.topology.layer.underCluster': 'Under the cluster root',
-  'clusters.topology.layer.moveUp': 'Move up (closer to the cluster)',
-  'clusters.topology.layer.moveDown': 'Move down (closer to the host)',
-  'clusters.topology.insertPreset': 'Insert layer',
-  'clusters.topology.reset': 'Reset',
-  'clusters.topology.reset.tips':
-    'Back to the default template. Nothing is saved until you click Save.',
-  'clusters.topology.leaf.under': 'Host (built in) — under {parent}',
-  'clusters.topology.discard': 'Discard these changes?',
-  'clusters.topology.discard.tips':
-    'Nothing here has been saved yet. The preview does not change the cluster.',
-  'clusters.topology.discard.ok': 'Discard',
-  'clusters.topology.preset.region': 'Cloud region or datacentre',
-  'clusters.topology.preset.zone': 'Availability zone or hall',
-  'clusters.topology.preset.row': 'Row of racks',
-  'clusters.topology.preset.rack': 'Rack or cabinet',
-
-  'clusters.topology.chain.unnamed': 'Layer {index}',
-  'clusters.topology.chain.host': 'Host'
+    '{workers} worker · {gpus} GPU · свободно {free}',
+  'clusters.topology.cluster': 'Кластер',
+  'clusters.topology.discard.ok': 'Отменить',
+  'clusters.topology.field.region': 'Регион',
+  'clusters.topology.field.zone': 'Зона',
+  'clusters.topology.field.room': 'Зал',
+  'clusters.topology.field.row': 'Ряд',
+  'clusters.topology.field.rack': 'Стойка',
+  'clusters.topology.field.switch': 'Коммутатор доступа',
+  'clusters.topology.field.acceleratorDomain': 'Домен ускорителей',
+  'clusters.topology.field.host': 'Хост',
+  'clusters.topology.field.region.tips': 'Облачный регион или ЦОД',
+  'clusters.topology.field.zone.tips': 'Зона доступности или зал',
+  'clusters.topology.field.room.tips': 'Машинный зал',
+  'clusters.topology.field.row.tips': 'Ряд стоек',
+  'clusters.topology.field.rack.tips': 'Стойка или шкаф',
+  'clusters.topology.field.switch.tips':
+    'Сообщается устройством (LLDP); можно заполнить вручную',
+  'clusters.topology.field.acceleratorDomain.tips':
+    'Заполните вручную, если устройство не сообщает',
+  'clusters.topology.overview.workers': '{count} worker',
+  'clusters.topology.overview.domains': '{field}: {count}',
+  'clusters.topology.overview.acceleratorDomains':
+    'Доменов ускорителей: {count}',
+  'clusters.topology.overview.acceleratorDomains.auto':
+    'Доменов ускорителей: {count} (авто)',
+  'clusters.topology.overview.unfilled': '{count} без значения «{field}»',
+  'clusters.topology.previewing': '● Предпросмотр',
+  'clusters.topology.previewing.long':
+    '● Предпросмотр: основная панель показывает несохранённое сопоставление',
+  'clusters.topology.view.table': 'Таблица',
+  'clusters.topology.view.tree': 'Дерево',
+  'clusters.topology.search.placeholder': 'Поиск хостов…',
+  'clusters.topology.filter.unfilled': 'Только незаполненные',
+  'clusters.topology.columns': 'Столбцы',
+  'clusters.topology.columns.fields': 'Поля расположения',
+  'clusters.topology.columns.other': 'Прочее',
+  'clusters.topology.columns.custom': 'Пользовательское поле…',
+  'clusters.topology.columns.mapping': 'Сопоставление ключей меток…',
+  'clusters.topology.columns.deleteCustom': 'Удалить поле «{name}»',
+  'clusters.topology.columns.deleteCustom.confirm':
+    'Удалить поле «{name}»? Заполненные значения останутся в метках worker.',
+  'clusters.topology.columns.deleted': 'Поле «{name}» удалено',
+  'clusters.topology.selected': 'Выбрано: {count}',
+  'clusters.topology.clearSelection': 'Снять выбор',
+  'clusters.topology.batch.button': 'Задать расположение',
+  'clusters.topology.batch.title': 'Задать расположение · выбрано {count}',
+  'clusters.topology.batch.field': 'Поле',
+  'clusters.topology.batch.value': 'Значение',
+  'clusters.topology.batch.overwrite':
+    'Будет перезаписано значений: {count}: {names}',
+  'clusters.topology.batch.overwriteAuto':
+    'У {count} из них «{field}» сообщено устройством и будет переопределено',
+  'clusters.topology.batch.more': '{names} и ещё {count}',
+  'clusters.topology.batch.apply': 'Применить к {count}',
+  'clusters.topology.batch.partial': 'Запись не удалась в кластерах: {failed}.',
+  'clusters.topology.toast.setOne': '{field} для {host}: {value}',
+  'clusters.topology.toast.clearedOne': '{field} для {host} очищено',
+  'clusters.topology.toast.set': '{field} для {count} worker: {value}',
+  'clusters.topology.toast.cleared': '{field} для {count} worker очищено',
+  'clusters.topology.toast.firstWrite':
+    ' (влияет только на последующее планирование)',
+  'clusters.topology.undo': 'Отменить',
+  'clusters.topology.undo.done': 'Отменено',
+  'clusters.topology.undo.failed': 'Не удалось отменить: {reason}',
+  'clusters.topology.cell.fill': 'Заполнить: {field}',
+  'clusters.topology.cell.aria': '{field}, {state}, {host}',
+  'clusters.topology.state.unfilled': 'не заполнено',
+  'clusters.topology.state.discovered.aria': '{value}, сообщено устройством',
+  'clusters.topology.state.override.aria':
+    '{value}, введено вручную поверх сообщённого',
+  'clusters.topology.state.discovered.tips':
+    'Сообщено устройством ({key}). Ручной ввод переопределит это.',
+  'clusters.topology.state.override.tips':
+    'Введено вручную. Очистка вернёт сообщённое значение {value}',
+  'clusters.topology.state.user.tips': 'Введено вручную ({key})',
+  'clusters.topology.override.confirm':
+    'Это значение сообщено устройством; ручной ввод переопределит его.',
+  'clusters.topology.override.ok': 'Переопределить',
+  'clusters.topology.value.count': '{count} worker',
+  'clusters.topology.value.create': 'Создать «{value}»',
+  'clusters.topology.value.clear': 'Очистить',
+  'clusters.topology.column.menu': 'Меню столбца «{field}»',
+  'clusters.topology.column.fillUnfilled': 'Заполнить незаполненные ({count})…',
+  'clusters.topology.column.fillBySwitch':
+    'Заполнить по коммутатору доступа ({count} групп)…',
+  'clusters.topology.column.gpus': 'GPU / свободно',
+  'clusters.topology.column.source': 'Источник',
+  'clusters.topology.source.user': 'вручную',
+  'clusters.topology.source.discovered': 'авто',
+  'clusters.topology.source.node': 'узел K8s',
+  'clusters.topology.host.online': 'В сети',
+  'clusters.topology.host.offline': 'Не в сети',
+  'clusters.topology.tree.byLayer': 'По уровням',
+  'clusters.topology.tree.byDomain': 'По домену ускорителей',
+  'clusters.topology.tree.byField': 'По «{field}»',
+  'clusters.topology.tree.expandAll': 'Развернуть всё',
+  'clusters.topology.tree.collapseAll': 'Свернуть всё',
+  'clusters.topology.tree.spansDomains': 'охватывает доменов: {count}',
+  'clusters.topology.tree.unfilled': 'Без значения «{field}»',
+  'clusters.topology.tree.unknownDomain': 'Неизвестный домен',
+  'clusters.topology.tree.more': 'ещё {count}',
+  'clusters.topology.tree.hostCapacity': '{gpus} GPU · свободно {free}',
+  'clusters.topology.onboarding.hosts': 'Обнаружено хостов: {hosts}.',
+  'clusters.topology.onboarding.withDomains':
+    'Обнаружено хостов: {hosts}, доменов ускорителей: {domains} (авто).',
+  'clusters.topology.onboarding.goal':
+    'Чтобы участники PD-группы размещались рядом:',
+  'clusters.topology.onboarding.steps':
+    '① Выберите машины одной стойки → ② «Задать расположение» с именем стойки → ③ При развёртывании выберите «та же стойка»',
+  'clusters.topology.onboarding.domains':
+    'Для машин с многоузловым NVLink или суперподом Ascend домен ускорителей появится здесь автоматически.',
+  'clusters.topology.onboarding.dismiss': 'Понятно',
+  'clusters.topology.mapping.title': 'Сопоставление ключей меток',
+  'clusters.topology.mapping.intro':
+    'Из какой метки worker каждое поле читает значение',
+  'clusters.topology.mapping.layers': 'Уровни',
+  'clusters.topology.mapping.layers.tips':
+    'Вложенность: каждый уровень лежит внутри уровня выше',
+  'clusters.topology.mapping.layers.status': 'Используется полей: {count}',
+  'clusters.topology.mapping.layers.status.empty': 'Поля не заполнены',
+  'clusters.topology.mapping.domain.status': 'Доменов: {count}',
+  'clusters.topology.mapping.domain.status.inactive': 'Не распознано',
+  'clusters.topology.mapping.showUnused':
+    'Показать неиспользуемые поля ({count})',
+  'clusters.topology.mapping.hideUnused': 'Скрыть неиспользуемые поля',
+  'clusters.topology.mapping.moreKeys': '+ ещё {count} ключ(ей)',
+  'clusters.topology.mapping.classified': 'Распознано {classified} / {total}',
+  'clusters.topology.mapping.noKeys': 'Ключи меток не заданы',
+  'clusters.topology.mapping.domain.tips':
+    'Плоские группы, а не уровень: машины, которые напрямую видят память друг друга по NVLink / HCCS / UB, обводятся в один домен. Домен может охватывать несколько стоек или состоять из одной машины',
+  'clusters.topology.mapping.domain.stats':
+    'Доменов: {domains}; самый большой охватывает {racks} стоек',
+  'clusters.topology.mapping.subDomain.tips':
+    'Машины одного домена и яруса размещаются вместе в первую очередь (например, вычислительный шкаф Atlas 950); когда домены появятся, выберите поле расположения как ярус внутри домена',
+  'clusters.topology.mapping.subDomain.placeholder':
+    'Ни один worker пока не сообщает домен ускорителей',
+  'clusters.topology.layer.labelKeys': 'Ключи меток',
+  'clusters.topology.layer.addKey': 'Добавить ключ',
+  'clusters.topology.layer.name': 'Имя',
+  'clusters.topology.advanced.hostKeys': 'Встроено, по имени worker',
+  'clusters.topology.advanced.locked':
+    'Собственный ключ GPUStack: сюда записываются значения из таблицы. Нельзя удалить или переместить.',
+  'clusters.topology.advanced.subDomain': 'Поддомен',
+  'clusters.topology.advanced.subDomain.none': 'Нет',
+  'clusters.topology.advanced.subDomain.keys': 'Свои ключи…',
+  'clusters.topology.advanced.suggestions': 'Обнаруженные ключи меток',
+  'clusters.topology.advanced.suggestion':
+    '{workers} worker · {values} значений · похоже на {field}',
+  'clusters.topology.advanced.discard':
+    'Отменить изменения сопоставления полей?',
+  'clusters.topology.advanced.discard.tips':
+    'Значения, заполненные в таблице, не затрагиваются.',
+  'clusters.topology.advanced.saved':
+    'Сохранено. Влияет только на последующее планирование; работающие группы не перемещаются.',
+  'clusters.topology.keys.placeholder': 'Введите ключ метки или выберите ниже',
+  'clusters.topology.keys.invalid':
+    'Некорректный ключ метки Kubernetes (префикс ≤ 253, имя ≤ 63, буквы, цифры, - _ .)',
+  'clusters.topology.keys.usage':
+    'Этот ключ есть у {count} worker ({values} значений)',
+  'clusters.topology.keys.exists': 'Этот ключ уже добавлен',
+  'clusters.topology.custom.title': 'Пользовательское поле',
+  'clusters.topology.custom.name.required': 'Введите имя',
+  'clusters.topology.custom.name.taken': 'Это имя занято или зарезервировано',
+  'clusters.topology.custom.name.tips':
+    'Появится среди вариантов в форме развёртывания',
+  'clusters.topology.custom.position': 'Где в цепочке',
+  'clusters.topology.custom.slot.insert': 'Вставить сюда',
+  'clusters.topology.custom.slot.placeholder': 'Новый уровень',
+  'clusters.topology.custom.slot.explain':
+    'В одном {parent} несколько {name}; в одном {name} несколько {child}',
+  'clusters.topology.custom.slot.explain.top':
+    'В одном {name} несколько {child}',
+  'clusters.topology.custom.keys.tips':
+    'У пользовательского уровня нет собственного ключа; чтобы заполнять его из таблицы, поставьте первым ключ, в который хотите записывать.',
+  'clusters.topology.custom.referenced':
+    'Нельзя удалить «{name}»: на него ссылаются модели'
 };
 // ========== To-Do: Translate Keys (Remove After Translation) ==========
 // 1. 'clusters.addworker.hygonNotes': `If <span class="bold-text">/opt/hyhal</span> or <span class="bold-text">/opt/dtk</span> does not exist, create symbolic links pointing to the corresponding Hygon installation paths, for example: <span class="desc-fill">ln -s /path/to/hyhal /opt/hyhal</span> <span class="desc-fill">ln -s /path/to/dtk /opt/dtk</span>.`,

@@ -131,33 +131,8 @@ export default {
   'resources.worker.setLabels': 'Set Labels',
   'resources.worker.setLabels.count': '{count} workers selected',
   'resources.worker.setLabels.partial':
-    'Labels updated on {done} workers, {failed} failed.'
-};
+    'Labels updated on {done} workers, {failed} failed.',
 
-// ========== To-Do: Translate Keys (Remove After Translation) ==========
-// 1. 'resources.register.worker.step1': 'Click the <span class="bold-text">Copy Token</span> menu in the application.',
-// 2. 'resources.register.worker.step2': 'Click the <span class="bold-text">Quick Config</span> menu in the application.',
-// 3. 'resources.register.worker.step3': 'Click the <span class="bold-text">General</span> tab.',
-// 4. 'resources.register.worker.step4':  'Select <span class="bold-text">Worker</span> as the service role.',
-// 5. 'resources.register.worker.step5': 'Enter the <span class="bold-text">Server URL</span>: {url}.',
-// 6. 'resources.register.worker.step6': 'Paste the <span class="bold-text">Token</span>.',
-// 7. 'resources.register.worker.step7': 'Click <span class="bold-text">Restart</span> to apply the settings.',
-// 8. 'resources.register.install.title': 'Install GPUStack on {os}',
-// 9. 'resources.register.download':'Download and install the <a>installer</a>. Only supported: {versions}.',
-// 10. 'resource.register.maos.support': 'Apple Silicon (M series), macOS 14+',
-// 11. 'resource.register.windows.support': 'win 10, win 11',
-// 12. 'resources.filter.status': 'Filter by status',
-// 13. 'resources.model.instance': 'Model Instance',
-// 14. 'resources.worker.download.privatekey': 'Download Private Key',
-// 15. 'resources.worker': 'Worker',
-// 16. 'resources.modelfiles.form.exsting': 'Downloaded',
-// 17. 'resources.modelfiles.form.added': 'Added',
-// 18. 'resources.worker.maintenance.title': 'System Maintenance',
-// 19. 'resources.worker.maintenance.enable': 'Enter Maintenance Mode',
-// 20. 'resources.worker.maintenance.disable': 'Exit Maintenance Mode',
-// 21. 'resources.worker.maintenance.remark': 'Remark',
-// 22. 'resources.worker.maintenance.remark.rules': 'Please enter maintenance remarks',
-// 23. 'resources.worker.maintenance.tips': 'When maintenance mode is enabled, the node will stop scheduling new model deployment tasks. Running instances will not be affected.',
-// 24. 'resources.worker.noCluster.tips': 'No available clusters. Please create a cluster before adding a node.'
-// 25. 'resoureces.worker.upgrade.tips': 'Please upgrade to match the GPUStack Server version.'
-// ========== End of To-Do List ==========
+  'resources.table.location': '位置',
+  'resources.worker.setLocation': '位置を設定'
+};

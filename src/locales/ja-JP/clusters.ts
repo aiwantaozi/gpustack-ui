@@ -212,55 +212,194 @@ export default {
   'clusters.gpuInstances.setting.unmanaged':
     'Unmanaged (the cluster keeps its own value)',
 
-  // Topology: how far apart this cluster's workers are.
-  'clusters.topology.title': 'Topology',
-  'clusters.topology.layers': 'Layers',
-  'clusters.topology.addLayer': 'Add Layer',
-  'clusters.topology.layer.name': 'Layer Name',
-  'clusters.topology.layer.name.tips':
-    'Shown verbatim in the deployment form, so use a word your operators recognise (e.g. Rack, not L2).',
-  'clusters.topology.layer.name.duplicate':
-    'This name is already used by another layer.',
-  'clusters.topology.layer.labelKeys': 'Worker Label Keys',
-  'clusters.topology.layer.labelKeys.tips':
-    'Tried in order; the first key present on a worker wins. Add several when your fleet spells the same layer differently.',
-  'clusters.topology.layer.addKey': 'Add Key',
-  'clusters.topology.leaf': 'Host (built in)',
-  'clusters.topology.leaf.tips':
-    'Always grouped by host name, never by a label, so it cannot collapse when a label is missing. This is why an unlabelled worker only loses resolution and stays schedulable.',
+  // Topology: where this cluster's workers sit.
+  'clusters.topology.title': 'トポロジー',
   'clusters.topology.noRebalance':
-    'Only affects later scheduling. Running deployments are not moved.',
-  'clusters.topology.cluster': 'Cluster',
-  'clusters.topology.unclassified': 'Unclassified',
-  'clusters.topology.unclassified.missing': 'missing {keys}',
-  'clusters.topology.unclassified.summary':
-    '{count} of {total} workers cannot be told apart yet. They still schedule normally.',
-  'clusters.topology.unclassified.label': 'Label these workers',
+    '位置は以後のスケジューリングにのみ影響します。実行中のデプロイは移動されません。',
+  'clusters.topology.load.failed': 'トポロジーを読み込めませんでした。',
+  'clusters.topology.save.failed': '保存できませんでした。',
+  'clusters.topology.preview.failed':
+    'このマッピングをプレビューできませんでした。',
+  'clusters.topology.preview.noWorkers':
+    'このクラスターにはまだ worker がありません。',
   'clusters.topology.preview.capacity':
-    '{workers} workers · {gpus} GPUs · {free} free',
-  'clusters.topology.preview.noWorkers': 'This cluster has no workers yet.',
-  'clusters.topology.preview.failed': 'Could not preview this declaration.',
-
-  'clusters.topology.layer.under': 'Under {parent}',
-  'clusters.topology.layer.underCluster': 'Under the cluster root',
-  'clusters.topology.layer.moveUp': 'Move up (closer to the cluster)',
-  'clusters.topology.layer.moveDown': 'Move down (closer to the host)',
-  'clusters.topology.insertPreset': 'Insert layer',
-  'clusters.topology.reset': 'Reset',
-  'clusters.topology.reset.tips':
-    'Back to the default template. Nothing is saved until you click Save.',
-  'clusters.topology.leaf.under': 'Host (built in) — under {parent}',
-  'clusters.topology.discard': 'Discard these changes?',
-  'clusters.topology.discard.tips':
-    'Nothing here has been saved yet. The preview does not change the cluster.',
-  'clusters.topology.discard.ok': 'Discard',
-  'clusters.topology.preset.region': 'Cloud region or datacentre',
-  'clusters.topology.preset.zone': 'Availability zone or hall',
-  'clusters.topology.preset.row': 'Row of racks',
-  'clusters.topology.preset.rack': 'Rack or cabinet',
-
-  'clusters.topology.chain.unnamed': 'Layer {index}',
-  'clusters.topology.chain.host': 'Host'
+    '{workers} 台 · {gpus} GPU · 空き {free}',
+  'clusters.topology.cluster': 'クラスター',
+  'clusters.topology.discard.ok': '破棄',
+  'clusters.topology.field.region': 'リージョン',
+  'clusters.topology.field.zone': 'ゾーン',
+  'clusters.topology.field.room': 'マシンルーム',
+  'clusters.topology.field.row': 'ラック列',
+  'clusters.topology.field.rack': 'ラック',
+  'clusters.topology.field.switch': 'アクセススイッチ',
+  'clusters.topology.field.acceleratorDomain': 'アクセラレータードメイン',
+  'clusters.topology.field.host': 'ホスト',
+  'clusters.topology.field.region.tips':
+    'クラウドリージョンまたはデータセンター',
+  'clusters.topology.field.zone.tips': 'アベイラビリティゾーンまたはホール',
+  'clusters.topology.field.room.tips': 'マシンルーム',
+  'clusters.topology.field.row.tips': 'ラックの列',
+  'clusters.topology.field.rack.tips': 'ラックまたはキャビネット',
+  'clusters.topology.field.switch.tips':
+    'デバイス自己報告（LLDP）。手入力も可能',
+  'clusters.topology.field.acceleratorDomain.tips':
+    'デバイスが報告しない場合は手入力',
+  'clusters.topology.overview.workers': '{count} 台の worker',
+  'clusters.topology.overview.domains': '{field} {count} 個',
+  'clusters.topology.overview.acceleratorDomains':
+    'アクセラレータードメイン {count} 個',
+  'clusters.topology.overview.acceleratorDomains.auto':
+    'アクセラレータードメイン {count} 個（自動）',
+  'clusters.topology.overview.unfilled': '{count} 台に{field}がありません',
+  'clusters.topology.previewing': '● プレビュー中',
+  'clusters.topology.previewing.long':
+    '● プレビュー中：メインドロワーは未保存のマッピングで表示中',
+  'clusters.topology.view.table': 'テーブル',
+  'clusters.topology.view.tree': 'ツリー',
+  'clusters.topology.search.placeholder': 'ホストを検索…',
+  'clusters.topology.filter.unfilled': '未入力のみ',
+  'clusters.topology.columns': '列の設定',
+  'clusters.topology.columns.fields': '位置フィールド',
+  'clusters.topology.columns.other': 'その他',
+  'clusters.topology.columns.custom': 'カスタムフィールド…',
+  'clusters.topology.columns.mapping': 'ラベルキーのマッピング…',
+  'clusters.topology.columns.deleteCustom': 'フィールド「{name}」を削除',
+  'clusters.topology.columns.deleteCustom.confirm':
+    'フィールド「{name}」を削除しますか？入力済みの値は worker のラベルに残ります。',
+  'clusters.topology.columns.deleted': 'フィールド「{name}」を削除しました',
+  'clusters.topology.selected': '{count} 台選択中',
+  'clusters.topology.clearSelection': '選択を解除',
+  'clusters.topology.batch.button': '位置を設定',
+  'clusters.topology.batch.title': '位置を設定 · {count} 台選択中',
+  'clusters.topology.batch.field': 'フィールド',
+  'clusters.topology.batch.value': '値',
+  'clusters.topology.batch.overwrite':
+    '{count} 台の既存の値を上書きします：{names}',
+  'clusters.topology.batch.overwriteAuto':
+    'うち {count} 台の{field}はデバイス自己報告で、上書きされます',
+  'clusters.topology.batch.more': '{names} ほか {count} 台',
+  'clusters.topology.batch.apply': '{count} 台に適用',
+  'clusters.topology.batch.partial':
+    '{failed} 個のクラスターで書き込みに失敗しました。',
+  'clusters.topology.toast.setOne': '{host} の{field}を {value} に設定しました',
+  'clusters.topology.toast.clearedOne': '{host} の{field}をクリアしました',
+  'clusters.topology.toast.set': '{count} 台の{field}を {value} に設定しました',
+  'clusters.topology.toast.cleared': '{count} 台の{field}をクリアしました',
+  'clusters.topology.toast.firstWrite': '（以後のスケジューリングにのみ影響）',
+  'clusters.topology.undo': '元に戻す',
+  'clusters.topology.undo.done': '元に戻しました',
+  'clusters.topology.undo.failed': '元に戻せませんでした：{reason}',
+  'clusters.topology.cell.fill': '{field}を入力',
+  'clusters.topology.cell.aria': '{field}、{state}、{host}',
+  'clusters.topology.state.unfilled': '未入力',
+  'clusters.topology.state.discovered.aria': '{value}、デバイス自己報告',
+  'clusters.topology.state.override.aria': '{value}、手入力で上書き',
+  'clusters.topology.state.discovered.tips':
+    'デバイス自己報告（{key}）。手入力すると上書きされます。',
+  'clusters.topology.state.override.tips':
+    '手入力。クリアするとデバイス報告値 {value} に戻ります',
+  'clusters.topology.state.user.tips': '手入力（{key}）',
+  'clusters.topology.override.confirm':
+    'この値はデバイスの自己報告です。手入力すると上書きされます。',
+  'clusters.topology.override.ok': '上書き',
+  'clusters.topology.value.count': '{count} 台',
+  'clusters.topology.value.create': '“{value}” を新規作成',
+  'clusters.topology.value.clear': 'クリア',
+  'clusters.topology.column.menu': '{field} 列メニュー',
+  'clusters.topology.column.fillUnfilled': '未入力の {count} 台を一括入力…',
+  'clusters.topology.column.fillBySwitch':
+    'アクセススイッチ別に入力（{count} グループ）…',
+  'clusters.topology.column.gpus': 'GPU / 空き',
+  'clusters.topology.column.source': 'ソース',
+  'clusters.topology.source.user': '手入力',
+  'clusters.topology.source.discovered': '自動',
+  'clusters.topology.source.node': 'K8s ノード',
+  'clusters.topology.host.online': 'オンライン',
+  'clusters.topology.host.offline': 'オフライン',
+  'clusters.topology.tree.byLayer': 'レイヤー別',
+  'clusters.topology.tree.byDomain': 'アクセラレータードメイン別',
+  'clusters.topology.tree.byField': '{field}別',
+  'clusters.topology.tree.expandAll': 'すべて展開',
+  'clusters.topology.tree.collapseAll': 'すべて折りたたむ',
+  'clusters.topology.tree.spansDomains': '{count} 個のドメインにまたがる',
+  'clusters.topology.tree.unfilled': '{field}未設定',
+  'clusters.topology.tree.unknownDomain': '不明なドメイン',
+  'clusters.topology.tree.more': 'あと {count} 台',
+  'clusters.topology.tree.hostCapacity': '{gpus} GPU · 空き {free}',
+  'clusters.topology.onboarding.hosts': '{hosts} 台のホストを認識しました。',
+  'clusters.topology.onboarding.withDomains':
+    '{hosts} 台のホストと {domains} 個のアクセラレータードメイン（自動）を認識しました。',
+  'clusters.topology.onboarding.goal':
+    'PD 分離グループのメンバーを近くに配置するには：',
+  'clusters.topology.onboarding.steps':
+    '① 同じラックのマシンを選択 → ②「位置を設定」でラック名を入力 → ③ デプロイ時に「同じラック」を選択',
+  'clusters.topology.onboarding.domains':
+    'マルチノード NVLink や Ascend スーパーポッドのマシンは、アクセラレータードメインが自動で表示されます。',
+  'clusters.topology.onboarding.dismiss': '了解',
+  'clusters.topology.mapping.title': 'ラベルキーのマッピング',
+  'clusters.topology.mapping.intro':
+    '各フィールドが worker のどのラベルから値を読むか',
+  'clusters.topology.mapping.layers': 'レイヤー',
+  'clusters.topology.mapping.layers.tips':
+    '入れ子構造：下の階層は必ず上の階層の中にあります',
+  'clusters.topology.mapping.layers.status': '{count} 個のフィールドを使用中',
+  'clusters.topology.mapping.layers.status.empty': 'フィールド未入力',
+  'clusters.topology.mapping.domain.status': '{count} 個のドメイン',
+  'clusters.topology.mapping.domain.status.inactive': '未認識',
+  'clusters.topology.mapping.showUnused':
+    '未使用の {count} 個のフィールドを表示',
+  'clusters.topology.mapping.hideUnused': '未使用のフィールドを隠す',
+  'clusters.topology.mapping.moreKeys': '+ {count} 個の候補キー',
+  'clusters.topology.mapping.classified': '認識 {classified} / {total}',
+  'clusters.topology.mapping.noKeys': 'ラベルキー未設定',
+  'clusters.topology.mapping.domain.tips':
+    '階層ではない並列のグループ：NVLink / HCCS / UB で互いのメモリに直接アクセスできるマシンを 1 つに囲みます。1 つのドメインは複数のラックにまたがることも、1 台だけのこともあります',
+  'clusters.topology.mapping.domain.stats':
+    'ドメイン {domains} 個、最大で {racks} ラックにまたがります',
+  'clusters.topology.mapping.subDomain.tips':
+    '同じドメインかつ同じ階層のマシンを優先して一緒に配置します（Atlas 950 の計算キャビネットなど）。ドメインができたら、位置フィールドをドメイン内の階層として選べます',
+  'clusters.topology.mapping.subDomain.placeholder':
+    'アクセラレータードメインを報告するワーカーはまだありません',
+  'clusters.topology.layer.labelKeys': 'ラベルキー',
+  'clusters.topology.layer.addKey': 'キーを追加',
+  'clusters.topology.layer.name': '名前',
+  'clusters.topology.advanced.hostKeys': '組み込み、worker 名による',
+  'clusters.topology.advanced.locked':
+    'GPUStack 固有キー：手入力値はここに書かれます。削除・移動不可。',
+  'clusters.topology.advanced.subDomain': 'ドメイン内階層',
+  'clusters.topology.advanced.subDomain.none': 'なし',
+  'clusters.topology.advanced.subDomain.keys': '独自キー…',
+  'clusters.topology.advanced.suggestions': '発見されたラベルキー',
+  'clusters.topology.advanced.suggestion':
+    '{workers} 台 · {values} 個の値 · {field} のようです',
+  'clusters.topology.advanced.discard':
+    'フィールドマッピングの変更を破棄しますか？',
+  'clusters.topology.advanced.discard.tips':
+    'テーブルで入力した値には影響しません。',
+  'clusters.topology.advanced.saved':
+    '保存しました。以後のスケジューリングにのみ影響し、実行中のグループは移動されません。',
+  'clusters.topology.keys.placeholder': 'ラベルキーを入力するか、下から選択',
+  'clusters.topology.keys.invalid':
+    '有効な Kubernetes ラベルキーではありません（プレフィックス ≤ 253、名前 ≤ 63、英数字 - _ .）',
+  'clusters.topology.keys.usage':
+    '{count} 台の worker がこのキーを持っています（{values} 個の値）',
+  'clusters.topology.keys.exists': 'このキーはすでに追加されています',
+  'clusters.topology.custom.title': 'カスタムフィールド',
+  'clusters.topology.custom.name.required': '名前を入力してください',
+  'clusters.topology.custom.name.taken': 'この名前は使用済みか予約語です',
+  'clusters.topology.custom.name.tips':
+    'デプロイフォームの選択肢に表示されます',
+  'clusters.topology.custom.position': 'チェーンのどこに置くか',
+  'clusters.topology.custom.slot.insert': 'ここに挿入',
+  'clusters.topology.custom.slot.placeholder': '新しいレイヤー',
+  'clusters.topology.custom.slot.explain':
+    '1 つの{parent}に複数の{name}があり、1 つの{name}に複数の{child}があります',
+  'clusters.topology.custom.slot.explain.top':
+    '1 つの{name}に複数の{child}があります',
+  'clusters.topology.custom.keys.tips':
+    'カスタムレイヤーには固有キーがありません。テーブルから手入力するには、最初のキーを書き込み先にしてください。',
+  'clusters.topology.custom.referenced':
+    '「{name}」は削除できません：以下のモデルが参照しています'
 };
 // ========== To-Do: Translate Keys (Remove After Translation) ==========
 // 1. 'clusters.title': 'Cluster',

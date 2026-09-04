@@ -15,7 +15,7 @@ import {
   useExpandedRowKeys,
   useWatchList
 } from '@gpustack/core-ui';
-import { useIntl } from '@umijs/max';
+import { useIntl, useSearchParams } from '@umijs/max';
 import { useMemoizedFn } from 'ahooks';
 import { message } from 'antd';
 import { useAtom } from 'jotai';
@@ -27,6 +27,7 @@ import {
   CLUSTERS_API,
   createWorkerPool,
   deleteCluster,
+  queryClusterItem,
   queryClusterList,
   queryCredentialList,
   queryWorkerPools,
@@ -225,10 +226,30 @@ const Clusters: React.FC = () => {
     }
   };
 
-  // Held as the row itself rather than an id: the drawer opens on the saved
-  // declaration, and re-fetching the cluster to read a field the list already
-  // has would put a spinner in front of the operator for nothing.
-  const [topologyCluster, setTopologyCluster] = useState<any>(null);
+  const [topologyCluster, setTopologyCluster] = useState<{
+    id: number;
+    name?: string;
+  } | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // `?topology=<id>` is the deployment form's "go fill it in" link (§8.8): a
+  // new tab landing here should open straight into that cluster's drawer. The
+  // param is stripped once read so a reload does not reopen it.
+  useEffect(() => {
+    const param = searchParams.get('topology');
+    if (!param) {
+      return;
+    }
+    const id = Number(param);
+    searchParams.delete('topology');
+    setSearchParams(searchParams, { replace: true });
+    if (!id) {
+      return;
+    }
+    queryClusterItem({ id })
+      .then((item) => setTopologyCluster({ id, name: item?.name }))
+      .catch(() => setTopologyCluster({ id }));
+  }, []);
 
   const handleSelect = useMemoizedFn((val: any, row: ListItem, item?: any) => {
     if (item?.onClick) {
@@ -254,7 +275,7 @@ const Clusters: React.FC = () => {
     } else if (val === 'metrics') {
       goToGrafana(row);
     } else if (val === 'topology') {
-      setTopologyCluster(row as any);
+      setTopologyCluster({ id: row.id, name: row.name });
     }
   });
 
@@ -505,7 +526,8 @@ const Clusters: React.FC = () => {
       ></ClusterModal>
       <TopologyDrawer
         open={!!topologyCluster}
-        cluster={topologyCluster}
+        clusterId={topologyCluster?.id}
+        clusterName={topologyCluster?.name}
         onClose={() => setTopologyCluster(null)}
       ></TopologyDrawer>
       {AddWorkerModal}

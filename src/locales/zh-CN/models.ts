@@ -510,8 +510,7 @@ export default {
     '最大的 {domain} 只能放 {available}，需要 {needed}',
   'models.form.gather.noRoom': '这一档没有任何域放得下',
   'models.form.gather.unknown': '{count} 台 worker 容量读不到，这一档无法判断',
-  'models.form.gather.declare':
-    '在集群设置里声明拓扑层级后，可以选择更粗的档次（如机柜、可用区）。',
+  'models.form.gather.declare': '在集群「拓扑」里填机柜后，可以选更粗的档次。',
   'models.form.gather.largeGroup':
     '这个规模下约 {percent}% 的请求会落在同一台机上，与拓扑和上面的选择都无关。若追求 KV 传输局部性，考虑部署多个较小的分离组。',
 
@@ -522,5 +521,13 @@ export default {
 
   'models.form.groupSettings': '组级设置',
   'models.form.groupSettings.tips':
-    '这些无法按角色区分：同一个值会同时作用于 Prefill 和 Decode。'
+    '这些无法按角色区分：同一个值会同时作用于 Prefill 和 Decode。',
+
+  // Topology-aware gather tiers
+  'models.form.gather.sameDomain': '至少同一加速器域，否则不部署',
+  'models.form.gather.domain.tips': '域内可直接寻址对方显存；跨域必须走网络',
+  'models.form.gather.tree.tips': '同一加速器域的传输快于同机柜，因此也算满足',
+  'models.form.gather.goFill': '去填',
+  'models.form.gather.infeasible.warning':
+    '按当前容量此组将无法部署；保存后组会一直等待，直到有空位。可选：改成「尽量靠近」（会跨机，KV 传输变慢）· 降低副本或每副本卡数'
 };

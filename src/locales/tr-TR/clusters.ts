@@ -213,53 +213,192 @@ export default {
   'clusters.gpuInstances.setting.unmanaged':
     'Unmanaged (the cluster keeps its own value)',
 
-  // Topology: how far apart this cluster's workers are.
-  'clusters.topology.title': 'Topology',
-  'clusters.topology.layers': 'Layers',
-  'clusters.topology.addLayer': 'Add Layer',
-  'clusters.topology.layer.name': 'Layer Name',
-  'clusters.topology.layer.name.tips':
-    'Shown verbatim in the deployment form, so use a word your operators recognise (e.g. Rack, not L2).',
-  'clusters.topology.layer.name.duplicate':
-    'This name is already used by another layer.',
-  'clusters.topology.layer.labelKeys': 'Worker Label Keys',
-  'clusters.topology.layer.labelKeys.tips':
-    'Tried in order; the first key present on a worker wins. Add several when your fleet spells the same layer differently.',
-  'clusters.topology.layer.addKey': 'Add Key',
-  'clusters.topology.leaf': 'Host (built in)',
-  'clusters.topology.leaf.tips':
-    'Always grouped by host name, never by a label, so it cannot collapse when a label is missing. This is why an unlabelled worker only loses resolution and stays schedulable.',
+  // Topology: where this cluster's workers sit.
+  'clusters.topology.title': 'Topoloji',
   'clusters.topology.noRebalance':
-    'Only affects later scheduling. Running deployments are not moved.',
-  'clusters.topology.cluster': 'Cluster',
-  'clusters.topology.unclassified': 'Unclassified',
-  'clusters.topology.unclassified.missing': 'missing {keys}',
-  'clusters.topology.unclassified.summary':
-    '{count} of {total} workers cannot be told apart yet. They still schedule normally.',
-  'clusters.topology.unclassified.label': 'Label these workers',
+    'Konum yalnızca sonraki zamanlamayı etkiler. Çalışan dağıtımlar taşınmaz.',
+  'clusters.topology.load.failed': 'Topoloji yüklenemedi.',
+  'clusters.topology.save.failed': 'Kaydedilemedi.',
+  'clusters.topology.preview.failed': 'Bu eşleme önizlenemedi.',
+  'clusters.topology.preview.noWorkers': 'Bu kümede henüz worker yok.',
   'clusters.topology.preview.capacity':
-    '{workers} workers · {gpus} GPUs · {free} free',
-  'clusters.topology.preview.noWorkers': 'This cluster has no workers yet.',
-  'clusters.topology.preview.failed': 'Could not preview this declaration.',
-
-  'clusters.topology.layer.under': 'Under {parent}',
-  'clusters.topology.layer.underCluster': 'Under the cluster root',
-  'clusters.topology.layer.moveUp': 'Move up (closer to the cluster)',
-  'clusters.topology.layer.moveDown': 'Move down (closer to the host)',
-  'clusters.topology.insertPreset': 'Insert layer',
-  'clusters.topology.reset': 'Reset',
-  'clusters.topology.reset.tips':
-    'Back to the default template. Nothing is saved until you click Save.',
-  'clusters.topology.leaf.under': 'Host (built in) — under {parent}',
-  'clusters.topology.discard': 'Discard these changes?',
-  'clusters.topology.discard.tips':
-    'Nothing here has been saved yet. The preview does not change the cluster.',
-  'clusters.topology.discard.ok': 'Discard',
-  'clusters.topology.preset.region': 'Cloud region or datacentre',
-  'clusters.topology.preset.zone': 'Availability zone or hall',
-  'clusters.topology.preset.row': 'Row of racks',
-  'clusters.topology.preset.rack': 'Rack or cabinet',
-
-  'clusters.topology.chain.unnamed': 'Layer {index}',
-  'clusters.topology.chain.host': 'Host'
+    '{workers} worker · {gpus} GPU · {free} boş',
+  'clusters.topology.cluster': 'Küme',
+  'clusters.topology.discard.ok': 'Vazgeç',
+  'clusters.topology.field.region': 'Bölge',
+  'clusters.topology.field.zone': 'Kullanılabilirlik alanı',
+  'clusters.topology.field.room': 'Oda',
+  'clusters.topology.field.row': 'Sıra',
+  'clusters.topology.field.rack': 'Kabin',
+  'clusters.topology.field.switch': 'Erişim anahtarı',
+  'clusters.topology.field.acceleratorDomain': 'Hızlandırıcı etki alanı',
+  'clusters.topology.field.host': 'Sunucu',
+  'clusters.topology.field.region.tips': 'Bulut bölgesi veya veri merkezi',
+  'clusters.topology.field.zone.tips': 'Kullanılabilirlik alanı veya salon',
+  'clusters.topology.field.room.tips': 'Makine odası',
+  'clusters.topology.field.row.tips': 'Kabin sırası',
+  'clusters.topology.field.rack.tips': 'Kabin',
+  'clusters.topology.field.switch.tips':
+    'Cihaz tarafından bildirilir (LLDP); elle de doldurulabilir',
+  'clusters.topology.field.acceleratorDomain.tips':
+    'Cihaz bildirmiyorsa elle doldurun',
+  'clusters.topology.overview.workers': '{count} worker',
+  'clusters.topology.overview.domains': '{count} {field}',
+  'clusters.topology.overview.acceleratorDomains':
+    '{count} hızlandırıcı etki alanı',
+  'clusters.topology.overview.acceleratorDomains.auto':
+    '{count} hızlandırıcı etki alanı (otomatik)',
+  'clusters.topology.overview.unfilled': '{count} tanesinde {field} yok',
+  'clusters.topology.previewing': '● Önizleme',
+  'clusters.topology.previewing.long':
+    '● Önizleme: ana çekmece kaydedilmemiş eşlemeyi gösteriyor',
+  'clusters.topology.view.table': 'Tablo',
+  'clusters.topology.view.tree': 'Ağaç',
+  'clusters.topology.search.placeholder': 'Sunucu ara…',
+  'clusters.topology.filter.unfilled': 'Yalnızca doldurulmamışlar',
+  'clusters.topology.columns': 'Sütunlar',
+  'clusters.topology.columns.fields': 'Konum alanları',
+  'clusters.topology.columns.other': 'Diğer',
+  'clusters.topology.columns.custom': 'Özel alan…',
+  'clusters.topology.columns.mapping': 'Etiket anahtarı eşlemesi…',
+  'clusters.topology.columns.deleteCustom': '“{name}” alanını sil',
+  'clusters.topology.columns.deleteCustom.confirm':
+    '“{name}” alanı silinsin mi? Doldurulmuş değerler worker etiketlerinde kalır.',
+  'clusters.topology.columns.deleted': '“{name}” alanı silindi',
+  'clusters.topology.selected': '{count} seçili',
+  'clusters.topology.clearSelection': 'Seçimi temizle',
+  'clusters.topology.batch.button': 'Konum ayarla',
+  'clusters.topology.batch.title': 'Konum ayarla · {count} seçili',
+  'clusters.topology.batch.field': 'Alan',
+  'clusters.topology.batch.value': 'Değer',
+  'clusters.topology.batch.overwrite':
+    '{count} mevcut değerin üzerine yazılacak: {names}',
+  'clusters.topology.batch.overwriteAuto':
+    'Bunların {count} tanesinin {field} değeri cihaz tarafından bildirildi; geçersiz kılınacak',
+  'clusters.topology.batch.more': '{names} ve {count} tane daha',
+  'clusters.topology.batch.apply': '{count} tanesine uygula',
+  'clusters.topology.batch.partial': 'Yazma {failed} kümede başarısız oldu.',
+  'clusters.topology.toast.setOne': '{host} için {field}: {value}',
+  'clusters.topology.toast.clearedOne': '{host} için {field} temizlendi',
+  'clusters.topology.toast.set': '{count} worker için {field}: {value}',
+  'clusters.topology.toast.cleared': '{count} worker için {field} temizlendi',
+  'clusters.topology.toast.firstWrite':
+    ' (yalnızca sonraki zamanlamayı etkiler)',
+  'clusters.topology.undo': 'Geri al',
+  'clusters.topology.undo.done': 'Geri alındı',
+  'clusters.topology.undo.failed': 'Geri alınamadı: {reason}',
+  'clusters.topology.cell.fill': '{field} doldur',
+  'clusters.topology.cell.aria': '{field}, {state}, {host}',
+  'clusters.topology.state.unfilled': 'doldurulmamış',
+  'clusters.topology.state.discovered.aria':
+    '{value}, cihaz tarafından bildirildi',
+  'clusters.topology.state.override.aria':
+    '{value}, bildirilen değerin üzerine elle girildi',
+  'clusters.topology.state.discovered.tips':
+    'Cihaz tarafından bildirildi ({key}). Elle doldurmak bunu geçersiz kılar.',
+  'clusters.topology.state.override.tips':
+    'Elle girildi. Temizlemek bildirilen {value} değerini geri getirir',
+  'clusters.topology.state.user.tips': 'Elle girildi ({key})',
+  'clusters.topology.override.confirm':
+    'Bu değer cihaz tarafından bildirildi; elle doldurmak onu geçersiz kılar.',
+  'clusters.topology.override.ok': 'Geçersiz kıl',
+  'clusters.topology.value.count': '{count} worker',
+  'clusters.topology.value.create': '“{value}” oluştur',
+  'clusters.topology.value.clear': 'Temizle',
+  'clusters.topology.column.menu': '{field} sütun menüsü',
+  'clusters.topology.column.fillUnfilled':
+    'Doldurulmamış {count} taneyi doldur…',
+  'clusters.topology.column.fillBySwitch':
+    'Erişim anahtarına göre doldur ({count} grup)…',
+  'clusters.topology.column.gpus': 'GPU / boş',
+  'clusters.topology.column.source': 'Kaynak',
+  'clusters.topology.source.user': 'elle',
+  'clusters.topology.source.discovered': 'otomatik',
+  'clusters.topology.source.node': 'K8s düğümü',
+  'clusters.topology.host.online': 'Çevrimiçi',
+  'clusters.topology.host.offline': 'Çevrimdışı',
+  'clusters.topology.tree.byLayer': 'Katmana göre',
+  'clusters.topology.tree.byDomain': 'Hızlandırıcı etki alanına göre',
+  'clusters.topology.tree.byField': '{field} alanına göre',
+  'clusters.topology.tree.expandAll': 'Tümünü genişlet',
+  'clusters.topology.tree.collapseAll': 'Tümünü daralt',
+  'clusters.topology.tree.spansDomains': '{count} etki alanına yayılıyor',
+  'clusters.topology.tree.unfilled': 'Henüz {field} yok',
+  'clusters.topology.tree.unknownDomain': 'Bilinmeyen etki alanı',
+  'clusters.topology.tree.more': '{count} tane daha',
+  'clusters.topology.tree.hostCapacity': '{gpus} GPU · {free} boş',
+  'clusters.topology.onboarding.hosts': '{hosts} sunucu bulundu.',
+  'clusters.topology.onboarding.withDomains':
+    '{hosts} sunucu ve {domains} hızlandırıcı etki alanı bulundu (otomatik).',
+  'clusters.topology.onboarding.goal':
+    'Ayrıştırılmış bir grubun üyelerini bir arada tutmak için:',
+  'clusters.topology.onboarding.steps':
+    '① Aynı kabindeki makineleri seçin → ② “Konum ayarla” ile kabin adını girin → ③ Dağıtırken “aynı kabin” seçin',
+  'clusters.topology.onboarding.domains':
+    'Çok düğümlü NVLink veya Ascend süper pod içeren makinelerin hızlandırıcı etki alanı burada otomatik görünür.',
+  'clusters.topology.onboarding.dismiss': 'Anladım',
+  'clusters.topology.mapping.title': 'Etiket anahtarı eşlemesi',
+  'clusters.topology.mapping.intro':
+    'Her alanın değerini hangi worker etiketinden okuduğu',
+  'clusters.topology.mapping.layers': 'Katmanlar',
+  'clusters.topology.mapping.layers.tips':
+    'İç içe: her seviye bir üsttekinin içinde yer alır',
+  'clusters.topology.mapping.layers.status': '{count} alan kullanımda',
+  'clusters.topology.mapping.layers.status.empty': 'Hiç alan dolu değil',
+  'clusters.topology.mapping.domain.status': '{count} etki alanı',
+  'clusters.topology.mapping.domain.status.inactive': 'Çözümlenmedi',
+  'clusters.topology.mapping.showUnused': 'Kullanılmayan {count} alanı göster',
+  'clusters.topology.mapping.hideUnused': 'Kullanılmayan alanları gizle',
+  'clusters.topology.mapping.moreKeys': '+ {count} aday anahtar',
+  'clusters.topology.mapping.classified': 'Çözümlenen {classified} / {total}',
+  'clusters.topology.mapping.noKeys': 'Etiket anahtarı yok',
+  'clusters.topology.mapping.domain.tips':
+    'Katman değil, düz gruplar: NVLink / HCCS / UB üzerinden birbirinin belleğine doğrudan erişebilen makineler aynı çembere alınır. Bir etki alanı birkaç kabini kapsayabilir ya da tek bir makine kadar küçük olabilir',
+  'clusters.topology.mapping.domain.stats':
+    '{domains} etki alanı; en büyüğü {racks} kabini kapsıyor',
+  'clusters.topology.mapping.subDomain.tips':
+    'Aynı etki alanı ve kademedeki makineler önce bir araya yerleştirilir (ör. Atlas 950 hesaplama kabini); etki alanları oluştuğunda, etki alanı içindeki kademe olarak bir konum alanı seçilebilir',
+  'clusters.topology.mapping.subDomain.placeholder':
+    'Henüz hızlandırıcı etki alanı bildiren worker yok',
+  'clusters.topology.layer.labelKeys': 'Etiket anahtarları',
+  'clusters.topology.layer.addKey': 'Anahtar ekle',
+  'clusters.topology.layer.name': 'Ad',
+  'clusters.topology.advanced.hostKeys': 'Yerleşik, worker adına göre',
+  'clusters.topology.advanced.locked':
+    'GPUStack’in kendi anahtarı: elle girilen değerler buraya yazılır. Silinemez veya taşınamaz.',
+  'clusters.topology.advanced.subDomain': 'Alt etki alanı',
+  'clusters.topology.advanced.subDomain.none': 'Yok',
+  'clusters.topology.advanced.subDomain.keys': 'Kendi anahtarlarım…',
+  'clusters.topology.advanced.suggestions': 'Keşfedilen etiket anahtarları',
+  'clusters.topology.advanced.suggestion':
+    '{workers} worker · {values} değer · {field} gibi görünüyor',
+  'clusters.topology.advanced.discard':
+    'Alan eşlemesindeki değişiklikler atılsın mı?',
+  'clusters.topology.advanced.discard.tips':
+    'Tabloda girilen değerler etkilenmez.',
+  'clusters.topology.advanced.saved':
+    'Kaydedildi. Yalnızca sonraki zamanlamayı etkiler; çalışan gruplar taşınmaz.',
+  'clusters.topology.keys.placeholder':
+    'Bir etiket anahtarı yazın veya aşağıdan seçin',
+  'clusters.topology.keys.invalid':
+    'Geçerli bir Kubernetes etiket anahtarı değil (önek ≤ 253, ad ≤ 63, harf/rakam - _ .)',
+  'clusters.topology.keys.usage':
+    '{count} worker bu anahtarı taşıyor ({values} değer)',
+  'clusters.topology.keys.exists': 'Bu anahtar zaten eklendi',
+  'clusters.topology.custom.title': 'Özel alan',
+  'clusters.topology.custom.name.required': 'Bir ad girin',
+  'clusters.topology.custom.name.taken': 'Bu ad alınmış veya ayrılmış',
+  'clusters.topology.custom.name.tips':
+    'Dağıtım formunda bir seçenek olarak görünür',
+  'clusters.topology.custom.position': 'Zincirde nereye',
+  'clusters.topology.custom.slot.insert': 'Buraya ekle',
+  'clusters.topology.custom.slot.placeholder': 'Yeni katman',
+  'clusters.topology.custom.slot.explain':
+    'Bir {parent} içinde birden çok {name}, bir {name} içinde birden çok {child} bulunur',
+  'clusters.topology.custom.slot.explain.top':
+    'Bir {name} içinde birden çok {child} bulunur',
+  'clusters.topology.custom.keys.tips':
+    'Özel katmanın kendi anahtarı yoktur; tablodan doldurabilmek için ilk anahtarı yazmayı planladığınız anahtar yapın.',
+  'clusters.topology.custom.referenced':
+    '“{name}” silinemez: şu modeller buna göre topluyor'
 };

@@ -559,7 +559,18 @@ export default {
 
   'models.form.groupSettings': 'Group Settings',
   'models.form.groupSettings.tips':
-    'These cannot differ between roles: one value is applied to Prefill and Decode alike.'
+    'These cannot differ between roles: one value is applied to Prefill and Decode alike.',
+
+  // Topology-aware gather tiers
+  'models.form.gather.sameDomain':
+    'Тот же домен ускорителей, иначе не развёртывать',
+  'models.form.gather.domain.tips':
+    'Внутри домена узлы напрямую адресуют память друг друга; между доменами трафик идёт по сети',
+  'models.form.gather.tree.tips':
+    'Передача внутри одного домена ускорителей быстрее, чем внутри одной стойки, поэтому домен также удовлетворяет этому условию',
+  'models.form.gather.goFill': 'Заполнить',
+  'models.form.gather.infeasible.warning':
+    'При текущей ёмкости эту группу разместить нельзя; после сохранения она будет ждать освобождения места. Варианты: переключиться на «как можно ближе» (может занять несколько хостов, KV-передача медленнее) · уменьшить число реплик или GPU на реплику'
 };
 // ========== To-Do: Translate Keys (Remove After Translation) ==========
 // 1. 'models.form.maxContextLength': 'Maximum Context Length',

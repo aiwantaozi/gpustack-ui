@@ -555,7 +555,18 @@ export default {
 
   'models.form.groupSettings': 'Group Settings',
   'models.form.groupSettings.tips':
-    'These cannot differ between roles: one value is applied to Prefill and Decode alike.'
+    'These cannot differ between roles: one value is applied to Prefill and Decode alike.',
+
+  // Topology-aware gather tiers
+  'models.form.gather.sameDomain':
+    'Aynı hızlandırıcı etki alanı, yoksa dağıtma',
+  'models.form.gather.domain.tips':
+    'Etki alanı içinde eşler birbirinin belleğine doğrudan erişir; etki alanları arasında trafik ağ üzerinden gider',
+  'models.form.gather.tree.tips':
+    'Aynı hızlandırıcı etki alanı içindeki aktarım aynı kabin içindekinden hızlıdır, bu nedenle bunu da karşılar',
+  'models.form.gather.goFill': 'Doldur',
+  'models.form.gather.infeasible.warning':
+    'Mevcut kapasiteyle bu grup yerleştirilemez; kaydedildikten sonra yer açılana kadar bekler. Seçenekler: “olabildiğince yakın” seçeneğine geçin (sunuculara yayılabilir, KV aktarımı yavaşlar) · kopya sayısını veya kopya başına GPU sayısını azaltın'
 };
 // ========== To-Do: Translate Keys (Remove After Translation) ==========
 // 1. 'models.table.modelView': 'Model List',

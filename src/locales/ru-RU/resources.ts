@@ -129,17 +129,8 @@ export default {
   'resources.worker.setLabels': 'Set Labels',
   'resources.worker.setLabels.count': '{count} workers selected',
   'resources.worker.setLabels.partial':
-    'Labels updated on {done} workers, {failed} failed.'
-};
+    'Labels updated on {done} workers, {failed} failed.',
 
-// ========== To-Do: Translate Keys (Remove After Translation) ==========
-// 2. 'resources.worker.maintenance.title': 'System Maintenance',
-// 3. 'resources.worker.maintenance.enable': 'Enter Maintenance Mode',
-// 4. 'resources.worker.maintenance.disable': 'Exit Maintenance Mode',
-// 5. 'resources.worker.maintenance.remark': 'Remark',
-// 6. 'resources.worker.maintenance.remark.rules': 'Please enter maintenance remarks',
-// 7. 'resources.worker.maintenance.tips': 'When maintenance mode is enabled, the node will stop scheduling new model deployment tasks. Running instances will not be affected.',
-// 8. 'resources.worker.noCluster.tips': 'No available clusters. Please create a cluster before adding a node.',
-// 9. 'resources.metrics.details': 'Monitoring',
-// 10. 'resoureces.worker.upgrade.tips': 'Please upgrade to match the GPUStack Server version.'
-// ========== End of To-Do List ==========
+  'resources.table.location': 'Расположение',
+  'resources.worker.setLocation': 'Задать расположение'
+};

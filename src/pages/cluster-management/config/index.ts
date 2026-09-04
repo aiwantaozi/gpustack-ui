@@ -3,6 +3,7 @@ import { GPUSTACK_API_BASE_URL } from '@/config/settings';
 import { StatusType } from '@/config/types';
 import { GPUsConfigs } from '@/pages/resources/config/gpu-driver';
 import { icons } from '@gpustack/core-ui';
+import { ACCELERATOR_DOMAIN, NODE_LAYER } from './types';
 
 export const ClusterStatusValueMap = {
   Provisioning: 'provisioning',
@@ -256,3 +257,37 @@ export const sourceTypeOptions = [
   //   value: 'configMap'
   // }
 ];
+
+// Topology fields the server knows by id. Named here rather than from the
+// API's `name`, which is an untranslated fallback; custom layers have no entry
+// and display their own name verbatim.
+export const TopologyFieldLabelMap: Record<string, string> = {
+  region: 'clusters.topology.field.region',
+  zone: 'clusters.topology.field.zone',
+  room: 'clusters.topology.field.room',
+  row: 'clusters.topology.field.row',
+  rack: 'clusters.topology.field.rack',
+  switch: 'clusters.topology.field.switch',
+  [ACCELERATOR_DOMAIN]: 'clusters.topology.field.acceleratorDomain',
+  [NODE_LAYER]: 'clusters.topology.field.host'
+};
+
+// One-line "what goes here" per vocabulary field, for the column picker.
+export const TopologyFieldHintMap: Record<string, string> = {
+  region: 'clusters.topology.field.region.tips',
+  zone: 'clusters.topology.field.zone.tips',
+  room: 'clusters.topology.field.room.tips',
+  row: 'clusters.topology.field.row.tips',
+  rack: 'clusters.topology.field.rack.tips',
+  switch: 'clusters.topology.field.switch.tips',
+  [ACCELERATOR_DOMAIN]: 'clusters.topology.field.acceleratorDomain.tips'
+};
+
+export const topologyFieldLabel = (
+  intl: { formatMessage: (d: { id: string }) => string },
+  id: string,
+  fallback?: string | null
+) =>
+  TopologyFieldLabelMap[id]
+    ? intl.formatMessage({ id: TopologyFieldLabelMap[id] })
+    : fallback || id;

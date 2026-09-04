@@ -556,7 +556,18 @@ export default {
 
   'models.form.groupSettings': 'Group Settings',
   'models.form.groupSettings.tips':
-    'These cannot differ between roles: one value is applied to Prefill and Decode alike.'
+    'These cannot differ between roles: one value is applied to Prefill and Decode alike.',
+
+  // Topology-aware gather tiers
+  'models.form.gather.sameDomain':
+    '少なくとも同じアクセラレータードメイン、そうでなければデプロイしない',
+  'models.form.gather.domain.tips':
+    'ドメイン内では相手のメモリを直接アドレスでき、ドメイン間はネットワーク経由になります',
+  'models.form.gather.tree.tips':
+    '同じアクセラレータードメイン内の転送は同じラック内より速いため、これも条件を満たします',
+  'models.form.gather.goFill': '入力する',
+  'models.form.gather.infeasible.warning':
+    '現在の容量ではこのグループは配置できません。保存すると空きが出るまで待機します。選択肢：「できるだけ近く」に変更（ホストをまたぎ、KV 転送が遅くなる）· レプリカ数またはレプリカあたりの GPU 数を減らす'
 };
 // ========== To-Do: Translate Keys (Remove After Translation) ==========
 // 1. 'models.ollama.deprecated.title': 'Deprecation Notice',

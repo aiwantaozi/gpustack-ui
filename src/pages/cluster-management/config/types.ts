@@ -176,10 +176,12 @@ export interface SystemConfig {
 }
 
 // --------------------------------------------------------------------------
-// Topology: how far apart this cluster's workers are.
+// Topology: where this cluster's workers sit, and how far apart.
 //
-// The wire form is camelCase, matching the neighbouring `k8s_options` blob —
-// the backend declares aliases for exactly this.
+// The wire form of `ClusterTopology` is camelCase, matching the neighbouring
+// `k8s_options` blob — the backend declares aliases for exactly this. The
+// read models (`TopologyView` and friends) are snake_case like every other
+// response body.
 // --------------------------------------------------------------------------
 
 /**
@@ -190,6 +192,13 @@ export interface SystemConfig {
  */
 export const NODE_LAYER = 'NodeTopologyLayer';
 
+/**
+ * Orthogonal to the layer chain: an NVL72 domain is a whole rack, a
+ * CloudMatrix384 domain spans sixteen. It is a scope of its own in the
+ * scheduler and a column of its own in the UI.
+ */
+export const ACCELERATOR_DOMAIN = 'accelerator_domain';
+
 /** The domain a worker lands in when every one of a layer's label keys misses. */
 export const UNCLASSIFIED = '<unclassified>';
 
@@ -197,10 +206,9 @@ export type GatherStrategy = 'MustGather' | 'PreferGather';
 
 export interface TopologyLayer {
   /**
-   * Operator-chosen, and shown verbatim in the deployment form's "at least in
-   * the same ___" choices — so it is the display name as well as the id. That
-   * is deliberate: there is no separate display field, which forces the name
-   * to be something an operator actually recognises.
+   * A vocabulary id (`rack`) or an operator-chosen custom name. Custom names
+   * are shown verbatim in the deployment form, so there is no separate
+   * display field — which pushes them towards a word a deployer recognises.
    */
   name: string;
   /**
@@ -217,10 +225,94 @@ export interface TopologyLayer {
   parentLayer?: string | null;
 }
 
+export interface AcceleratorDomainSpec {
+  labelKeys?: string[];
+  /**
+   * Sub-domain, any-of. Machines in the same domain *and* sub-domain are
+   * closer than same-domain-only (Atlas 950's compute cabinet). Usually the
+   * keys of a location field, so a rack plays both roles at once.
+   */
+  subDomainKeys?: string[];
+}
+
 export interface ClusterTopology {
+  /**
+   * Empty means vocabulary mode. Entries are custom layers plus any vocabulary
+   * field whose keys were customised (`name` == the vocabulary id).
+   */
   layers?: TopologyLayer[];
+  acceleratorDomain?: AcceleratorDomainSpec | null;
   defaultGatherStrategy?: GatherStrategy | null;
   defaultGatherLayer?: string | null;
+}
+
+export interface TopologyVocabularyField {
+  id: string;
+  /** Server fallback only; the UI has an i18n name for every builtin id. */
+  name: string;
+}
+
+export interface TopologyKnownKey {
+  key: string;
+  vendor: string;
+  /** Which field ids this key is a sensible source for. */
+  fits: string[];
+  note?: string | null;
+}
+
+export interface TopologyLayerView {
+  id: string;
+  name: string;
+  builtin: boolean;
+  /** At least one worker resolves a value here; only active layers form the tree. */
+  active: boolean;
+  label_keys: string[];
+  /** The key a hand-filled value is written to; null for custom layers. */
+  primary_key: string | null;
+  domains: number;
+  classified: number;
+  unclassified: number;
+  /**
+   * Models whose gather layer is this one; deleting it would strand them.
+   * Older servers omit the field, and the UI then asks the models API itself.
+   */
+  referenced_by_models?: string[];
+}
+
+export interface AcceleratorDomainView {
+  active: boolean;
+  domains: number;
+  classified: number;
+  unclassified: number;
+  label_keys: string[];
+  sub_domain_keys: string[];
+  /** The field whose keys `sub_domain_keys` mirror, when it is one. */
+  sub_domain_field: string | null;
+}
+
+export type LocationSource = 'user' | 'discovered' | 'node';
+
+export interface WorkerLocation {
+  value: string;
+  source: LocationSource;
+  /** Which any-of key produced the value. */
+  key: string;
+  /** Still carried when a hand-filled value overrides it: clearing restores it. */
+  discovered_value?: string | null;
+  /** A human name for an auto value (a switch's system name over its chassis id). */
+  display?: string | null;
+}
+
+export interface TopologyWorker {
+  id: number;
+  name: string;
+  state: string;
+  gpus: number;
+  free_gpus: number;
+  /** Keyed by field id; fields with no value are absent. */
+  location: Record<string, WorkerLocation>;
+  /** The worker's own labels, so key counts need no second request. */
+  labels?: Record<string, string>;
 }
 
 export interface TopologyDomain {
@@ -236,22 +328,50 @@ export interface TopologyDomain {
   free_gpus: number;
   /** Carried only on the unclassified bucket and the leaf — see the API doc. */
   worker_ids?: number[];
+  /** Accelerator domains present under this node; two or more is worth a look. */
+  accelerator_domains?: string[];
   children?: TopologyDomain[];
 }
 
-export interface TopologyPreview {
-  /** Root-to-leaf, leaf included. */
-  layers: string[];
-  /** Layer name -> its declared any-of keys, so the page can name the missing key. */
-  label_keys: Record<string, string[]>;
-  total_workers: number;
-  /** Deduplicated across layers: one worker missing two labels is one problem. */
-  unclassified_workers: number;
-  root: TopologyDomain;
+export interface TopologySuggestion {
+  key: string;
+  workers: number;
+  distinct_values: number;
+  looks_like: string;
+}
+
+/** Everything the topology drawer needs for its first paint, in one response. */
+export interface TopologyView {
+  vocabulary: {
+    fields: TopologyVocabularyField[];
+    known_keys: TopologyKnownKey[];
+  };
+  /** Root-to-leaf, every vocabulary field plus custom layers, the host last. */
+  layers: TopologyLayerView[];
+  accelerator_domain: AcceleratorDomainView;
+  workers: TopologyWorker[];
+  tree: TopologyDomain;
+  suggestions: TopologySuggestion[];
+}
+
+export interface LocationAssignment {
+  worker_ids: number[];
+  /** A vocabulary field id, `accelerator_domain`, or a custom layer name. */
+  layer: string;
+  /** null deletes the field's own key and lets a discovered value show again. */
+  value: string | null;
+}
+
+export interface LocationsResponse {
+  /** The inverse operation, ready to be posted back verbatim as the undo. */
+  previous: LocationAssignment[];
+  topology: TopologyView;
 }
 
 export interface GatherTier {
   layer: string;
+  /** Server fallback display name; builtin ids are named by the UI. */
+  name?: string | null;
   feasible: boolean;
   /** Where the group would land, when it fits. */
   domain?: string | null;

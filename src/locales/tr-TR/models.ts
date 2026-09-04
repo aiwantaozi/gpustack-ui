@@ -388,14 +388,30 @@ export default {
   'models.form.pd.enable.on': 'PD Ayrıştırma',
   'models.form.pd.enable.tips':
     'Ön dolgu (prefill) ile kod çözmeyi (decode) ayrı örneklere böler; bedeli bir ek ağ atlaması ve bir KV aktarımıdır. Düşük eşzamanlılıkta, kısa istemlerde veya yüksek önek önbelleği isabetinde toplu dağıtım genellikle daha hızlıdır. Önce bir kıyaslama çalıştırın.',
-  'models.form.pd.mode': 'PD Modu',
-  'models.form.pd.mode.holder': 'Bir PD modu seçin',
+  'models.form.pd.shape.mono': 'Birleşik dağıtım',
+  'models.form.pd.shape.mono.tips':
+    'Tek bir örnek hem prefill hem decode işlemini yürütür.',
+  'models.form.pd.shape.pd': 'PD Ayrıştırma',
+  'models.form.pd.shape.pd.tips':
+    'Prefill ve decode ayrı roller olarak çalışır; her birinin motoru, parametreleri ve kopya sayısı bağımsızdır.',
+  'models.form.pd.shape.current': 'Mevcut',
+  'models.form.pd.mode': 'Taşıma',
+  'models.form.pd.mode.holder': 'Bir taşıma seçin',
   'models.form.pd.mode.tips':
     'Bağlantı durumu parametrelerinin tümü - connector, portlar, karşı taraf adresleri - seçilen moddan türetilir; elle ayarlanmaz.',
   'models.form.pd.mode.custom.tips':
     'Özel modda hiçbir bağlantı parametresi eklenmez: --kv-transfer-config, portlar ve karşı taraf adreslerini kendiniz vermelisiniz.',
   'models.form.pd.mode.backend.mismatch':
     '{targets} gerekiyor; seçili motor {backend}. Roller arasında motor karıştırmak için Özel modu kullanın.',
+  'models.form.pd.mode.runtime.mismatch':
+    '{runtime} hızlandırıcı gerekiyor; bu kümede yalnızca {vendors} var.',
+  'models.form.pd.mode.only.custom':
+    'Bu motor ve hızlandırıcı bileşimi için yerleşik bir reçete yok. Özel mod hâlâ kullanılabilir: bağlayıcı, portlar ve el sıkışma değişkenlerini kendiniz girersiniz.',
+  'models.form.pd.mode.derived':
+    'Taşıma: {mode} · {vendor} hızlandırıcılara dağıtılacak',
+  'models.form.pd.vendor': 'Hızlandırıcı üreticisi',
+  'models.form.pd.vendor.tips':
+    'Bu kümede grubu barındırabilecek birden fazla üretici var ve bir PD grubu üreticiler arasına yayılamaz — KV taşıma yolu farklıdır. Dağıtılacak bölümü seçin.',
   'models.form.pd.replicas.moved':
     'PD dağıtımında replika sayıları her rol için ayrı ayarlanır.',
   'models.form.pd.disabled.gguf':
@@ -417,6 +433,7 @@ export default {
   'models.form.roles.group.parameters': 'Parametreler ve ortam değişkenleri',
   'models.form.roles.group.scheduling': 'Kaynaklar ve zamanlama',
   'models.form.roles.group.cache': 'Paylaşılan KV önbelleği',
+  'models.form.roles.group.wide': 'Grup genelinde',
   'models.form.roles.replicas': 'Replikalar',
   'models.form.roles.router.managed': 'Sistem tarafından yönetilir',
   'models.form.roles.router.replicas.tips':
@@ -464,6 +481,8 @@ export default {
     'Mevcut kapasite bu grubu barındıramıyor (gereken {required}, mevcut {available}). Replika sayısını azaltın, dilimlenmiş kart türü kullanın veya düğüm ekleyin.',
   'models.pd.effectiveness.degraded':
     'PD toplu sunuma geriledi - KV aktarımı algılanmadı. PD modunu ve motor parametrelerini kontrol edin.',
+  'models.pd.effectiveness.partial':
+    "KV yalnızca trafiğin bir kısmı için aktarılıyor - bazı istekler iki kez prefill ediliyor. Bir rolün üyelerinden birinin connector'ünü yitirip yitirmediğini kontrol edin.",
   'models.pd.stat.avg': 'ort.',
   'models.pd.window': 'son {window}',
   'models.pd.effectiveness': 'PD Effectiveness',
@@ -521,6 +540,16 @@ export default {
   'models.form.pd.disabled.gpus':
     'PD ayrıştırma en az 2 kullanılabilir GPU gerektirir (bir Prefill, bir Decode); seçili kümede {count} adet var.',
   'models.pd.ratio': 'Oran',
+  'models.form.roles.router.entrypoint': 'Çalıştırma komutu',
+  'models.form.roles.router.connectionArgs':
+    'Bağlantı parametreleri (GPUStack tarafından verilir)',
+  'models.form.roles.router.tunableArgs':
+    'Strateji ve dayanıklılık (geçersiz kılınabilir)',
+  'models.form.roles.resources': 'Kaynaklar',
+  'models.form.roles.resources.cpu': 'CPU (çekirdek)',
+  'models.form.roles.resources.memory': 'Bellek (GiB)',
+  'models.form.roles.resources.tips':
+    'Router konteynerinin istediği kaynaklar. Varsayılan 2 çekirdek ve 2 GiB.',
   'models.form.roles.router.health': 'Sağlık kontrolü',
   'models.form.roles.router.peerslabel': 'Karşı taraflar',
   'models.form.roles.router.image.tips':
@@ -529,8 +558,8 @@ export default {
   'models.form.roles.cpuonly.tips':
     'Router yalnızca istekleri iletir ve model ağırlığı tutmaz, bu yüzden GPU kullanmaz.',
 
-  'models.form.gather.label': 'KV Transfer Locality',
-  'models.form.gather.tips':
+  'models.form.gather.title': 'KV Transfer Locality',
+  'models.form.gather.title.tips':
     'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
   'models.form.gather.prefer': 'As close as possible',
   'models.form.gather.prefer.tips': 'Spread out rather than fail. Default.',
@@ -544,7 +573,7 @@ export default {
   'models.form.gather.unknown':
     'capacity unknown on {count} worker(s), so this cannot be checked',
   'models.form.gather.declare':
-    'Declare topology layers in the cluster settings to choose a coarser level (e.g. rack or zone).',
+    'Kümenin “Topoloji” bölümünde kabinleri doldurarak daha kaba düzeyleri açın.',
   'models.form.gather.largeGroup':
     'At this size about {percent}% of requests pair on the same host, whatever the topology. For KV transfer locality, consider several smaller disaggregated groups instead.',
 
@@ -568,14 +597,3 @@ export default {
   'models.form.gather.infeasible.warning':
     'Mevcut kapasiteyle bu grup yerleştirilemez; kaydedildikten sonra yer açılana kadar bekler. Seçenekler: “olabildiğince yakın” seçeneğine geçin (sunuculara yayılabilir, KV aktarımı yavaşlar) · kopya sayısını veya kopya başına GPU sayısını azaltın'
 };
-// ========== To-Do: Translate Keys (Remove After Translation) ==========
-// 1. 'models.table.modelView': 'Model List',
-// 2. 'models.table.instanceView': 'Instance List',
-// 3. 'models.table.category': 'Category',
-// 4. 'models.form.lora.label': 'LoRA Adapter',
-// 5. 'models.form.lora.add': 'Add LoRA Adapter',
-// 6. 'models.form.lora.select': 'Select LoRA',
-// 7. 'models.form.lora.name': 'LoRA name',
-// 8. 'models.form.lora.rule.empty': 'Input cannot be empty',
-// 9. 'models.form.lora.rule.duplicate': 'LoRA name cannot be duplicated'
-// ========== End of To-Do List ==========

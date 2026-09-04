@@ -21,7 +21,8 @@ import {
   ModelLoraAdapterResult,
   ModelRestartResult,
   PDMetrics,
-  PDMode
+  PDMode,
+  PDModeResolution
 } from '../config/types';
 
 export const MODELS_API = '/models';
@@ -588,5 +589,28 @@ export async function queryPDModes() {
     items: PDMode[];
   }>(PD_MODES_API, {
     method: 'GET'
+  });
+}
+
+/**
+ * Which PD recipe this deployment gets, and why every other one is out.
+ *
+ * The judgement is the server's because the deciding fact — which
+ * accelerators the cluster's ready workers report — is not in the deploy
+ * form. What the form has is the cluster's `provider` (Docker / Kubernetes),
+ * which is the infrastructure provider, not the accelerator vendor.
+ *
+ * Action-driven per the repo's conventions: called from the handlers that
+ * change an input it depends on (engine, cluster, vendor), never from an
+ * effect keyed on those values.
+ */
+export async function resolvePDMode(params: {
+  cluster_id?: number;
+  backend?: string;
+  vendor?: string;
+}) {
+  return request<PDModeResolution>(`${PD_MODES_API}/resolve`, {
+    method: 'GET',
+    params
   });
 }

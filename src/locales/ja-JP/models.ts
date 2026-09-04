@@ -389,14 +389,30 @@ export default {
   'models.form.pd.enable.on': 'PD 分離',
   'models.form.pd.enable.tips':
     'プレフィル（Prefill）とデコード（Decode）を別インスタンスに分割します。代償はネットワーク 1 ホップと KV 転送 1 回です。同時実行数が少ない、プロンプトが短い、プレフィックスキャッシュのヒット率が高い場合は、集約デプロイの方が高速なことが多いです。まずベンチマークを取ることを推奨します。',
-  'models.form.pd.mode': 'PD モード',
-  'models.form.pd.mode.holder': 'PD モードを選択',
+  'models.form.pd.shape.mono': '統合デプロイ',
+  'models.form.pd.shape.mono.tips':
+    '1 つのインスタンスが Prefill と Decode の両方を担います。',
+  'models.form.pd.shape.pd': 'PD 分離',
+  'models.form.pd.shape.pd.tips':
+    'Prefill と Decode を独立したロールに分割し、エンジン・パラメータ・レプリカ数をそれぞれ設定できます。',
+  'models.form.pd.shape.current': '現在',
+  'models.form.pd.mode': '転送方式',
+  'models.form.pd.mode.holder': '転送方式を選択してください',
   'models.form.pd.mode.tips':
     '接続関連のパラメータ（connector・ポート・対向アドレス）はすべて選択したモードから導出されます。手動設定は不要です。',
   'models.form.pd.mode.custom.tips':
     'カスタムモードでは接続パラメータを一切注入しません。--kv-transfer-config、ポート、対向アドレスを自身で指定してください。',
   'models.form.pd.mode.backend.mismatch':
     '{targets} が必要ですが、現在のエンジンは {backend} です。ロール間でエンジンを混在させる場合は「カスタム」モードを選択してください。',
+  'models.form.pd.mode.runtime.mismatch':
+    '{runtime} アクセラレータが必要ですが、このクラスターは {vendors} のみです。',
+  'models.form.pd.mode.only.custom':
+    '現在のエンジンとアクセラレータの組み合わせに対応する組み込みレシピはありません。「カスタム」モードは利用可能です：コネクタ、ポート、ハンドシェイク変数はご自身で指定してください。',
+  'models.form.pd.mode.derived':
+    '転送方式：{mode} · {vendor} アクセラレータにデプロイ',
+  'models.form.pd.vendor': 'アクセラレータのベンダー',
+  'models.form.pd.vendor.tips':
+    'このクラスターには複数ベンダーのアクセラレータがあり、PD グループはベンダーをまたげません（KV 転送経路が異なるため）。デプロイ先のパーティションを選択してください。',
   'models.form.pd.replicas.moved':
     'PD デプロイのレプリカ数は各ロールで個別に設定します。',
   'models.form.pd.disabled.gguf':
@@ -418,6 +434,7 @@ export default {
   'models.form.roles.group.parameters': 'エンジンパラメータと環境変数',
   'models.form.roles.group.scheduling': 'リソースとスケジューリング',
   'models.form.roles.group.cache': '共有 KV キャッシュ',
+  'models.form.roles.group.wide': 'グループ全体',
   'models.form.roles.replicas': 'レプリカ数',
   'models.form.roles.router.managed': 'システム管理',
   'models.form.roles.router.replicas.tips':
@@ -465,6 +482,8 @@ export default {
     '利用可能な容量ではこのグループを収容できません（必要 {required}、利用可能 {available}）。レプリカ数を減らす、分割カード種別に変える、ノードを追加してください。',
   'models.pd.effectiveness.degraded':
     'PD が集約方式に退化しています —— KV 転送が検出されません。PD モードとエンジンパラメータを確認してください。',
+  'models.pd.effectiveness.partial':
+    'KV は一部のトラフィックしか跨いでいません —— 一部のリクエストが二重に prefill されています。いずれかのロールのメンバーが connector を失っていないか確認してください。',
   'models.pd.stat.avg': '平均',
   'models.pd.window': '直近 {window}',
   'models.pd.effectiveness': 'PD Effectiveness',
@@ -522,6 +541,15 @@ export default {
   'models.form.pd.disabled.gpus':
     'PD 分離には少なくとも 2 枚の利用可能な GPU（Prefill 1 枚 + Decode 1 枚）が必要です。現在のクラスターの利用可能数は {count} 枚です。',
   'models.pd.ratio': '配分',
+  'models.form.roles.router.entrypoint': '実行コマンド',
+  'models.form.roles.router.connectionArgs':
+    '接続パラメータ（GPUStack が注入）',
+  'models.form.roles.router.tunableArgs': 'ルーティングと復旧（上書き可）',
+  'models.form.roles.resources': 'リソース',
+  'models.form.roles.resources.cpu': 'CPU（コア）',
+  'models.form.roles.resources.memory': 'メモリ（GiB）',
+  'models.form.roles.resources.tips':
+    'Router コンテナが要求するリソース。デフォルトは 2 コア 2 GiB。',
   'models.form.roles.router.health': 'ヘルスチェック',
   'models.form.roles.router.peerslabel': '対向',
   'models.form.roles.router.image.tips':
@@ -530,8 +558,8 @@ export default {
   'models.form.roles.cpuonly.tips':
     'Router はリクエストを転送するだけでモデルの重みを保持しないため、GPU を使用しません。',
 
-  'models.form.gather.label': 'KV Transfer Locality',
-  'models.form.gather.tips':
+  'models.form.gather.title': 'KV Transfer Locality',
+  'models.form.gather.title.tips':
     'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
   'models.form.gather.prefer': 'As close as possible',
   'models.form.gather.prefer.tips': 'Spread out rather than fail. Default.',
@@ -545,7 +573,7 @@ export default {
   'models.form.gather.unknown':
     'capacity unknown on {count} worker(s), so this cannot be checked',
   'models.form.gather.declare':
-    'Declare topology layers in the cluster settings to choose a coarser level (e.g. rack or zone).',
+    'クラスターの「トポロジー」でラックを入力すると、より粗いレベルを選べます。',
   'models.form.gather.largeGroup':
     'At this size about {percent}% of requests pair on the same host, whatever the topology. For KV transfer locality, consider several smaller disaggregated groups instead.',
 
@@ -569,111 +597,3 @@ export default {
   'models.form.gather.infeasible.warning':
     '現在の容量ではこのグループは配置できません。保存すると空きが出るまで待機します。選択肢：「できるだけ近く」に変更（ホストをまたぎ、KV 転送が遅くなる）· レプリカ数またはレプリカあたりの GPU 数を減らす'
 };
-// ========== To-Do: Translate Keys (Remove After Translation) ==========
-// 1. 'models.ollama.deprecated.title': 'Deprecation Notice',
-// 2. 'models.ollama.deprecated.notice': `The Ollama model source has been deprecated as of v0.6.1. For more information, see the <a href="https://github.com/gpustack/gpustack/issues/1979" target="_blank">related GitHub issue</a>.`
-// 3.  'models.backend.mindie.310p':'Ascend 310P only supports FP16, so you need to set --dtype=float16.',
-// 4.  'models.form.check.clusterUnavailable': 'Current cluster is unavailable',
-// 5. 'models.form.check.otherClustersAvailable': 'Available clusters: {clusters}. Please switch cluster.',
-// 6. 'models.button.accessSettings': 'Access Settings',
-// 7. 'models.table.accessScope': 'Access Scope',
-// 8. 'models.table.accessScope.all': 'All users',
-// 10. 'models.table.userSelection': 'User Selection',
-// 11. 'models.table.filterByName': 'Filter by username',
-// 12. 'models.table.admin': 'Admin',
-// 13. 'models.table.noselected': 'No users selected'
-// 14. 'models.table.uses.all': 'All users',
-// 15. 'models.table.uses.selected': 'Selected users',
-// 16. 'models.table.nouserFound': 'No users found',
-// 17. 'models.table.users.all': 'All Users',
-// 18. 'models.table.users.selected': 'Selected Users',
-// 19. 'models.table.nouserFound': 'No users found',
-// 20. 'models.form.performance': 'Performance',
-// 21. 'models.form.gpus.notfound': 'No GPUs found',
-// 22. 'models.form.extendedkvcache': 'Enable Extended KV Cache',
-// 23. 'models.form.chunkSize': 'Size of Cache Chunks',
-// 24. 'models.form.maxCPUSize': 'Maximum CPU Cache Size (GiB)',
-// 25. 'models.form.remoteURL': 'Remote Storage URL',
-// 26. 'models.form.runCommandPlaceholder': 'e.g., vllm serve Qwen/Qwen2.5-1.5B-Instruct',
-// 27. 'models.accessSettings.public': 'Public',
-// 28. 'models.accessSettings.authed': 'Authenticated',
-// 29. 'models.accessSettings.allowedUsers': 'Allowed users',
-// 30. 'models.accessSettings.public.tips': 'When set to public, anyone can access this model without authentication, which may lead to data exposure risks.',
-// 31. 'models.table.button.deploy': 'Deploy Now',
-// 32. 'models.form.backendVersion.holder': 'Enter or select a version',
-// 33.  'models.form.gpusperreplica': 'GPUs per Replica',
-// 34.  'models.form.gpusAllocationType': 'GPU Allocation Type',
-// 35.  'models.form.gpusAllocationType.auto': 'Auto',
-// 36.  'models.form.gpusAllocationType.custom': 'Custom',
-// 37.  'models.form.gpusAllocationType.auto.tips': 'The system automatically calculates the GPU count per replica, using powers of two by default and capped by the selected GPUs.',
-// 38.  'models.form.gpusAllocationType.custom.tips': 'You can specify the exact number of GPUs per replica.',
-// 39.  'models.mymodels.status.inactive': 'Stopped',
-// 41.  'models.mymodels.status.degrade': 'Not Ready',
-// 42.  'models.mymodels.status.active': 'Ready',
-// 43. 'models.form.remoteURL.tips': 'Refer to the <a href="https://docs.lmcache.ai/api_reference/configurations.html" target="_blank">configuration documentation</a> for details.',
-// 44.  'models.form.kvCache.tips': 'Extended KV cache and speculative decoding are only available with built-in backends (vLLM / SGLang), Please switch the backend to enable them.',
-// 45. 'models.form.kvCache.tips2': 'Only supported when using built-in inference backends (vLLM or SGLang).',
-// 46. 'models.form.scheduling': 'Scheduling',
-// 47. 'models.form.ramRatio': 'RAM-to-VRAM Ratio',
-// 48. 'models.form.ramSize': 'Maximum RAM Size (GiB)',
-// 49. 'models.form.ramRatio.tips': 'Ratio of system RAM to GPU VRAM used for KV cache. For example, 2.0 means the cache in RAM can be twice as large as the GPU VRAM.',
-// 50. 'models.form.ramSize.tips': `Maximum size of the KV cache stored in system memory (GiB). If set, this value overrides "{content}".`,
-// 51. 'models.form.chunkSize.tips': 'Number of tokens per KV cache chunk.'
-// 33. 'models.form.mode': 'Mode',
-// 34. 'models.form.algorithm': 'Algorithm',
-// 35. 'models.form.draftModel': 'Draft Model',
-// 36. 'models.form.numDraftTokens': 'Number of Draft Tokens',
-// 37. 'models.form.ngramMinMatchLength': 'N-gram Minimum Match Length',
-// 38. 'models.form.ngramMaxMatchLength': 'N-gram Maximum Match Length',
-// 39. 'models.form.mode.throughput': 'Throughput',
-// 40. 'models.form.mode.latency': 'Latency',
-// 41. 'models.form.mode.baseline': 'Standard',
-// 42. 'models.form.mode.throughput.tips': 'optimized for high throughput under high request concurrency.',
-// 43. 'models.form.mode.latency.tips': 'optimized for low latency under low request concurrency.',
-// 44. 'models.form.mode.baseline.tips': 'the most compatible option with full precision,
-// 45. 'models.form.draftModel.placeholder': 'Please select or enter a draft model',
-// 46. 'models.form.draftModel.tips': 'You can enter a local path (e.g., /path/to/model) or select a model from Hugging Face or ModelScope (e.g., Tengyunw/qwen3_8b_eagle3). The system will automatically match based on the primary model source.'
-// 47. 'models.form.quantization': 'Quantization',
-// 48. 'models.form.backend.custom': 'User Defined',
-// 49. 'models.form.rules.name': 'Up to 63 characters; letters, numbers, dots (.), underscores (_), and hyphens (-) only; must start and end with an alphanumeric character.',
-// 50. 'models.catalog.button.explore': 'Explore More Models',
-// 51. 'models.catalog.precision': 'Precision',
-// 52. 'models.form.gpuPerReplica.tips': 'Enter a custom number',
-// 53. 'models.form.generic_proxy': 'Enable Generic Proxy',
-// 54. 'models.form.generic_proxy.tips': 'After enabling the generic proxy, you can access URI paths that do not follow the OpenAI API standard.',
-// 55. 'models.form.generic_proxy.button': 'Generic Proxy',
-// 56. 'models.accessControlModal.includeusers': 'Include Users',
-// 57. 'models.table.genericProxy': 'Use the following path prefix, and set the model name in either the <span class="bold-text">X-GPUStack-Model</span> request header or the model field in the request body. All requests under this path prefix will be forwarded to the inference backend.'
-// 58. 'models.form.backend.vllm': 'Built-in support for NVIDIA, AMD, Ascend, Hygon, Moore Threads, Iluvatar, MetaX, T-Head PPU devices.',
-// 59. 'models.form.backend.voxbox': 'Only supports NVIDIA GPUs and CPUs.',
-// 60.  models.form.backend.mindie': 'Only supports Ascend NPUs.',
-// 61.  'models.form.backend.sglang': 'Built-in support for NVIDIA, AMD, Ascend, Moore Threads, MetaX, T-Head PPU devices.',
-// 62. 'models.form.backend_parameters.vllm.tips': 'For more details about {backend} parameters, see <a href={link} target="_blank">here</a>.',
-// 63. 'models.button.accessSettings.tips': 'Changes to access settings take effect after one minute.',
-// 64.  'models.table.userSelection.tips': 'Admin users can access all models by default.',
-// 65. 'models.form.partialoffload.tips': `When CPU offloading is enabled, GPUStack will allocate CPU memory if GPU resources are insufficient. You must correctly configure the inference backend to use hybrid CPU+GPU or full CPU inference.`,
-// 66. 'models.form.backend.warning': 'The selected backend does not support GGUF models. Please add a backend with GGUF support in the Inference Backend.',
-// 67.  'models.form.backend.warning.gguf': 'Please ensure that the selected custom backend supports GGUF models.',,
-// 68. 'models.form.backendVersion.deprecated': 'Deprecated',
-// 69. 'models.accessSettings.public.desc': 'Accessible to anyone without authentication.',
-// 70.  'models.accessSettings.authed.tips': 'Accessible to all authenticated platform users.',
-// 71.'models.accessSettings.allowedUsers.tips': 'Only designated users can access the model.',
-// 72. 'models.form.backendVersions.tips': `To use more versions, go to the {link} page and edit the backend to add versions.`,
-// 73. 'models.catalog.nogpus.tips': 'No compatible GPUs are available in the selected cluster for this model.',
-// 74. 'models.form.modelfile.notfound': `The model file path you specified does not exist on the GPUStack server. It's recommended to place the model file at the same path on both the GPUStack server and GPUStack workers. This helps GPUStack make better decisions.`,
-// 75. 'models.form.readyWorkers': 'workers ready',
-// 76. 'models.form.maxContextLength': 'Maximum Context Length',
-// 77. 'models.form.backend.helperText': 'Not enabled yet. Will be enabled after deployment. ',
-// 78. 'models.table.instance.benchmark': 'Run Benchmark'
-// 77. 'models.form.enableModelRoute': 'Enable Model Route',
-// 78.  'models.form.enableModelRoute.tips': 'Enable Model Route',
-// 79.  'models.table.modelView': 'Model View',
-// 80.  'models.table.instanceView': 'Instance View',
-// 81. 'models.table.category': 'Category',
-// 82. 'models.form.lora.label': 'LoRA Adapter',
-// 83. 'models.form.lora.add': 'Add LoRA Adapter',
-// 84. 'models.form.lora.select': 'Select LoRA',
-// 85. 'models.form.lora.name': 'LoRA name',
-// 86. 'models.form.lora.rule.empty': 'Input cannot be empty',
-// 87. 'models.form.lora.rule.duplicate': 'LoRA name cannot be duplicated'
-// ========== End of To-Do List ==========

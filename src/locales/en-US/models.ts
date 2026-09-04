@@ -388,14 +388,30 @@ export default {
   'models.form.pd.enable.on': 'PD Disaggregation',
   'models.form.pd.enable.tips':
     'Splits prefill and decode onto separate instances, at the cost of one extra network hop and one KV transfer. Aggregated deployment is usually faster at low concurrency, with short prompts, or with a high prefix cache hit rate. Benchmark the aggregated deployment first.',
-  'models.form.pd.mode': 'PD Mode',
-  'models.form.pd.mode.holder': 'Select a PD mode',
+  'models.form.pd.shape.mono': 'Aggregated',
+  'models.form.pd.shape.mono.tips':
+    'One instance runs both prefill and decode.',
+  'models.form.pd.shape.pd': 'PD Disaggregation',
+  'models.form.pd.shape.pd.tips':
+    'Prefill and decode run as separate roles, each with its own engine, parameters and replica count.',
+  'models.form.pd.shape.current': 'Current',
+  'models.form.pd.mode': 'Transport',
+  'models.form.pd.mode.holder': 'Select a transport',
   'models.form.pd.mode.tips':
     'Every connection-state parameter - connector, ports, peer addresses - is derived from the selected mode. None of them is configured by hand.',
   'models.form.pd.mode.custom.tips':
     'Custom mode injects nothing: you must supply --kv-transfer-config, the ports and the peer addresses yourself.',
   'models.form.pd.mode.backend.mismatch':
     'Requires {targets}; the selected engine is {backend}. Mixing engines across roles needs the Custom mode.',
+  'models.form.pd.mode.runtime.mismatch':
+    'Requires {runtime} accelerators; this cluster reports {vendors}.',
+  'models.form.pd.mode.only.custom':
+    'No built-in recipe fits this engine and accelerator. Custom is still available: you supply the connector, ports and handshake variables yourself.',
+  'models.form.pd.mode.derived':
+    'Transport: {mode} · deploying to {vendor} accelerators',
+  'models.form.pd.vendor': 'Accelerator vendor',
+  'models.form.pd.vendor.tips':
+    'This cluster has more than one vendor that could host the group, and a PD group cannot span vendors — the KV transport differs. Pick the partition to deploy onto.',
   'models.form.pd.replicas.moved':
     'Replica counts for a PD deployment are set per role.',
   'models.form.pd.disabled.gguf':
@@ -417,6 +433,7 @@ export default {
   'models.form.roles.group.parameters': 'Parameters and environment',
   'models.form.roles.group.scheduling': 'Resources and scheduling',
   'models.form.roles.group.cache': 'Shared KV cache',
+  'models.form.roles.group.wide': 'Group-wide',
   'models.form.roles.replicas': 'Replicas',
   'models.form.roles.router.managed': 'Managed by the system',
   'models.form.roles.router.replicas.tips':
@@ -464,6 +481,8 @@ export default {
     'The available capacity cannot hold this group (needs {required}, available {available}). Reduce the replica counts, use a sliced card type, or add nodes.',
   'models.pd.effectiveness.degraded':
     'PD has degraded to aggregated serving - no KV transfer detected. Check the PD mode and the engine parameters.',
+  'models.pd.effectiveness.partial':
+    'KV is crossing for part of the traffic only - some requests are being prefilled twice. Check whether one member of a role has lost its connector.',
   'models.pd.stat.avg': 'avg',
   'models.pd.window': 'last {window}',
   'models.pd.effectiveness': 'PD Effectiveness',
@@ -524,6 +543,16 @@ export default {
   'models.form.pd.disabled.gpus':
     'PD disaggregation needs at least 2 available GPUs (one Prefill, one Decode); the selected cluster has {count}.',
   'models.pd.ratio': 'Ratio',
+  'models.form.roles.router.entrypoint': 'Command',
+  'models.form.roles.router.connectionArgs':
+    'Connection arguments (set by GPUStack)',
+  'models.form.roles.router.tunableArgs':
+    'Strategy and resilience (overridable)',
+  'models.form.roles.resources': 'Resources',
+  'models.form.roles.resources.cpu': 'CPU (cores)',
+  'models.form.roles.resources.memory': 'Memory (GiB)',
+  'models.form.roles.resources.tips':
+    'What the router container requests. Defaults to 2 cores and 2 GiB.',
   'models.form.roles.router.health': 'Health check',
   'models.form.roles.router.peerslabel': 'Peers',
   'models.form.roles.router.image.tips':
@@ -532,8 +561,8 @@ export default {
   'models.form.roles.cpuonly.tips':
     'The router forwards requests and holds no model weights, so it takes no GPU.',
 
-  'models.form.gather.label': 'KV Transfer Locality',
-  'models.form.gather.tips':
+  'models.form.gather.title': 'KV Transfer Locality',
+  'models.form.gather.title.tips':
     'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
   'models.form.gather.prefer': 'As close as possible',
   'models.form.gather.prefer.tips': 'Spread out rather than fail. Default.',
@@ -547,7 +576,7 @@ export default {
   'models.form.gather.unknown':
     'capacity unknown on {count} worker(s), so this cannot be checked',
   'models.form.gather.declare':
-    'Declare topology layers in the cluster settings to choose a coarser level (e.g. rack or zone).',
+    'Fill in racks under the cluster’s “Topology” to unlock coarser levels.',
   'models.form.gather.largeGroup':
     'At this size about {percent}% of requests pair on the same host, whatever the topology. For KV transfer locality, consider several smaller disaggregated groups instead.',
 

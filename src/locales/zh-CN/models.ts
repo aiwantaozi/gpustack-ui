@@ -369,14 +369,28 @@ export default {
   'models.form.pd.enable.on': 'PD 分离',
   'models.form.pd.enable.tips':
     '将预填充（Prefill）与解码（Decode）拆分到不同实例，代价是多一跳网络与一次 KV 传输。并发低、prompt 短或前缀命中率很高时，聚合部署通常更快。建议先跑一轮基准再决定。',
-  'models.form.pd.mode': 'PD 模式',
-  'models.form.pd.mode.holder': '请选择 PD 模式',
+  'models.form.pd.shape.mono': '聚合部署',
+  'models.form.pd.shape.mono.tips': '同一个实例同时负责 Prefill 与 Decode。',
+  'models.form.pd.shape.pd': 'PD 分离',
+  'models.form.pd.shape.pd.tips':
+    'Prefill 与 Decode 拆成独立角色，各自的引擎、参数与副本数都可单独设置。',
+  'models.form.pd.shape.current': '当前',
+  'models.form.pd.mode': '传输方案',
+  'models.form.pd.mode.holder': '请选择传输方案',
   'models.form.pd.mode.tips':
     '连接态参数（connector、端口、对端地址）全部由所选模式推导，无需手工配置。',
   'models.form.pd.mode.custom.tips':
     '自定义模式下系统不注入任何连接参数，需自行提供 --kv-transfer-config、端口与对端地址。',
   'models.form.pd.mode.backend.mismatch':
     '需要 {targets}，当前引擎是 {backend}。跨角色混用引擎请选「自定义」模式。',
+  'models.form.pd.mode.runtime.mismatch':
+    '需要 {runtime} 加速卡，当前集群只有 {vendors}。',
+  'models.form.pd.mode.only.custom':
+    '当前引擎与加速卡组合没有内置配方。仍可用「自定义」模式：连接器、端口与握手变量由你自己填写。',
+  'models.form.pd.mode.derived': '传输方案：{mode} · 将部署到 {vendor} 加速卡',
+  'models.form.pd.vendor': '加速卡厂商',
+  'models.form.pd.vendor.tips':
+    '当前集群有多个厂商的加速卡可以承载这个组，而 PD 组不能跨厂商 —— KV 传输通道不同。请选择部署到哪个分区。',
   'models.form.pd.replicas.moved': 'PD 部署的副本数由各角色分别设置。',
   'models.form.pd.disabled.gguf':
     'PD 分离仅支持 vLLM / SGLang 引擎，当前模型为 GGUF 格式。',
@@ -397,6 +411,7 @@ export default {
   'models.form.roles.group.parameters': '引擎参数与环境变量',
   'models.form.roles.group.scheduling': '资源与调度',
   'models.form.roles.group.cache': '共享 KV 缓存',
+  'models.form.roles.group.wide': '组级',
   'models.form.roles.replicas': '副本数',
   'models.form.roles.router.managed': '由系统托管',
   'models.form.roles.router.replicas.tips': '一期 Router 为单副本。',
@@ -438,6 +453,8 @@ export default {
     '当前可用算力放不下这一组（需要 {required}，可用 {available}）。可减少副本数、换用切分卡型，或增加节点。',
   'models.pd.effectiveness.degraded':
     'PD 已退化为聚合式 —— 未检测到 KV 传输。请检查 PD 模式与引擎参数。',
+  'models.pd.effectiveness.partial':
+    'KV 只对部分流量生效 —— 有一部分请求在重复做 prefill。请检查某个角色下是否有成员的 connector 已失效。',
   'models.pd.stat.avg': '均值',
   'models.pd.window': '最近 {window}',
   'models.pd.effectiveness': 'PD 有效性',
@@ -489,6 +506,14 @@ export default {
   'models.form.pd.disabled.gpus':
     'PD 分离至少需要 2 张可用 GPU（1 Prefill + 1 Decode），当前集群可用 {count} 张。',
   'models.pd.ratio': '配比',
+  'models.form.roles.router.entrypoint': '执行命令',
+  'models.form.roles.router.connectionArgs': '连接参数（由 GPUStack 注入）',
+  'models.form.roles.router.tunableArgs': '策略与韧性（可覆盖）',
+  'models.form.roles.resources': '资源',
+  'models.form.roles.resources.cpu': 'CPU（核）',
+  'models.form.roles.resources.memory': '内存（GiB）',
+  'models.form.roles.resources.tips':
+    'Router 容器申请的资源，默认为 2 核 2 GiB。',
   'models.form.roles.router.health': '健康检查',
   'models.form.roles.router.peerslabel': '对端',
   'models.form.roles.router.image.tips':
@@ -497,8 +522,8 @@ export default {
   'models.form.roles.cpuonly.tips':
     'Router 只转发请求、不持有模型权重，因此不占用 GPU。',
 
-  'models.form.gather.label': 'KV 传输局部性',
-  'models.form.gather.tips':
+  'models.form.gather.title': 'KV 传输局部性',
+  'models.form.gather.title.tips':
     '这一组必须放在多紧的范围内。调度器本来就会往放得下的最紧域里塞，这里决定的是放不下时「拒绝」还是「摊开」。',
   'models.form.gather.prefer': '尽量靠近',
   'models.form.gather.prefer.tips': '放不下就摊开，仍然部署。默认。',

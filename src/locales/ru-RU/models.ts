@@ -392,14 +392,30 @@ export default {
   'models.form.pd.enable.on': 'Разделение PD',
   'models.form.pd.enable.tips':
     'Разделяет префилл и декодирование по разным экземплярам за счёт дополнительного сетевого перехода и одной передачи KV. При низкой конкурентности, коротких запросах или высоком попадании в кэш префиксов агрегированное развёртывание обычно быстрее. Сначала снимите базовые показатели.',
-  'models.form.pd.mode': 'Режим PD',
-  'models.form.pd.mode.holder': 'Выберите режим PD',
+  'models.form.pd.shape.mono': 'Агрегированное развёртывание',
+  'models.form.pd.shape.mono.tips':
+    'Один экземпляр выполняет и prefill, и decode.',
+  'models.form.pd.shape.pd': 'Разделение PD',
+  'models.form.pd.shape.pd.tips':
+    'Prefill и decode работают как отдельные роли, каждая со своим движком, параметрами и числом реплик.',
+  'models.form.pd.shape.current': 'Текущее',
+  'models.form.pd.mode': 'Транспорт',
+  'models.form.pd.mode.holder': 'Выберите транспорт',
   'models.form.pd.mode.tips':
     'Все параметры соединения - connector, порты, адреса узлов - выводятся из выбранного режима и не задаются вручную.',
   'models.form.pd.mode.custom.tips':
     'В пользовательском режиме параметры соединения не подставляются: --kv-transfer-config, порты и адреса узлов задаёте вы.',
   'models.form.pd.mode.backend.mismatch':
     'Требуется {targets}, выбран движок {backend}. Для смешивания движков по ролям используйте режим «Пользовательский».',
+  'models.form.pd.mode.runtime.mismatch':
+    'Требуются ускорители {runtime}; в этом кластере есть только {vendors}.',
+  'models.form.pd.mode.only.custom':
+    'Для этого сочетания движка и ускорителя нет встроенного рецепта. Режим «Пользовательский» по-прежнему доступен: коннектор, порты и переменные рукопожатия задаёте вы.',
+  'models.form.pd.mode.derived':
+    'Транспорт: {mode} · развёртывание на ускорителях {vendor}',
+  'models.form.pd.vendor': 'Производитель ускорителя',
+  'models.form.pd.vendor.tips':
+    'В этом кластере несколько производителей ускорителей могут разместить группу, а группа PD не может охватывать разных производителей — тракт передачи KV различается. Выберите раздел для развёртывания.',
   'models.form.pd.replicas.moved':
     'Количество реплик в развёртывании PD задаётся для каждой роли отдельно.',
   'models.form.pd.disabled.gguf':
@@ -421,6 +437,7 @@ export default {
   'models.form.roles.group.parameters': 'Параметры и переменные среды',
   'models.form.roles.group.scheduling': 'Ресурсы и планирование',
   'models.form.roles.group.cache': 'Общий кэш KV',
+  'models.form.roles.group.wide': 'На всю группу',
   'models.form.roles.replicas': 'Реплики',
   'models.form.roles.router.managed': 'Управляется системой',
   'models.form.roles.router.replicas.tips':
@@ -468,6 +485,8 @@ export default {
     'Доступной ёмкости недостаточно для этой группы (требуется {required}, доступно {available}). Уменьшите число реплик, выберите нарезанный тип карты или добавьте узлы.',
   'models.pd.effectiveness.degraded':
     'PD деградировал до агрегированного режима - передача KV не обнаружена. Проверьте режим PD и параметры движка.',
+  'models.pd.effectiveness.partial':
+    'KV передаётся только для части трафика - часть запросов проходит prefill дважды. Проверьте, не потерял ли connector один из участников роли.',
   'models.pd.stat.avg': 'сред.',
   'models.pd.window': 'за последние {window}',
   'models.pd.effectiveness': 'PD Effectiveness',
@@ -525,6 +544,16 @@ export default {
   'models.form.pd.disabled.gpus':
     'Для разделения PD нужно не менее 2 доступных GPU (один Prefill, один Decode); в выбранном кластере доступно {count}.',
   'models.pd.ratio': 'Соотношение',
+  'models.form.roles.router.entrypoint': 'Команда запуска',
+  'models.form.roles.router.connectionArgs':
+    'Параметры подключения (задаёт GPUStack)',
+  'models.form.roles.router.tunableArgs':
+    'Стратегия и устойчивость (можно переопределить)',
+  'models.form.roles.resources': 'Ресурсы',
+  'models.form.roles.resources.cpu': 'CPU (ядра)',
+  'models.form.roles.resources.memory': 'Память (ГиБ)',
+  'models.form.roles.resources.tips':
+    'Что запрашивает контейнер роутера. По умолчанию 2 ядра и 2 ГиБ.',
   'models.form.roles.router.health': 'Проверка состояния',
   'models.form.roles.router.peerslabel': 'Узлы',
   'models.form.roles.router.image.tips':
@@ -533,8 +562,8 @@ export default {
   'models.form.roles.cpuonly.tips':
     'Router только пересылает запросы и не хранит веса модели, поэтому GPU не занимает.',
 
-  'models.form.gather.label': 'KV Transfer Locality',
-  'models.form.gather.tips':
+  'models.form.gather.title': 'KV Transfer Locality',
+  'models.form.gather.title.tips':
     'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
   'models.form.gather.prefer': 'As close as possible',
   'models.form.gather.prefer.tips': 'Spread out rather than fail. Default.',
@@ -548,7 +577,7 @@ export default {
   'models.form.gather.unknown':
     'capacity unknown on {count} worker(s), so this cannot be checked',
   'models.form.gather.declare':
-    'Declare topology layers in the cluster settings to choose a coarser level (e.g. rack or zone).',
+    'Заполните стойки в разделе «Топология» кластера, чтобы открыть более крупные уровни.',
   'models.form.gather.largeGroup':
     'At this size about {percent}% of requests pair on the same host, whatever the topology. For KV transfer locality, consider several smaller disaggregated groups instead.',
 
@@ -572,21 +601,3 @@ export default {
   'models.form.gather.infeasible.warning':
     'При текущей ёмкости эту группу разместить нельзя; после сохранения она будет ждать освобождения места. Варианты: переключиться на «как можно ближе» (может занять несколько хостов, KV-передача медленнее) · уменьшить число реплик или GPU на реплику'
 };
-// ========== To-Do: Translate Keys (Remove After Translation) ==========
-// 1. 'models.form.maxContextLength': 'Maximum Context Length',
-// 2. 'models.form.backend.helperText': 'Not enabled yet. Will be enabled after deployment. ',
-// 3. 'models.table.instance.benchmark': 'Run Benchmark'
-// 2. 'models.form.enableModelRoute': 'Enable Model Route',
-// 3.  'models.form.enableModelRoute.tips': 'Enable Model Route',
-// 4. 'models.form.backend.vllm': 'Built-in support for NVIDIA, AMD, Ascend, Hygon, Moore Threads, Iluvatar, MetaX, T-Head PPU devices.',
-// 5.  'models.form.backend.sglang': 'Built-in support for NVIDIA, AMD, Ascend, Moore Threads, MetaX, T-Head PPU devices.',
-// 6.  'models.table.modelView': 'Model List',
-// 7.  'models.table.instanceView': 'Instance List',
-// 8. 'models.table.category': 'Category',
-// 9. 'models.form.lora.label': 'LoRA Adapter',
-// 10. 'models.form.lora.add': 'Add LoRA Adapter',
-// 11. 'models.form.lora.select': 'Select LoRA',
-// 12. 'models.form.lora.name': 'LoRA name',
-// 13. 'models.form.lora.rule.empty': 'Input cannot be empty',
-// 14. 'models.form.lora.rule.duplicate': 'LoRA name cannot be duplicated'
-// ========== End of To-Do List ==========

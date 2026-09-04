@@ -177,6 +177,13 @@ const roleFormToPayload = (role: RoleFormItem): RoleSpec => {
   // that never touched it, so the stored flag rides through untouched.
   if (isRouter) {
     payload.cpu_only = !!role.cpu_only;
+    // Role-own, so it is not in any override group and the loop above never
+    // reaches it — and this transform is total by construction, which means a
+    // field nobody adds here is a field that silently never leaves the form.
+    // Emitted only when something was typed: an object of nulls would read as
+    // "declared, and both zero" rather than "take the floor".
+    const resources = _.omitBy(role.resources || {}, (v: unknown) => v == null);
+    payload.resources = _.isEmpty(resources) ? null : resources;
   }
   if (role.dependencies) {
     payload.dependencies = role.dependencies;

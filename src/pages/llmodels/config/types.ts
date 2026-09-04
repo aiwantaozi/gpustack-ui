@@ -230,6 +230,16 @@ export interface RoleSpec {
   extended_kv_cache?: Record<string, any> | null;
   dependencies?: string[] | null;
   cpu_only?: boolean;
+  // Router only, and role-own rather than an override: there is no
+  // Model-level counterpart to inherit from, because prefill and decode get
+  // their footprint from sizing. Left empty the router still gets a floor.
+  resources?: {
+    // Cores. Enforced on the container; not a placement dimension yet.
+    cpu?: number | null;
+    // Bytes on the wire, GiB in the field — and this one *is* subtracted from
+    // the worker when choosing where to place the router.
+    memory?: number | null;
+  } | null;
 }
 
 // The form's shape for a role: `RoleSpec` plus the per-group override
@@ -246,7 +256,6 @@ export interface DisaggregationSpec {
   mode: string;
   readiness?: 'any_per_role' | 'all';
   kv_load_failure_policy?: 'fail' | 'recompute';
-  router_kind?: string | null;
 }
 
 // Per-role readiness detail, carried on the model row rather than computed per
@@ -271,18 +280,88 @@ export interface ModelRestartResult {
 // One entry of `GET /v2/pd-modes`. Deliberately loose below the fields the UI
 // reads: the catalog's whole point is that adding an engine is a YAML change,
 // so the UI must not mirror its full schema.
+/** One catalog entry's verdict for the current engine × accelerator pair. */
+export interface PDModeEligibility {
+  name: string;
+  eligible: boolean;
+  // The derived answer. At most one entry carries it.
+  recommended: boolean;
+  // Why it cannot be picked here. Rendered inline next to the disabled
+  // option — an option the user cannot pick still tells them the capability
+  // exists and what it would take to reach it.
+  ineligible_reason?: string | null;
+}
+
+/**
+ * The server's answer to "which recipe does this deployment get".
+ *
+ * `mode` null means the answer is a question, and the three shapes need
+ * different handling: accelerators not known yet (wait), no built-in recipe
+ * for this pair (offer Custom), or several vendor partitions could host the
+ * group (ask which — `candidate_vendors`).
+ */
+export interface PDModeResolution {
+  mode?: string | null;
+  vendor?: string | null;
+  unresolved_reason?: string | null;
+  candidate_vendors: string[];
+  cluster_vendors: string[];
+  options: PDModeEligibility[];
+}
+
+export interface PDTunableArg {
+  flag: string;
+  default?: string | null;
+  // Known-good values, for a select. Advisory rather than closed: the two
+  // shipped routers disagree about their own strategy sets between wheel and
+  // repository at the same version number, so a value outside this list is
+  // still submitted.
+  options?: string[];
+  value_type?: 'string' | 'int' | 'float';
+  min?: number | null;
+  max?: number | null;
+  description?: string | null;
+}
+
 export interface PDMode {
   name: string;
   display_name: string;
   description?: string;
   backends: string[];
   backend_versions?: Record<string, string> | null;
-  runtime?: string | null;
+  // Which accelerators this recipe fits. Absent only on `custom`, which
+  // injects nothing and must stay selectable on every accelerator — an
+  // unsupported engine × accelerator pair means "no built-in recipe", never
+  // "no PD".
+  gpu_filters?: {
+    vendor?: string[];
+    compute_capability?: string | null;
+    vendor_variant?: string[];
+  } | null;
+  preferred?: boolean;
+  // The KV transport alone ("NIXL", "Mooncake"). Used by the derived
+  // one-liner, where the engine has already been named — `display_name`
+  // carries the engine too, because the picker lists several engines' recipes
+  // side by side and there it has to say *which* NIXL.
+  transport?: string | null;
   roles?: Record<string, any>;
   router?: {
     protocol?: string;
     image?: string | null;
-    command?: string | null;
+    // The invocation, in three parts that mean three different things to the
+    // form. `command` is all of them concatenated and stays the read-only
+    // one-liner; the parts are what let the editor say which half is ours.
+    entrypoint?: string[] | null;
+    // Addresses, ports and the transport handshake — rendered from placement
+    // facts the form does not have. Shown greyed out and refused at
+    // admission, because `--prefill` / `--decode` are `action="append"` in
+    // both shipped routers: a second one adds a peer rather than replacing
+    // the injected one.
+    connection_args?: string[] | null;
+    // Strategy and resilience defaults. Overridable, because repeated flags
+    // are last-wins for all of them.
+    tunable_args?: PDTunableArg[] | null;
+    command?: string[] | string | null;
     health_path?: string | null;
     capabilities?: Record<string, boolean>;
     peers?: Record<string, any>;

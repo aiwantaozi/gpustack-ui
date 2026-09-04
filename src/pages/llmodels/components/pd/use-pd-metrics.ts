@@ -26,6 +26,12 @@ import type { PDMetrics, PDRoleMetrics } from '../../config/types';
 // number against a client-side threshold: a second copy of the judgement is a
 // second thing that can disagree with the alarm text beside it.
 const AGGREGATED = 'aggregated';
+// KV crossing for some of the traffic and not the rest — one member of a pool
+// has stopped participating while the others still work. Kept apart from
+// AGGREGATED because the two call for different reactions: a collapse is a
+// pairing that never formed and is a whole-group fix, this points at one
+// member of several and the group is still delivering most of the benefit.
+const DEGRADED = 'degraded';
 const IDLE = 'idle';
 const UNMEASURABLE = 'unmeasurable';
 // Per-worker counters — the good denominator, because a low ratio then points
@@ -44,6 +50,7 @@ export interface PDMetricsState {
   effectiveness?: number | null;
   state?: string | null;
   aggregated: boolean;
+  partiallyDegraded: boolean;
   idle: boolean;
   unmeasurable: boolean;
   // The ratio came from the route aggregate rather than per-worker counters:
@@ -65,6 +72,7 @@ const EMPTY: PDMetricsState = {
   loading: false,
   available: false,
   aggregated: false,
+  partiallyDegraded: false,
   idle: false,
   unmeasurable: false,
   weakDenominator: false,
@@ -95,6 +103,7 @@ const toState = (data: PDMetrics): PDMetricsState => {
         : (data.kv_transfers_per_request ??
           (data.status === AGGREGATED ? 0 : null)),
     aggregated: data.status === AGGREGATED,
+    partiallyDegraded: data.status === DEGRADED,
     idle: data.status === IDLE,
     unmeasurable: data.status === UNMEASURABLE,
     weakDenominator:

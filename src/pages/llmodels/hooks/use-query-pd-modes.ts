@@ -25,6 +25,24 @@ export interface PDModeOption {
  * Action-driven, per the repo's request conventions — the caller invokes
  * `getPDModes()` from the drawer's open handler, not from an effect.
  */
+/**
+ * The transport alone, for both the picker's rows and the derived one-liner.
+ *
+ * The engine is already chosen and named in a field above, and the picker
+ * hides recipes that do not fit it — so a list can never hold both
+ * "vLLM + NIXL" and "SGLang + NIXL", which is the only reason the engine was
+ * ever in this label.
+ *
+ * 🔑 **Falls back by splitting `display_name`, not by using it whole.** The
+ * `transport` field is newer than some running servers, and an older one
+ * simply omits it; taking `display_name` verbatim there would quietly put the
+ * engine back ("vLLM + NIXL") and look like the change never landed. Every
+ * shipped `display_name` is "<engine> + <transport>", and `Custom` has no
+ * separator, so the split is correct for both.
+ */
+export const transportLabel = (mode?: PDMode) =>
+  mode?.transport || mode?.display_name?.split(' + ').pop() || mode?.name || '';
+
 export default function useQueryPDModes() {
   const intl = useIntl();
   const [pdModes, setPDModes] = useState<PDMode[]>([]);
@@ -42,31 +60,63 @@ export default function useQueryPDModes() {
   };
 
   /**
-   * The options for one engine.
+   * The options for one engine on one cluster's accelerators.
    *
-   * A mode whose recipe targets another engine is disabled with a reason
-   * rather than dropped: injecting one engine's connector config into another
-   * fails silently at run time, so the backend refuses the combination — and
-   * the user needs to see why, not just find the option missing.
+   * A mode the combination cannot run is disabled with a reason rather than
+   * dropped: an option the user cannot pick still tells them the capability
+   * exists and what it would take to reach it. Two independent constraints:
    *
-   * `custom` declares no backends and is therefore always available: it
+   * - `backends` — injecting one engine's connector config into another fails
+   *   silently at run time, so the server refuses the combination.
+   * - `gpu_filters.vendor` — every built-in recipe is accelerator-specific:
+   *   `vllm-ascend-mooncake` injects an Ascend-only connector plus HCCL
+   *   variables, and the NVIDIA recipes inject connectors no other runtime
+   *   can read. `PDModeRuntimeFilter` drops the mismatched workers
+   *   server-side; disabling it here is what makes the refusal visible
+   *   before submit.
+   *
+   * `vendors` is the manufacturer slug set the cluster's workers report, from
+   * `status.gpu_devices[].vendor`. Undefined or empty means unknown (options
+   * still loading, no cluster picked, or no worker has reported devices yet)
+   * and must not disable anything — absence of evidence is not a mismatch.
+   *
+   * `custom` declares neither constraint and is therefore always available: it
    * injects nothing, which is also what makes it the only mode under which a
    * group may mix engines.
    */
-  const buildOptions = (backend?: string): PDModeOption[] =>
+  const buildOptions = (backend?: string, vendors?: string[]): PDModeOption[] =>
     pdModes.map((mode) => {
       const targets = mode.backends || [];
-      const usable = !targets.length || !backend || targets.includes(backend);
+      const backendOk =
+        !targets.length || !backend || targets.includes(backend);
+      // Absent on `custom` alone, and that is the mechanism that keeps the
+      // DIY path open on an accelerator we ship no recipe for.
+      const wanted = (mode.gpu_filters?.vendor || []).map((v) =>
+        v.toLowerCase()
+      );
+      const vendorOk =
+        !wanted.length ||
+        !vendors?.length ||
+        wanted.some((v) => vendors.includes(v));
+
+      let reason: string | undefined;
+      if (!backendOk) {
+        reason = intl.formatMessage(
+          { id: 'models.form.pd.mode.backend.mismatch' },
+          { backend, targets: targets.join(' / ') }
+        );
+      } else if (!vendorOk) {
+        reason = intl.formatMessage(
+          { id: 'models.form.pd.mode.runtime.mismatch' },
+          { runtime: wanted.join(' / '), vendors: vendors!.join(' / ') }
+        );
+      }
+
       return {
-        label: mode.display_name || mode.name,
+        label: transportLabel(mode),
         value: mode.name,
-        disabled: !usable,
-        reason: usable
-          ? undefined
-          : intl.formatMessage(
-              { id: 'models.form.pd.mode.backend.mismatch' },
-              { backend, targets: targets.join(' / ') }
-            ),
+        disabled: !backendOk || !vendorOk,
+        reason,
         data: mode
       };
     });

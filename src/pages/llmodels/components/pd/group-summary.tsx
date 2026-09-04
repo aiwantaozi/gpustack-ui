@@ -187,6 +187,10 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
   // client-side threshold. A second copy of the judgement is a second thing
   // that can disagree with the alarm text beside it.
   const effectivenessDegraded = metrics.aggregated;
+  // Warning, not error, and separately from the collapse above: the group is
+  // still delivering most of the benefit, so colouring it the same red as
+  // "PD stopped working entirely" would train the reader to discount both.
+  const effectivenessPartial = metrics.partiallyDegraded;
   // Ordered prefill -> decode -> router, matching the role sections below, so
   // the eye does not have to re-map the order between the two.
   const roleRows: [string, PDRoleMetrics][] = _.sortBy(
@@ -342,7 +346,9 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
                           style={
                             effectivenessDegraded
                               ? { color: 'var(--ant-color-error)' }
-                              : undefined
+                              : effectivenessPartial
+                                ? { color: 'var(--ant-color-warning)' }
+                                : undefined
                           }
                         >
                           {metrics.effectiveness.toFixed(2)}
@@ -585,6 +591,11 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
             {effectivenessDegraded && (
               <span style={{ color: 'var(--ant-color-error)' }}>
                 {intl.formatMessage({ id: 'models.pd.effectiveness.degraded' })}
+              </span>
+            )}
+            {effectivenessPartial && (
+              <span style={{ color: 'var(--ant-color-warning)' }}>
+                {intl.formatMessage({ id: 'models.pd.effectiveness.partial' })}
               </span>
             )}
             {/* Looked up when something needs copying, never scanned, so it

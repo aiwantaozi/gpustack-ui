@@ -1,8 +1,11 @@
+import { workerListAtom } from '@/atoms/models';
 import { Select as SealSelect, ThemeTag, useAppUtils } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Flex, Form, Radio, Tooltip } from 'antd';
+import { Button, Flex, Form, Radio, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useAtomValue } from 'jotai';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { resolvePDMode } from '../apis';
 import {
   isPDModel,
   PD_CAPABLE_BACKENDS,
@@ -10,9 +13,14 @@ import {
   RoleValueMap
 } from '../config';
 import { useFormContext } from '../config/form-context';
-import { FormData, PDMode, RoleFormItem } from '../config/types';
+import {
+  FormData,
+  PDMode,
+  PDModeResolution,
+  RoleFormItem
+} from '../config/types';
 import { backendOptionsMap } from '../constants/backend-parameters';
-import useQueryPDModes from '../hooks/use-query-pd-modes';
+import useQueryPDModes, { transportLabel } from '../hooks/use-query-pd-modes';
 import { createDefaultRoles } from './roles/transform';
 
 // 1 prefill + 1 decode is the smallest group that can exist, so a cluster with
@@ -155,6 +163,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   } = useFormContext();
   const { getPDModes, buildOptions, isCustomMode, findMode } =
     useQueryPDModes();
+  const workerList = useAtomValue(workerListAtom);
 
   // The shape as it is deployed right now, read from what the drawer opened
   // with rather than from the live form — the whole point of the badge is to
@@ -283,6 +292,96 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     });
   };
 
+  /**
+   * The server's derived answer, and whether the user has opened the picker.
+   *
+   * Grouped: they always change together, and the picker's visibility is a
+   * function of the answer (no answer ⇒ the picker is the only way forward).
+   */
+  const [derived, setDerived] = useState<{
+    resolution: PDModeResolution | null;
+    pickerOpen: boolean;
+  }>({ resolution: null, pickerOpen: false });
+
+  // A resolve in flight is invalidated by any later change to its inputs.
+  // Without this a slow answer for the previous engine lands after the fast
+  // answer for the current one and silently overwrites the mode field.
+  const resolveSession = useRef(0);
+
+  /**
+   * One atomic write: local state, the form field, and the published effects.
+   *
+   * 🔑 **No fallback.** When the server derives nothing the field is left
+   * empty and the picker opens — never quietly set to `custom`. Choosing
+   * `custom` means "I will supply the connection parameters myself", which is
+   * not a decision the platform can make on the user's behalf.
+   */
+  const applyResolution = (resolution: PDModeResolution, modes?: PDMode[]) => {
+    setDerived({ resolution, pickerOpen: !resolution.mode });
+    if (!resolution.mode) {
+      return;
+    }
+    form.setFieldsValue({
+      disaggregation: {
+        ...(form.getFieldValue('disaggregation') || {}),
+        mode: resolution.mode,
+        vendor: resolution.vendor ?? undefined
+      }
+    });
+    notifyEffects({
+      enabled: true,
+      mode: resolution.mode,
+      clearModelKVCache: false,
+      modes
+    });
+  };
+
+  /**
+   * Show the picker unless there is an answer to show instead.
+   *
+   * Derived rather than stored: the stored flag alone left the field hidden
+   * whenever `resolution` was null — which is every render before the first
+   * answer lands, and every render after a failed one. A required field that
+   * renders nothing is worse than one that asks a question.
+   */
+  const pickerVisible = derived.pickerOpen || !derived.resolution?.mode;
+
+  const runResolve = async (overrides?: { vendor?: string }) => {
+    const session = ++resolveSession.current;
+    try {
+      const resolution = await resolvePDMode({
+        cluster_id: clusterId,
+        backend,
+        vendor:
+          overrides?.vendor ?? form.getFieldValue(['disaggregation', 'vendor'])
+      });
+      if (resolveSession.current !== session) {
+        return;
+      }
+      applyResolution(resolution);
+    } catch (error) {
+      // An older server has no /resolve. Fall back to the full picker rather
+      // than to a field that renders nothing: the catalog is already loaded,
+      // so the dropdown still works — only the derivation is missing.
+      if (resolveSession.current === session) {
+        setDerived({ resolution: null, pickerOpen: true });
+      }
+    }
+  };
+
+  // The inputs the answer is a function of. Not a request-function
+  // dependency (which the repo's conventions forbid) — these are the values
+  // whose change *is* the action, and this component only watches them
+  // because the engine and cluster fields belong to a sibling section.
+  useEffect(() => {
+    if (!active) {
+      resolveSession.current += 1;
+      setDerived({ resolution: null, pickerOpen: false });
+      return;
+    }
+    runResolve();
+  }, [active, backend, clusterId]);
+
   // Mount is the one transition no handler can report: editing a model that is
   // already disaggregated arrives with its replicas locked and its mode
   // dropdown already open, so the catalog is fetched here too. Mount only (a
@@ -405,9 +504,52 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     return Math.round((1 / prefillReplicas) * 100);
   })();
 
-  // Options come from the catalog, filtered by engine: a recipe that targets
-  // another engine stays visible but disabled, carrying why.
-  const modeOptions = buildOptions(backend);
+  // Options come from the catalog, gated by engine *and* by the accelerators
+  // the picked cluster actually has: a recipe that targets another engine or
+  // another accelerator stays visible but disabled, carrying why.
+  const clusterVendors = Array.from(
+    new Set(
+      workerList
+        .filter((worker) => worker.cluster_id === clusterId)
+        .flatMap((worker) => worker.vendors || [])
+    )
+  );
+  const modeOptions = buildOptions(backend, clusterVendors);
+
+  // Every built-in recipe is unavailable for this engine × accelerator pair,
+  // leaving only Custom. The per-option reasons already say *why* each one is
+  // out; this is the summary that tells the user the DIY path is still open —
+  // without it the dropdown reads as "PD is broken here".
+  //
+  // 🔑 Deliberately NOT a block-level gate: an unsupported pair means "no
+  // built-in recipe", not "no PD". Custom injects nothing, so writing the
+  // connector, ports and handshake variables by hand stays available on any
+  // accelerator (see the note on `custom` in the mode catalog).
+  /**
+   * What the picker actually lists.
+   *
+   * Ineligible recipes are hidden rather than shown disabled. They used to be
+   * kept visible on the reasoning that an unpickable option still tells you
+   * the capability exists — but once the mode is *derived*, the picker is an
+   * escape hatch, and three greyed rows with explanations are noise in it.
+   * The one case that reasoning was protecting is covered by the summary note
+   * below: when nothing built-in fits, it says so and points at Custom.
+   *
+   * 🔑 **The selected value is never hidden.** Editing a model deployed on
+   * Ascend from a context whose cluster is NVIDIA would otherwise drop its
+   * mode from the list, leaving the Select empty and silently discarding what
+   * is actually deployed. Kept — and it is exactly the row where the
+   * ineligible reason is worth reading.
+   */
+  const visibleModeOptions = modeOptions.filter(
+    (option) => !option.disabled || option.value === mode
+  );
+
+  const onlyCustomLeft =
+    modeOptions.length > 0 &&
+    modeOptions
+      .filter((option) => !isCustomMode(option.value))
+      .every((option) => option.disabled);
   /**
    * The reason renders *inline*, not in a Tooltip.
    *
@@ -519,11 +661,83 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
           >
             <input />
           </Form.Item>
+          {/* The vendor is a *placement* constraint, not a preference: a PD
+              group cannot span accelerator vendors, so a mixed cluster has to
+              be told which partition to use. Kept out of sight in the common
+              single-vendor case, where the server derives it. */}
+          <Form.Item name={['disaggregation', 'vendor']} hidden noStyle>
+            <input />
+          </Form.Item>
+          {derived.resolution &&
+            derived.resolution.candidate_vendors.length > 1 && (
+              <Form.Item>
+                <SealSelect
+                  required
+                  label={intl.formatMessage({
+                    id: 'models.form.pd.vendor'
+                  })}
+                  description={intl.formatMessage({
+                    id: 'models.form.pd.vendor.tips'
+                  })}
+                  value={form.getFieldValue(['disaggregation', 'vendor'])}
+                  options={derived.resolution.candidate_vendors.map(
+                    (vendor) => ({ label: vendor, value: vendor })
+                  )}
+                  onChange={(vendor: string) => {
+                    form.setFieldsValue({
+                      disaggregation: {
+                        ...(form.getFieldValue('disaggregation') || {}),
+                        vendor
+                      }
+                    });
+                    runResolve({ vendor });
+                  }}
+                ></SealSelect>
+              </Form.Item>
+            )}
+          {/* The derived answer, shown as a conclusion rather than asked as a
+              question. Phase 1 ships recipes for three engine × accelerator
+              cells; two have a single candidate and the third has a declared
+              preference, so none of them needs the user to choose. The picker
+              below stays one click away — and opens by itself when the server
+              derives nothing. */}
+          {!pickerVisible && derived.resolution?.mode && (
+            <Flex align="center" gap={8} style={{ marginBottom: 16 }}>
+              <span>
+                {intl.formatMessage(
+                  { id: 'models.form.pd.mode.derived' },
+                  {
+                    mode:
+                      transportLabel(findMode(derived.resolution.mode)) ||
+                      derived.resolution.mode,
+                    vendor: derived.resolution.vendor
+                  }
+                )}
+              </span>
+              <Button
+                type="link"
+                size="small"
+                onClick={() =>
+                  setDerived((prev) => ({ ...prev, pickerOpen: true }))
+                }
+              >
+                {intl.formatMessage({ id: 'common.button.edit' })}
+              </Button>
+            </Flex>
+          )}
+          {derived.resolution?.unresolved_reason && (
+            <div className="note note-warning" style={{ marginBottom: 8 }}>
+              {derived.resolution.unresolved_reason}
+            </div>
+          )}
           {/* The single entry point for every connection-state parameter:
               connector, ports and peer addresses are all derived from the
-              mode, and none of them is a field. */}
+              mode, and none of them is a field. Registered even while
+              collapsed: the field carries the derived value, so unmounting it
+              would drop what `applyResolution` just wrote. */}
           <Form.Item
             name={['disaggregation', 'mode']}
+            hidden={!pickerVisible}
             rules={[
               {
                 required: true,
@@ -541,7 +755,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
               description={intl.formatMessage({
                 id: 'models.form.pd.mode.tips'
               })}
-              options={modeOptions}
+              options={visibleModeOptions}
               optionRender={modeOptionRender}
               onChange={handleModeChange}
             ></SealSelect>
@@ -564,6 +778,11 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
             {!pdCapableBackend && backend && (
               <div className="note">
                 {intl.formatMessage({ id: 'models.form.pd.disabled.backend' })}
+              </div>
+            )}
+            {pdCapableBackend && onlyCustomLeft && (
+              <div className="note">
+                {intl.formatMessage({ id: 'models.form.pd.mode.only.custom' })}
               </div>
             )}
             {isCustomMode(mode) && (

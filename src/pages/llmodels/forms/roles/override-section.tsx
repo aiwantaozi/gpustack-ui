@@ -122,6 +122,24 @@ interface OverrideSectionProps {
   index: number;
   /** Reason the group cannot be customized; disables the switch when set. */
   disabledReason?: string;
+  /**
+   * Replaces the derived "inherited: …" line while the group is collapsed.
+   *
+   * For the router, whose parameters are inherited from the mode catalog
+   * rather than from the Model: summarizing its Model-level fields there would
+   * name values it does not run.
+   */
+  inheritContent?: React.ReactNode;
+  /**
+   * Whether switching to custom seeds the group from the Model's values.
+   *
+   * True everywhere it is an override of something. False for the router's
+   * parameters, where custom means *appending* to a catalog invocation — and
+   * seeding would copy the group's engine parameters onto a `vllm-router`
+   * command line that has no such flags, which is the bug the server drops
+   * inherited parameters to avoid.
+   */
+  seedFromModel?: boolean;
   children?: React.ReactNode;
 }
 
@@ -139,6 +157,8 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
   group,
   index,
   disabledReason,
+  inheritContent,
+  seedFromModel = true,
   children
 }) => {
   const intl = useIntl();
@@ -149,6 +169,9 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
 
   const handleModeChange = (value: string | number) => {
     if (value === OverrideModeMap.Custom) {
+      if (!seedFromModel) {
+        return;
+      }
       // Start from what the group was inheriting, so "custom" is an edit of
       // the effective configuration rather than a blank form.
       [...fields, ...uiFields].forEach((field) => {
@@ -236,6 +259,8 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
           )}
           {children}
         </>
+      ) : inheritContent !== undefined ? (
+        inheritContent
       ) : (
         // `shouldUpdate` rather than a watch per field: the summary reads
         // several model-level fields and only exists while collapsed, so

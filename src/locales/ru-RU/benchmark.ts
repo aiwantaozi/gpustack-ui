@@ -5,7 +5,7 @@ export default {
   'benchmark.button.clone': 'Clone Benchmark',
   'benchmark.button.compare': 'Compare',
   'benchmark.table.model': 'Model',
-  'benchmark.table.instance': 'Model Instance',
+  'benchmark.form.target': 'Цель тестирования',
   'benchmark.table.dataset': 'Dataset',
   'benchmark.table.requestRate': 'Request Rate',
   'benchmark.table.gpu': 'GPU ',

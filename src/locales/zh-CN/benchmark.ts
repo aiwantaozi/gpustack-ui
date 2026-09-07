@@ -5,7 +5,7 @@ export default {
   'benchmark.button.clone': '克隆基准测试',
   'benchmark.button.compare': '对比',
   'benchmark.table.model': '模型',
-  'benchmark.table.instance': '模型实例',
+  'benchmark.form.target': '压测目标',
   'benchmark.table.dataset': '数据集',
   'benchmark.table.requestRate': '请求率',
   'benchmark.table.gpu': 'GPU ',

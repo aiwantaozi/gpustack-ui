@@ -249,7 +249,9 @@ const ModelInstanceForm: React.FC = () => {
       rules={[
         {
           required: true,
-          message: getRuleMessage('select', 'benchmark.table.instance')
+          // Not "select an instance": a group is selected at the model
+          // level, because it has no member a client can name correctly.
+          message: getRuleMessage('select', 'benchmark.form.target')
         }
       ]}
     >
@@ -267,7 +269,7 @@ const ModelInstanceForm: React.FC = () => {
           }
         }}
         maxTagCount={1}
-        label={intl.formatMessage({ id: 'benchmark.table.instance' })}
+        label={intl.formatMessage({ id: 'benchmark.form.target' })}
         options={modelList}
         getPopupContainer={(triggerNode) => triggerNode.parentNode}
         optionNode={InstanceNode}

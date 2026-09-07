@@ -5,7 +5,7 @@ export default {
   'benchmark.button.clone': 'Kıyaslamayı Klonla',
   'benchmark.button.compare': 'Karşılaştır',
   'benchmark.table.model': 'Model',
-  'benchmark.table.instance': 'Model Örneği',
+  'benchmark.form.target': 'Kıyaslama hedefi',
   'benchmark.table.dataset': 'Veri Kümesi',
   'benchmark.table.requestRate': 'İstek Oranı',
   'benchmark.table.gpu': 'GPU ',

@@ -455,6 +455,20 @@ export default {
     'PD 已退化为聚合式 —— 未检测到 KV 传输。请检查 PD 模式与引擎参数。',
   'models.pd.effectiveness.partial':
     'KV 只对部分流量生效 —— 有一部分请求在重复做 prefill。请检查某个角色下是否有成员的 connector 已失效。',
+  'models.pd.stat.derived': '推算',
+  'models.pd.stat.p99': 'p99',
+  'models.pd.bandwidth.derived.tips':
+    '推算值，非实测：该 KV 连接器不导出字节计数器，所以速率取引擎报告的每秒 {tokensPerSecond} 个经网络到达的 prompt token，乘以每 token {perToken} 的 KV。按墙钟时间除，所以空闲窗口读数偏低——实测值是按传输耗时除的，两者不可比。',
+  'models.pd.recomputeTail': '被重算的 prompt',
+  'models.pd.recomputeTail.none': '无',
+  'models.pd.recomputeTail.tips':
+    '用来抓上面那个有效性比值看不见的请求。比值是窗口内所有 token 的总和，所以少数几个没拿到 KV、在 decode 侧被重新 prefill 一遍的请求，会被大多数正常请求稀释掉。这里是 decode 自己计算的 KV token 数的 99 分位，那些请求会以自己的 prompt 长度暴露出来。只在真的发生重算时才显示，健康的组这里什么都没有。',
+  'models.pd.members': '各成员请求数',
+  'models.pd.members.tips':
+    '回答「是哪一个成员」，而上面的数字只回答「有没有问题」。三个 prefill 里有一个完全没接到流量时，组级读数依然健康，只有 router 的每成员计数器能看见这件事。仅在某个角色有多个成员时显示——1P1D 下每个成员按定义承担该角色的全部流量，没有可比对象。以引擎地址为键，因为一台主机上会跑多个成员。',
+  'models.pd.members.errors': '派发失败',
+  'models.pd.members.errors.tips':
+    'router 观测到的派发失败次数，计在它自己重试之前。窗口内所有请求都成功而此值非零，就是被重试掩盖掉的那部分流量。',
   'models.pd.stat.avg': '均值',
   'models.pd.window': '最近 {window}',
   'models.pd.effectiveness': 'PD 有效性',

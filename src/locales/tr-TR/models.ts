@@ -483,6 +483,20 @@ export default {
     'PD toplu sunuma geriledi - KV aktarımı algılanmadı. PD modunu ve motor parametrelerini kontrol edin.',
   'models.pd.effectiveness.partial':
     "KV yalnızca trafiğin bir kısmı için aktarılıyor - bazı istekler iki kez prefill ediliyor. Bir rolün üyelerinden birinin connector'ünü yitirip yitirmediğini kontrol edin.",
+  'models.pd.stat.derived': 'türetilmiş',
+  'models.pd.stat.p99': 'p99',
+  'models.pd.bandwidth.derived.tips':
+    'Ölçülmüş değil, türetilmiş: bu KV bağlayıcısı bayt sayacı yayımlamadığı için hız, motorun ağ üzerinden geldiğini bildirdiği saniyedeki {tokensPerSecond} prompt belirtecinin, belirteç başına {perToken} KV ile çarpımıdır. Duvar saatine bölündüğü için boş bir pencerede düşük okunur; ölçülen değer ise aktarımda geçen süreye bölünür ve ikisi karşılaştırılamaz.',
+  'models.pd.recomputeTail': 'Yeniden hesaplanan istekler',
+  'models.pd.recomputeTail.none': 'yok',
+  'models.pd.recomputeTail.tips':
+    "Yukarıdaki etkinlik oranının göremediği istekleri yakalar. O oran penceredeki tüm belirteçleri toplar; bu yüzden KV'sini alamayıp decode tarafında ikinci kez prefill edilen birkaç istek, normal çoğunluk arasında erir. Buradaki değer, decode'un kendi hesapladığı KV belirteçlerinin 99. yüzdebirliğidir, dolayısıyla o istekler kendi istem uzunluklarıyla ortaya çıkar. Yalnızca gerçekten yeniden hesaplama olduğunda gösterilir; sağlıklı bir grupta burada hiçbir şey olmaz.",
+  'models.pd.members': 'Üye başına istek',
+  'models.pd.members.tips':
+    "Yukarıdaki değerler 'sorun var mı' sorusuna yanıt verirken bu 'hangi üye' sorusuna yanıt verir. Üç prefill'den biri hiç trafik almasa bile grup düzeyindeki okuma sağlıklı görünür ve bunu yalnızca router'ın üye başına sayaçları gösterir. Yalnızca bir rolün birden çok üyesi olduğunda görünür; 1P1D'de her üye tanım gereği rolünün tüm trafiğini taşır. Tek bir ana makine birden çok üye çalıştırdığı için anahtar motorun adresidir.",
+  'models.pd.members.errors': 'Dağıtım hataları',
+  'models.pd.members.errors.tips':
+    "Router'ın gördüğü başarısız dağıtımlar, kendi yeniden denemesinden önce sayılır. Her isteğin başarılı olduğu bir pencerede sıfır olmayan bir değer, bir yeniden denemenin gizlediği trafik payıdır.",
   'models.pd.stat.avg': 'ort.',
   'models.pd.window': 'son {window}',
   'models.pd.effectiveness': 'PD Effectiveness',

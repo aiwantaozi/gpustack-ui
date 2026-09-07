@@ -484,6 +484,20 @@ export default {
     'PD が集約方式に退化しています —— KV 転送が検出されません。PD モードとエンジンパラメータを確認してください。',
   'models.pd.effectiveness.partial':
     'KV は一部のトラフィックしか跨いでいません —— 一部のリクエストが二重に prefill されています。いずれかのロールのメンバーが connector を失っていないか確認してください。',
+  'models.pd.stat.derived': '推定',
+  'models.pd.stat.p99': 'p99',
+  'models.pd.bandwidth.derived.tips':
+    '実測ではなく推定値です。この KV コネクタはバイトカウンタを公開しないため、エンジンが報告する毎秒 {tokensPerSecond} 個のネットワーク経由 prompt トークンに、トークンあたり {perToken} の KV を掛けた値です。実時間で割っているため、アイドルなウィンドウでは低く出ます。実測値は転送に費やした時間で割るので、両者は比較できません。',
+  'models.pd.recomputeTail': '再計算されたプロンプト',
+  'models.pd.recomputeTail.none': 'なし',
+  'models.pd.recomputeTail.tips':
+    '上の有効性の比率では見えないリクエストを捕まえるための値です。その比率はウィンドウ内の全トークンの合計なので、KV を受け取れず decode 側でもう一度 prefill されたごく一部のリクエストは、正常な大多数によって薄められます。ここは decode が自分で計算した KV トークン数の 99 パーセンタイルなので、そうしたリクエストは自身のプロンプト長として現れます。実際に再計算が起きたときだけ表示され、健全なグループでは何も出ません。',
+  'models.pd.members': 'メンバーごとのリクエスト数',
+  'models.pd.members.tips':
+    '上の数値が「問題があるか」に答えるのに対し、これは「どのメンバーか」に答えます。3 つの prefill のうち 1 つがまったくトラフィックを受けていなくてもグループ全体の値は健全に見え、それが見えるのは router のメンバー別カウンタだけです。ある役割に複数のメンバーがある場合にのみ表示されます。1P1D では各メンバーがその役割の全トラフィックを担うため比較対象がありません。1 台のホストが複数のメンバーを動かすので、エンジンのアドレスをキーにしています。',
+  'models.pd.members.errors': '振り分け失敗',
+  'models.pd.members.errors.tips':
+    'router が観測した振り分け失敗の回数で、router 自身のリトライより前に計上されます。すべてのリクエストが成功したウィンドウでこの値が非ゼロなら、それはリトライが隠したトラフィックの割合です。',
   'models.pd.stat.avg': '平均',
   'models.pd.window': '直近 {window}',
   'models.pd.effectiveness': 'PD Effectiveness',

@@ -20,7 +20,11 @@
  */
 import { useCallback, useState } from 'react';
 import { queryModelPDMetrics } from '../../apis';
-import type { PDMetrics, PDRoleMetrics } from '../../config/types';
+import type {
+  PDMemberMetrics,
+  PDMetrics,
+  PDRoleMetrics
+} from '../../config/types';
 
 // The server's verdict values. Compared against, never re-derived from the
 // number against a client-side threshold: a second copy of the judgement is a
@@ -34,9 +38,29 @@ const AGGREGATED = 'aggregated';
 const DEGRADED = 'degraded';
 const IDLE = 'idle';
 const UNMEASURABLE = 'unmeasurable';
-// Per-worker counters — the good denominator, because a low ratio then points
-// at one decode rather than at "the group".
-const DENOMINATOR_PER_WORKER = 'router_per_worker';
+// The denominators that localise. `router_per_worker` points at one decode
+// rather than at "the group"; `engine_tokens` is the engine's own prompt-token
+// split, which the server documents as the STRONGEST form — both operands come
+// from one engine in one window, so there is no second counter to be missing,
+// coarse, or scraped at a different moment.
+//
+// 🔴 Was `!== 'router_per_worker'`, which predates `engine_tokens` and so
+// labelled the best denominator "coarse" — seen on a healthy Ascend group
+// reading `engine_tokens`. The weak one is the route aggregate: it still
+// answers "did anything get routed at all", which a ratio of zero is
+// meaningless without, but localises nothing.
+const STRONG_DENOMINATORS = new Set(['engine_tokens', 'router_per_worker']);
+
+// 🔴 The edge of vLLM's first `request_prefill_kv_computed_tokens` bucket, and
+// the reason the recompute tail is not rendered as a plain number.
+//
+// `histogram_quantile` interpolates inside whichever bucket it lands in, so a
+// decode that recomputed *nothing* reports `quantile × 1.0` — measured 0.95
+// and 0.99 on a healthy 1P1D. Showing "0.99 tokens recomputed" on a perfect
+// deployment is exactly the false positive this whole panel exists to avoid,
+// so the figure only becomes a signal once it clears this edge. The next
+// bucket edges are 2, 5 and 10, so a real recomputation lands far above it.
+const RECOMPUTE_FIRST_BUCKET = 1;
 
 export interface PDMetricsState {
   loading: boolean;
@@ -66,6 +90,39 @@ export interface PDMetricsState {
   // Per role: queue depth is the ratio-tuning signal, and TTFT/TPOT belong to
   // one role each rather than to the group.
   roles: Record<string, PDRoleMetrics>;
+  // Per upstream engine, keyed by the router's `worker` label. Empty when the
+  // mode's router exports no per-worker counters.
+  members: Record<string, PDMemberMetrics>;
+  /**
+   * New KV tokens the receiving role computed per request, p99.
+   *
+   * 🔑 Complements `effectiveness` rather than repeating it, and the two have
+   * opposite blind spots: that ratio sums every token in the window, so a
+   * minority of requests recomputing whole prompts is diluted by the majority
+   * that did not — 5% of requests, over mixed prompt lengths, can leave it at
+   * 0.97 and inside `effective`. This jumps to those requests' prompt length.
+   */
+  recomputeTailTokens?: number | null;
+  /** Whether that tail has cleared the first histogram bucket — see
+   * `RECOMPUTE_FIRST_BUCKET`. Only then is it a finding rather than
+   * interpolation noise, so the panel renders the number in this case and the
+   * word "none" otherwise. Both are shown: hiding the healthy case entirely
+   * left a reader unable to tell the check existed. */
+  recomputeTailAlarming: boolean;
+  /**
+   * Prompt tokens per second that arrived over the wire.
+   *
+   * The input to a *derived* bandwidth, for the connectors that export no
+   * byte counter of their own: multiply by the budget endpoint's
+   * `bytes_per_token`. Left in tokens here because the conversion needs the
+   * model's KV footprint, which means reading its config — a read the metrics
+   * endpoint deliberately does not do on a polled path.
+   *
+   * ⚠️ Divided by wall clock, unlike `rate`, which divides by time spent
+   * transferring. Not interchangeable: this answers "how much KV is this
+   * deployment moving", `rate` answers "how fast is the link".
+   */
+  externalTokensPerSecond?: number | null;
 }
 
 const EMPTY: PDMetricsState = {
@@ -76,7 +133,9 @@ const EMPTY: PDMetricsState = {
   idle: false,
   unmeasurable: false,
   weakDenominator: false,
-  roles: {}
+  roles: {},
+  members: {},
+  recomputeTailAlarming: false
 };
 
 const toState = (data: PDMetrics): PDMetricsState => {
@@ -108,7 +167,7 @@ const toState = (data: PDMetrics): PDMetricsState => {
     unmeasurable: data.status === UNMEASURABLE,
     weakDenominator:
       !!data.request_count_source &&
-      data.request_count_source !== DENOMINATOR_PER_WORKER,
+      !STRONG_DENOMINATORS.has(data.request_count_source),
     countedRole: transfer.counted_on_role,
     rate: transfer.bytes_per_second,
     bytesPerTransfer: transfer.bytes_per_transfer,
@@ -118,7 +177,12 @@ const toState = (data: PDMetrics): PDMetricsState => {
     // would be a claim we cannot make.
     failedTransfers: transfer.failures ?? null,
     kvExpired: transfer.leases_expired ?? null,
-    roles: data.roles || {}
+    roles: data.roles || {},
+    members: data.members || {},
+    recomputeTailTokens: data.recomputed_tokens_p99 ?? null,
+    recomputeTailAlarming:
+      (data.recomputed_tokens_p99 ?? 0) >= RECOMPUTE_FIRST_BUCKET,
+    externalTokensPerSecond: transfer.external_tokens_per_second ?? null
   };
 };
 

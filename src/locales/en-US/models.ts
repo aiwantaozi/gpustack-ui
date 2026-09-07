@@ -483,6 +483,20 @@ export default {
     'PD has degraded to aggregated serving - no KV transfer detected. Check the PD mode and the engine parameters.',
   'models.pd.effectiveness.partial':
     'KV is crossing for part of the traffic only - some requests are being prefilled twice. Check whether one member of a role has lost its connector.',
+  'models.pd.stat.derived': 'derived',
+  'models.pd.stat.p99': 'p99',
+  'models.pd.bandwidth.derived.tips':
+    'Derived, not measured: this KV connector exports no byte counter, so the rate is the {tokensPerSecond} prompt tokens/s the engine reports as arriving over the wire, times {perToken} of KV per token. Divided by wall clock, so an idle window reads low - the measured figure divides by time spent transferring instead, and the two are not comparable.',
+  'models.pd.recomputeTail': 'Prompts recomputed',
+  'models.pd.recomputeTail.none': 'none',
+  'models.pd.recomputeTail.tips':
+    'Catches the requests the effectiveness ratio above cannot see. That ratio sums every token in the window, so a handful of requests that never got their KV - and had to prefill a second time on decode - is diluted by the majority that did. This is the 99th percentile of KV tokens decode computed itself, so those requests show up at their own prompt length instead. It is only drawn when something was recomputed; a healthy group has nothing here.',
+  'models.pd.members': 'Requests per member',
+  'models.pd.members.tips':
+    "Answers which member, where the figures above answer whether. A group reads healthy while one prefill of three takes no traffic at all, and the router's per-member counters are the only place that is visible. Shown only when a role has several members, since on a 1P1D each carries all of its role's traffic by definition. Keyed by the engine's address because one host runs several members.",
+  'models.pd.members.errors': 'Dispatch errors',
+  'models.pd.members.errors.tips':
+    'Dispatches the router saw fail, counted before its own retry. A non-zero value over a window where every request succeeded is the share of traffic a retry covered up.',
   'models.pd.stat.avg': 'avg',
   'models.pd.window': 'last {window}',
   'models.pd.effectiveness': 'PD Effectiveness',

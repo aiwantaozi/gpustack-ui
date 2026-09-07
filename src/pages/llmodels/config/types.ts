@@ -107,13 +107,38 @@ export interface PDMetrics {
   routed_request_count?: number | null;
   // `router_per_worker` | `router_total` | `none`.
   request_count_source?: string | null;
+  // New KV tokens the RECEIVING role computed per request, at the tail.
+  //
+  // 🔴 A healthy reading is BELOW 1.0, not 0: vLLM's first bucket is `le=1.0`
+  // and `histogram_quantile` interpolates inside whichever bucket it lands in,
+  // so a group that recomputed nothing reports `quantile × 1.0` (0.95 / 0.99,
+  // measured). Rendering that would alarm on a perfect deployment, which is
+  // why the panel only surfaces this once it clears the first bucket.
+  recomputed_tokens_p95?: number | null;
+  recomputed_tokens_p99?: number | null;
   kv_transfer?: PDKVTransferMetrics | null;
   // Keyed by role name. Whatever the series carried — a group with no decode
   // replica yet shows the roles it has rather than an invented empty one.
   roles?: Record<string, PDRoleMetrics> | null;
+  // Keyed by the router's `worker` label, which is the upstream engine URL and
+  // NOT a GPUStack worker: one host runs several members of an xPyD group, so
+  // keying on the host would collapse exactly the members this tells apart.
+  // Absent for a member the router never dispatched to — the absence is the
+  // finding, and a zero row would claim it was measured.
+  members?: Record<string, PDMemberMetrics> | null;
   // [timestamp, value]; a null value is a gap, which is not a zero.
   kv_transfers_per_request_series?: (number | null)[][];
   kv_transfer_bytes_per_second_series?: (number | null)[][];
+}
+
+export interface PDMemberMetrics {
+  prefill_requests?: number | null;
+  decode_requests?: number | null;
+  // Dispatches the router saw fail, counted BEFORE its own retry. Non-zero
+  // while every request returned 200 is the share of traffic a retry covered
+  // up, and a retry that keeps landing on one bad decode is invisible in a
+  // total — which is why this is per member.
+  decode_errors?: number | null;
 }
 
 export interface PDKVTransferMetrics {
@@ -128,6 +153,13 @@ export interface PDKVTransferMetrics {
   seconds_p50?: number | null;
   seconds_p95?: number | null;
   seconds_p99?: number | null;
+  // Prompt tokens that arrived over the wire, read off the ENGINE rather than
+  // the connector — so this exists for every connector, including the ones
+  // that export no byte or duration counters at all.
+  external_tokens?: number | null;
+  // The same over wall clock. Multiply by the budget endpoint's
+  // `bytes_per_token` for a derived bandwidth; see `use-pd-metrics`.
+  external_tokens_per_second?: number | null;
   failures?: number | null;
   // Requests dropped between the two hops. Null (not 0) where the connector
   // exports no such counter.

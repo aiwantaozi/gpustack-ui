@@ -238,6 +238,74 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
       (budget.budget?.head_dim ?? 0) *
       layers;
   const elementBytes = divisor > 0 ? Math.round(perTokenBytes / divisor) : 0;
+
+  // The rate for connectors that export no byte counter of their own, which is
+  // every Mooncake build measured so far: the ENGINE says how many prompt
+  // tokens arrived over the wire, and the budget above already says what a
+  // token of this model's KV weighs.
+  //
+  // 🔴 Shown only where the measured rate is absent, and never instead of it.
+  // The two divide by different things — the connector's by time spent
+  // transferring, this one by wall clock — so rendering them in one column
+  // would invite a comparison that is not valid. Where the connector answers,
+  // its figure wins and this one is not drawn at all.
+  //
+  // ⚠️ Labelled as derived, because it is an estimate of the KV *payload*,
+  // not a measurement of link traffic: validated against the NPU RoCE
+  // counters on 910B2 at 2.7% low, the difference being protocol overhead.
+  // 🔴 `> 0`, not `!= null`. An idle window reports zero tokens crossing, and
+  // `KV Transfer derived 0 B/s` is the false zero this panel refuses
+  // everywhere else: effectiveness renders `(no traffic)` rather than `0.00`
+  // for exactly this reason, and a rate is no different. Nothing crossed
+  // because nobody called the model, which is not a throughput of zero.
+  const derivedRate =
+    metrics.rate == null &&
+    (metrics.externalTokensPerSecond ?? 0) > 0 &&
+    perTokenBytes > 0
+      ? (metrics.externalTokensPerSecond as number) * perTokenBytes
+      : null;
+
+  // Per member, from the router — the only counters that know how the traffic
+  // was actually spread. Sorted by decode share so the quiet member surfaces
+  // at one end rather than wherever the map happened to iterate.
+  //
+  // 🔑 Why this earns space beside a group-level verdict: the verdict answers
+  // "is this group disaggregating", and a group reads `effective` with one
+  // decode taking no traffic at all. A ratio change or a stuck member is a
+  // question about *which* member, and nothing else on this row can answer it.
+  const memberRows = Object.entries(metrics.members || {})
+    .map(([worker, member]) => ({
+      worker,
+      // The address, minus the scheme. Kept because it is the only thing that
+      // distinguishes two members of one host — but paired with the role
+      // below, because an address alone does not say what the number means.
+      address: worker.replace(/^https?:\/\//, ''),
+      // Which role this member serves, read off *which* counter the router
+      // incremented rather than from any label: the prefill counter only ever
+      // names prefill upstreams and the decode counter only decode ones, so
+      // the counter that is present is the role.
+      role: member.prefill_requests != null ? 'prefill' : 'decode',
+      requests: (member.decode_requests ?? 0) + (member.prefill_requests ?? 0),
+      errors: member.decode_errors ?? 0
+    }))
+    .sort((a, b) => b.requests - a.requests);
+  const memberErrors = memberRows.reduce((sum, m) => sum + m.errors, 0);
+  const memberRequests = memberRows.reduce((sum, m) => sum + m.requests, 0);
+  // Shown whenever traffic was routed, and NOT gated on "is there anything to
+  // compare".
+  //
+  // 🔧 It was, and that was too narrow: the row carries two things, and only
+  // one of them needs several members. The comparison ("which of the three
+  // prefills is quiet") does. The *volume* — how many requests each member
+  // actually served in the window — does not, and it appears nowhere else on
+  // this panel: `routed_request_count` is the verdict's denominator and is
+  // never rendered. So on a 1P1D the row still answers "how much traffic did
+  // this group take", which the effectiveness ratio deliberately does not.
+  //
+  // 🔴 Still never on an idle window: every member would read 0, which says
+  // "measured, and it took nothing" where the truth is "nobody called the
+  // model" — the same false zero the verdict renders as `(no traffic)`.
+  const showMembers = memberRows.length > 0 && memberRequests > 0;
   const bandwidthRequirement = budget.requiredBytesPerSecond != null && (
     <Tooltip
       // Only the arithmetic behind the size. Everything else that stood here --
@@ -383,6 +451,77 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
                           })}
                         >
                           <Figure text={formatRate(metrics.rate)} />
+                        </Metric>
+                      )}
+                      {derivedRate != null && (
+                        // Same label as the measured rate, with the derivation
+                        // stated: a reader comparing two deployments has to be
+                        // able to tell which figure they are looking at, and a
+                        // separate label would read as a different quantity.
+                        <Metric
+                          label={intl.formatMessage({
+                            id: 'models.pd.bandwidth'
+                          })}
+                          stat={intl.formatMessage({
+                            id: 'models.pd.stat.derived'
+                          })}
+                        >
+                          <Tooltip
+                            title={intl.formatMessage(
+                              { id: 'models.pd.bandwidth.derived.tips' },
+                              {
+                                tokensPerSecond: Math.round(
+                                  metrics.externalTokensPerSecond ?? 0
+                                ),
+                                perToken: formatBytes(perTokenBytes)
+                              }
+                            )}
+                          >
+                            <Figure text={formatRate(derivedRate)} />
+                          </Tooltip>
+                        </Metric>
+                      )}
+                      {metrics.recomputeTailTokens != null && (
+                        // Both states, and that is the fix for a check nobody
+                        // could find: hidden while healthy, a reader had no way
+                        // to know the panel was watching for this at all.
+                        //
+                        // 🔴 But the healthy case is a WORD, not the number.
+                        // A decode that recomputed nothing reads 0.95/0.99
+                        // here purely from interpolation inside the `le=1.0`
+                        // bucket, and "0.99 tokens recomputed" on a perfect
+                        // group is the false alarm this panel exists to avoid.
+                        // Below that edge the honest statement is "none" — at
+                        // most one token, in at most 1% of requests.
+                        <Metric
+                          label={intl.formatMessage({
+                            id: 'models.pd.recomputeTail'
+                          })}
+                          stat={
+                            metrics.recomputeTailAlarming
+                              ? intl.formatMessage({ id: 'models.pd.stat.p99' })
+                              : undefined
+                          }
+                        >
+                          <Tooltip
+                            title={intl.formatMessage({
+                              id: 'models.pd.recomputeTail.tips'
+                            })}
+                          >
+                            {metrics.recomputeTailAlarming ? (
+                              <span
+                                style={{ color: 'var(--ant-color-warning)' }}
+                              >
+                                {Math.round(metrics.recomputeTailTokens)}
+                              </span>
+                            ) : (
+                              <span style={labelStyle}>
+                                {intl.formatMessage({
+                                  id: 'models.pd.recomputeTail.none'
+                                })}
+                              </span>
+                            )}
+                          </Tooltip>
                         </Metric>
                       )}
                       {metrics.p99Seconds != null && (
@@ -567,6 +706,76 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
                         )}
                       </Flex>
                     ))}
+                    {showMembers && (
+                      // Only where there is a comparison to make. On a 1P1D the
+                      // two members carry the whole traffic by construction, so
+                      // the line would state the obvious and push the per-role
+                      // figures — which are useful at every size — down a row.
+                      //
+                      // Rendered per member rather than as a spread or a
+                      // min/max: a single dispersion number says a member is
+                      // off without saying which, and "which" is the entire
+                      // reason these counters were plumbed through.
+                      <Flex align="center" gap={16} wrap="wrap">
+                        <Tooltip
+                          title={intl.formatMessage({
+                            id: 'models.pd.members.tips'
+                          })}
+                        >
+                          <span className={styles.roleName}>
+                            {intl.formatMessage({ id: 'models.pd.members' })}
+                          </span>
+                        </Tooltip>
+                        {memberRows.map((member) => (
+                          // Role first, address second: the role says what the
+                          // number is, the address says which of that role's
+                          // members it belongs to. Address alone left the
+                          // reader to work out both from an ip:port.
+                          <Metric
+                            key={member.worker}
+                            label={`${roleLabel(intl, member.role)} ${member.address}`}
+                          >
+                            {/* Rounded: these count requests. The server hands
+                            back the extrapolated `increase()`, so 8.04 is the
+                            honest raw value and a fractional request is not
+                            something a reader can act on. */}
+                            <span
+                              style={
+                                member.errors > 0
+                                  ? { color: 'var(--ant-color-warning)' }
+                                  : valueStyle
+                              }
+                            >
+                              {Math.round(member.requests)}
+                            </span>
+                          </Metric>
+                        ))}
+                        {memberErrors > 0 && (
+                          // 🔴 Counted before the router's own retry, so a
+                          // non-zero value over a window where every request
+                          // returned 200 is the share of traffic a retry
+                          // covered up. Nothing else on this panel can see it.
+                          <Flex align="center" gap={4}>
+                            <span style={labelStyle}>
+                              {intl.formatMessage({
+                                id: 'models.pd.members.errors'
+                              })}
+                            </span>
+                            <Tooltip
+                              title={intl.formatMessage({
+                                id: 'models.pd.members.errors.tips'
+                              })}
+                            >
+                              <span
+                                style={{ color: 'var(--ant-color-warning)' }}
+                              >
+                                {Math.round(memberErrors)}
+                              </span>
+                            </Tooltip>
+                          </Flex>
+                        )}
+                      </Flex>
+                    )}
                   </Flex>
                 </Col>
               </Row>

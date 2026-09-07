@@ -380,5 +380,11 @@ export default {
   'benchmark.detail.monitoring': 'Monitoring',
   'benchmark.detail.monitoring.tips':
     'Open the dashboard for this run, over the interval it ran. A disaggregated group goes to the PD dashboard, where the prefill queue, the decode queue and the KV transfer are shown separately.',
+  'benchmark.form.targetMode': 'Target',
+  'benchmark.form.targetMode.instance': 'Instance (engine)',
+  'benchmark.form.targetMode.route': 'Route (deployment)',
+  'benchmark.form.targetMode.tips':
+    "Instance sends the load straight at one engine — a group's router, or one replica of a plain model — so nothing but the engine is in the path. Route sends it through the entrance clients call, so every replica of a plain model takes part; use it to compare a disaggregated group against an aggregated deployment on the same cards. ⚠️ Route puts the server's proxy in the path, which at high rates can be the bottleneck rather than the deployment.",
+  'benchmark.detail.targetMode.route': 'Route (deployment) · {route}',
   'benchmark.detail.result.basic': 'Basic'
 };

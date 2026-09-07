@@ -74,6 +74,10 @@ export interface FormData {
   model_id: number;
   model_name: string;
   model_instance_name: string;
+  // What the load is aimed at: one instance (an engine) or the deployment's
+  // route. Absent on rows written before the field existed, which measured an
+  // instance.
+  target_mode?: string;
   dataset_name: string;
   dataset_input_tokens: number;
   dataset_output_tokens: number;

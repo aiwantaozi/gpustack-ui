@@ -381,5 +381,11 @@ export default {
   'benchmark.detail.monitoring': 'İzleme',
   'benchmark.detail.monitoring.tips':
     'Bu çalışmanın zaman aralığı için panoyu açar. Ayrıştırılmış bir grup, prefill kuyruğunun, decode kuyruğunun ve KV aktarımının ayrı ayrı gösterildiği PD panosuna gider.',
+  'benchmark.form.targetMode': 'Kıyaslama hedefi türü',
+  'benchmark.form.targetMode.instance': 'Örnek (motoru ölçer)',
+  'benchmark.form.targetMode.route': 'Rota (dağıtımı ölçer)',
+  'benchmark.form.targetMode.tips':
+    "Örnek: yük doğrudan tek bir motora gider — ayrıştırılmış bir grubun routerı ya da düz bir modelin tek bir kopyası — ve yolda motordan başka bir şey yoktur. Rota: yük, istemcilerin çağırdığı girişten geçer, böylece düz bir modelin tüm kopyaları işin içine girer; ayrıştırılmış ve toplu dağıtımları aynı kart sayısında karşılaştırmak için bunu kullanın. ⚠️ Rota, sunucunun proxy'sini yola dahil eder; yüksek eşzamanlılıkta darboğaz dağıtım değil proxy olabilir.",
+  'benchmark.detail.targetMode.route': 'Rota (dağıtım) · {route}',
   'benchmark.detail.result.basic': 'Temel'
 };

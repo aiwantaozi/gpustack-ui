@@ -379,5 +379,11 @@ export default {
   'benchmark.detail.monitoring': 'モニタリング',
   'benchmark.detail.monitoring.tips':
     'この実行の時間範囲でダッシュボードを開きます。分離構成のグループは PD ダッシュボードに移動し、prefill キュー・decode キュー・KV 転送がそれぞれ表示されます。',
+  'benchmark.form.targetMode': 'ベンチマーク対象の形態',
+  'benchmark.form.targetMode.instance': 'インスタンス（エンジンを計測）',
+  'benchmark.form.targetMode.route': 'ルート（デプロイメントを計測）',
+  'benchmark.form.targetMode.tips':
+    'インスタンス：負荷を単一のエンジンへ直接送ります（分離グループの router、または通常モデルの 1 レプリカ）。経路上にエンジン以外は入りません。ルート：クライアントが呼び出す入口から入るため、通常モデルのすべてのレプリカが対象になります。同じカード数で分離構成と集約構成を比較する場合はこちらを使ってください。⚠️ ルートではサーバーのプロキシが経路に入るため、高並列ではデプロイメントではなくプロキシがボトルネックになることがあります。',
+  'benchmark.detail.targetMode.route': 'ルート（デプロイメント）· {route}',
   'benchmark.detail.result.basic': 'Basic'
 };

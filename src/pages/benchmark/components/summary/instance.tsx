@@ -25,6 +25,10 @@ const Instance: React.FC = () => {
   const items = useMemo(() => {
     const { snapshot } = detailData;
     const instanceData = engineMember(snapshot);
+    // Present only for a run that went through a route, and it is the fact
+    // that names what was measured — a route's targets and weights can be
+    // edited, so "which route" is part of what the numbers mean.
+    const routeName = snapshot?.route_name;
     const endpointRole = (
       Object.values(snapshot?.instances || {}) as any[]
     ).find((member) => member?.name === detailData?.model_instance_name)?.role;
@@ -54,6 +58,25 @@ const Instance: React.FC = () => {
         )
       },
 
+      {
+        // What was measured, which decides whether two reports can be
+        // compared at all: an engine straight at its port, or the deployment
+        // through the route clients call (every replica of a plain model).
+        key: '4',
+        label: intl.formatMessage({ id: 'benchmark.form.targetMode' }),
+        children: (
+          <AutoTooltip ghost>
+            {routeName
+              ? intl.formatMessage(
+                  { id: 'benchmark.detail.targetMode.route' },
+                  { route: routeName }
+                )
+              : intl.formatMessage({
+                  id: 'benchmark.form.targetMode.instance'
+                })}
+          </AutoTooltip>
+        )
+      },
       {
         key: '5',
         label: intl.formatMessage({ id: 'models.form.backend' }),

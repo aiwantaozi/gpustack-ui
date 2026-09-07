@@ -16,7 +16,8 @@ import {
   genBenchmarkName,
   genDatasetSeed,
   profileAllowsSlo,
-  sloTargetsFromFields
+  sloTargetsFromFields,
+  TargetModeValueMap
 } from '../config';
 import FormContext from '../config/form-context';
 import { FormData, BenchmarkListItem as ListItem } from '../config/types';
@@ -244,6 +245,10 @@ const ProviderForm: React.FC<ProviderFormProps> = forwardRef((props, ref) => {
             dataset_input_tokens: 1024,
             dataset_output_tokens: 128,
             profile: 'Max Throughput',
+            // An engine measurement, which is what every run was before the
+            // choice existed. `route` is opt-in because it puts the server's
+            // proxy in the path.
+            target_mode: TargetModeValueMap.Instance,
             load_type: 'fixed_rate',
             auto_tune: true,
             lower_bound: AUTO_TUNE_DEFAULTS.lower_bound,

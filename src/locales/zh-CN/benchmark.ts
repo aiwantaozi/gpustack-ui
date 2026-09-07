@@ -374,5 +374,11 @@ export default {
   'benchmark.detail.monitoring': '监控',
   'benchmark.detail.monitoring.tips':
     '打开这次运行对应时间范围的监控面板。分离部署的组会跳转到 PD 面板，那里分别展示 prefill 队列、decode 队列与 KV 传输。',
+  'benchmark.form.targetMode': '压测目标形态',
+  'benchmark.form.targetMode.instance': '实例（测引擎）',
+  'benchmark.form.targetMode.route': '路由（测部署）',
+  'benchmark.form.targetMode.tips':
+    '实例：压力直接打到单个引擎 —— 分离组的 router，或普通模型的某一个副本 —— 链路里除了引擎没有别的东西。路由：从客户端调用的入口进去，普通模型的每个副本都会参与；对比分离部署与聚合部署在同样卡数下的性能，要用这一档。⚠️ 路由模式会把 server 的代理算进链路，高并发下瓶颈可能是代理而不是部署。',
+  'benchmark.detail.targetMode.route': '路由（测部署）· {route}',
   'benchmark.detail.result.basic': '基础信息'
 };

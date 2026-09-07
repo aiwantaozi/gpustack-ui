@@ -11,6 +11,7 @@ import {
 import { useIntl } from '@umijs/max';
 import { Form } from 'antd';
 import React, { useEffect, useMemo } from 'react';
+import { targetModeOptions } from '../config';
 import { useFormContext } from '../config/form-context';
 import { FormData } from '../config/types';
 import ModelInstanceForm from './model-instance';
@@ -147,6 +148,20 @@ const BasicForm: React.FC = () => {
         <CInput.Input></CInput.Input>
       </Form.Item>
       <ModelInstanceForm></ModelInstanceForm>
+      {/* Which of two different measurements this run is. Kept next to the
+          target because it changes what the target MEANS: the same model
+          measured through its route is every replica, and measured as an
+          instance is one of them. */}
+      <Form.Item<FormData> name="target_mode">
+        <SealSelect
+          disabled={action === PageAction.EDIT}
+          options={targetModeOptions}
+          label={intl.formatMessage({ id: 'benchmark.form.targetMode' })}
+          description={intl.formatMessage({
+            id: 'benchmark.form.targetMode.tips'
+          })}
+        ></SealSelect>
+      </Form.Item>
       <Form.Item<FormData> name="description">
         <CInput.TextArea
           scaleSize={true}

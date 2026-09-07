@@ -13,6 +13,7 @@ import {
   AutoTooltip,
   DropdownButtons,
   GrafanaIcon,
+  IconFont,
   icons,
   StatusTag,
   ThemeTag,
@@ -32,6 +33,7 @@ import RoleStatusDetail from '../components/pd/role-status-detail';
 import {
   isModelServable,
   isPDModel,
+  modelCategoriesMap,
   modelReplicaCounts,
   ModelStateLabelMap,
   ModelStateMap,
@@ -92,6 +94,11 @@ const ActionList: ActionItem[] = [
     label: 'models.restart',
     key: 'restart',
     icon: icons.RetweetOutlined
+  },
+  {
+    label: 'models.table.instance.benchmark',
+    key: 'benchmark',
+    icon: <IconFont type="icon-speed" />
   },
   {
     label: 'resources.metrics.details',
@@ -169,6 +176,17 @@ const useModelsColumns = ({
         // is the operator's call, and an entry that only appears once the
         // model is already stale teaches nobody it exists.
         return record.replicas > 0;
+      }
+      if (action.key === 'benchmark') {
+        // Same servability gate as the playground, for the same reason: a
+        // group whose router is down has RUNNING members and answers nothing,
+        // and a run pointed at it would measure a connection error. No route
+        // target needed though — the load goes straight at the deployment,
+        // not through the gateway.
+        return (
+          isModelServable(record) &&
+          record.categories?.includes(modelCategoriesMap.llm)
+        );
       }
       if (action.key === 'metrics') {
         return systemConfig?.showMonitoring;

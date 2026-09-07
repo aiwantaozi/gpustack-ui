@@ -55,6 +55,7 @@ import {
 import useEditDeployment from '../hooks/use-edit-deployment';
 import useModelsColumns from '../hooks/use-models-columns';
 import useRestartModel from '../hooks/use-restart-model';
+import { useBenchmarkTargetInstance } from '../hooks/use-run-benchmark';
 import useViewInstanceLogs from '../hooks/use-view-instance-logs';
 import LeftFilters from '../instance-view/left-filters';
 import DeployModal from './deployment/deploy-modal';
@@ -163,6 +164,8 @@ const Models: React.FC<ModelsProps> = ({
   const { handleRestartModel } = useRestartModel({
     onSuccess: (row) => updateExpandedRowKeys([row.id, ...expandedRowKeys])
   });
+
+  const { runBenchmarkOnModel } = useBenchmarkTargetInstance();
 
   const { goToGrafana, ActionButton } = useGranfanaLink({
     type: 'model'
@@ -408,6 +411,12 @@ const Models: React.FC<ModelsProps> = ({
       }
       if (val === 'restart') {
         await handleRestartModel(row);
+      }
+      if (val === 'benchmark') {
+        // The deployment is the target, so this hands over the model rather
+        // than one of its members. For a group that is the only correct
+        // answer — no member of it can serve a request alone.
+        runBenchmarkOnModel(row);
       }
       if (val === 'chat') {
         const targetRoute = targetList.find(

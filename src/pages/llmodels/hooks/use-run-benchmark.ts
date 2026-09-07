@@ -29,6 +29,26 @@ export const useBenchmarkTargetInstance = () => {
     navigate('/models/benchmark');
   };
 
+  // The entry a group is meant to be benchmarked from: a run measures a
+  // deployment, and for a group that is the only correct target — its members
+  // cannot answer a request on their own. It is also the better door for a
+  // plain multi-replica model, where "benchmark one replica" was never the
+  // question anyone was asking.
+  const runBenchmarkOnModel = (model: {
+    id: number;
+    name: string;
+    cluster_id: number;
+  }) => {
+    setBenchmarkTargetInstance({
+      cluster_id: model.cluster_id,
+      model_name: model.name,
+      model_id: model.id,
+      model_instance_name: '',
+      model_instance: [model.name]
+    });
+    navigate('/models/benchmark');
+  };
+
   const clearBenchmarkTargetInstance = () => {
     setBenchmarkTargetInstance({
       cluster_id: null,
@@ -42,6 +62,7 @@ export const useBenchmarkTargetInstance = () => {
   return {
     benchmarkTargetInstance,
     clearBenchmarkTargetInstance,
-    runBenchmarkOnInstance
+    runBenchmarkOnInstance,
+    runBenchmarkOnModel
   };
 };

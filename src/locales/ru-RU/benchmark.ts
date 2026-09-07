@@ -382,5 +382,10 @@ export default {
   'benchmark.form.nonLlmModel.tips':
     'Benchmarking currently only supports LLM models',
   'benchmark.detail.result.duration': 'Duration',
+  'benchmark.form.pdGroup.tips':
+    'Разделённая группа измеряется целиком: каждый запрос входит через её router, поэтому выбирать участника не нужно. Сервер направляет нагрузку на router и запускает генератор нагрузки на воркере, где лежат веса модели.',
+  'benchmark.detail.monitoring': 'Мониторинг',
+  'benchmark.detail.monitoring.tips':
+    'Открыть панель мониторинга за интервал этого запуска. Разделённая группа откроется на панели PD, где очередь prefill, очередь decode и передача KV показаны отдельно.',
   'benchmark.detail.result.basic': 'Basic'
 };

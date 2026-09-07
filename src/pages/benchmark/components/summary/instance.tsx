@@ -1,18 +1,33 @@
-import { AutoTooltip } from '@gpustack/core-ui';
+import { roleLabel } from '@/pages/llmodels/components/pd/role-status';
+import { AutoTooltip, TextAttribute } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { Descriptions, Flex, Tag } from 'antd';
 import React, { useMemo } from 'react';
 import { useDetailContext } from '../../config/detail-context';
+/** The member whose engine configuration the report describes.
+ *
+ * Not the endpoint, for a group: the endpoint is the router, which runs no
+ * engine and holds no weights, so reading backend, parameters and model file
+ * off it shows a report full of dashes for a deployment that has all three.
+ * The GPU-bearing members of one group share these, so the first that has them
+ * answers for the group. For every plain model it is the only member there is.
+ */
+const engineMember = (snapshot: any) => {
+  const members = Object.values(snapshot?.instances || {}) as any[];
+  return members.find((member) => member?.resolved_path) || members[0];
+};
+
 const Instance: React.FC = () => {
   const intl = useIntl();
   const { detailData } = useDetailContext();
-  const [, instanceData] =
-    Object.entries(detailData?.snapshot?.instances || {})[0] || [];
+  const instanceData = engineMember(detailData?.snapshot);
 
   const items = useMemo(() => {
     const { snapshot } = detailData;
-    const [instanceName, instanceData] =
-      Object.entries(snapshot?.instances || {})[0] || [];
+    const instanceData = engineMember(snapshot);
+    const endpointRole = (
+      Object.values(snapshot?.instances || {}) as any[]
+    ).find((member) => member?.name === detailData?.model_instance_name)?.role;
     return [
       {
         key: '1',
@@ -25,9 +40,17 @@ const Instance: React.FC = () => {
         key: '2',
         label: intl.formatMessage({ id: 'benchmark.detail.instanceName' }),
         children: (
-          <AutoTooltip ghost>
-            {detailData?.model_instance_name || '-'}
-          </AutoTooltip>
+          <Flex align="center" gap={4}>
+            <AutoTooltip ghost>
+              {detailData?.model_instance_name || '-'}
+            </AutoTooltip>
+            {/* Which member the load was actually sent to. For a group that is
+                the router, and saying so is what keeps the row from reading as
+                "we benchmarked one arbitrary member of three". */}
+            {endpointRole && (
+              <TextAttribute>{roleLabel(intl, endpointRole)}</TextAttribute>
+            )}
+          </Flex>
         )
       },
 
@@ -52,8 +75,7 @@ const Instance: React.FC = () => {
 
   const paramsItems = useMemo(() => {
     const { snapshot } = detailData;
-    const [instanceName, instanceData] =
-      Object.entries(snapshot?.instances || {})[0] || [];
+    const instanceData = engineMember(snapshot);
 
     const renderParams = (params: string[]) =>
       params.length > 0 ? (

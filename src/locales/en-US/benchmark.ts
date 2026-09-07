@@ -375,5 +375,10 @@ export default {
   'benchmark.form.nonLlmModel.tips':
     'Benchmarking currently only supports LLM models',
   'benchmark.detail.result.duration': 'Duration',
+  'benchmark.form.pdGroup.tips':
+    'A disaggregated group is measured whole: every request enters through its router, so there is no member to pick. The server sends the load to the router and runs the load generator on a worker that holds the weights.',
+  'benchmark.detail.monitoring': 'Monitoring',
+  'benchmark.detail.monitoring.tips':
+    'Open the dashboard for this run, over the interval it ran. A disaggregated group goes to the PD dashboard, where the prefill queue, the decode queue and the KV transfer are shown separately.',
   'benchmark.detail.result.basic': 'Basic'
 };

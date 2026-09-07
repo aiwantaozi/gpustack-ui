@@ -3,12 +3,17 @@ import {
   InstanceStatusMap,
   InstanceStatusMapValue,
   isModelServable,
+  isPDModel,
   modelCategoriesMap
 } from '@/pages/llmodels/config';
 import { useBenchmarkTargetInstance } from '@/pages/llmodels/hooks/use-run-benchmark';
 import { useQueryModelInstancesList } from '@/pages/llmodels/services/use-query-model-instances';
 import { useQueryModelList } from '@/pages/llmodels/services/use-query-model-list';
-import { Cascader as SealCascader, useAppUtils } from '@gpustack/core-ui';
+import {
+  Cascader as SealCascader,
+  TextAttribute,
+  useAppUtils
+} from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { useMemoizedFn } from 'ahooks';
 import { Form, Tooltip } from 'antd';
@@ -20,26 +25,46 @@ import { FormData } from '../config/types';
 const InstanceNode = (props: any) => {
   const { data: instance } = props;
   const intl = useIntl();
-  return instance.isLeaf ? (
-    <span className="flex-center">
-      {instance.label}
-      {instance.disabled && (
-        <span className="text-tertiary m-l-4">[{instance.state}]</span>
-      )}
-    </span>
-  ) : (
-    <>
-      {instance.disabled ? (
-        <Tooltip
-          title={intl.formatMessage({ id: 'benchmark.form.nonLlmModel.tips' })}
-        >
-          <span>{instance.label}</span>
-        </Tooltip>
-      ) : (
+
+  // A group is a leaf too, but it is a MODEL leaf: it ends the selection
+  // because it has no member to choose, not because it is one.
+  if (instance.isLeaf && !instance.pd) {
+    return (
+      <span className="flex-center">
+        {instance.label}
+        {instance.disabled && (
+          <span className="text-tertiary m-l-4">[{instance.state}]</span>
+        )}
+      </span>
+    );
+  }
+
+  if (instance.disabled) {
+    return (
+      <Tooltip
+        title={intl.formatMessage({ id: 'benchmark.form.nonLlmModel.tips' })}
+      >
         <span>{instance.label}</span>
-      )}
-    </>
-  );
+      </Tooltip>
+    );
+  }
+
+  if (instance.pd) {
+    // Says why this row does not expand, where the question is asked. Without
+    // it a group looks like a model whose instances failed to load.
+    return (
+      <Tooltip
+        title={intl.formatMessage({ id: 'benchmark.form.pdGroup.tips' })}
+      >
+        <span className="flex-center">
+          {instance.label}
+          <TextAttribute variant="outlined">PD</TextAttribute>
+        </span>
+      </Tooltip>
+    );
+  }
+
+  return <span>{instance.label}</span>;
 };
 
 const ModelInstanceForm: React.FC = () => {
@@ -66,7 +91,11 @@ const ModelInstanceForm: React.FC = () => {
     // Clearing the Cascader fires this with both arguments undefined, so nothing
     // here may index blind — the whole selection has to null out together.
     const options = selectedOptions || [];
-    const instanceOption = options[options.length - 1];
+    // A group stops at the model: it has no second level, so the last option is
+    // the model itself and there is no member to name. The server resolves the
+    // endpoint (the router) and the worker the run is placed on.
+    const instanceOption =
+      value?.length > 1 ? options[options.length - 1] : null;
     form.setFieldsValue({
       model_name: value?.[0],
       model_id: options[0]?.id,
@@ -140,7 +169,14 @@ const ModelInstanceForm: React.FC = () => {
         value: model.name,
         disabled: modelCategoriesMap.llm !== model.categories?.[0],
         id: model.id,
-        isLeaf: false,
+        // A group has no second level. Every member serves an OpenAI-shaped API
+        // on its own port, so offering them would offer three wrong answers
+        // that all return 200: a prefill stops after one token and a decode
+        // runs without the prefix its KV was meant to carry. A group is
+        // measured through its router, which is not a choice the user makes —
+        // it is the only way in.
+        isLeaf: isPDModel(model),
+        pd: isPDModel(model),
         // Whether the model can actually answer, which under PD is no longer
         // implied by a running-instance count: a group whose router is down
         // has RUNNING members and serves nothing, and benchmarking it would
@@ -168,22 +204,24 @@ const ModelInstanceForm: React.FC = () => {
       });
       return;
     }
-    const instanceList = await fetchInstanceList({ id: selectedllmModel.id });
-    const instanceOptions = instanceList.map((instance: any) =>
-      renderInstance(instance)
-    );
-    if (selectedllmModel) {
+    // A group is selected whole, so there are no members to preload and the
+    // initial value is one level deep.
+    const instanceOptions = selectedllmModel.pd
+      ? []
+      : (await fetchInstanceList({ id: selectedllmModel.id })).map(
+          (instance: any) => renderInstance(instance)
+        );
+    if (selectedllmModel && !selectedllmModel.pd) {
       selectedllmModel.children = [...instanceOptions] as never[];
     }
 
     // init form value for model instance
-    if (
-      benchmarkTargetInstance.model_name &&
-      benchmarkTargetInstance.model_instance_name
-    ) {
+    if (benchmarkTargetInstance.model_name) {
       form.setFieldsValue({
         ...benchmarkTargetInstance
       });
+    } else if (selectedllmModel.pd) {
+      handleOnChange([selectedllmModel.value], [selectedllmModel]);
     } else {
       handleOnChange(
         [selectedllmModel.value, instanceOptions[0]?.value],

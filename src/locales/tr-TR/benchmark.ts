@@ -376,5 +376,10 @@ export default {
   'benchmark.form.nonLlmModel.tips':
     'Kıyaslama şu anda yalnızca LLM modellerini destekliyor',
   'benchmark.detail.result.duration': 'Süre',
+  'benchmark.form.pdGroup.tips':
+    'Ayrıştırılmış bir grup bütün olarak ölçülür: her istek router üzerinden girer, bu yüzden seçilecek bir üye yoktur. Sunucu yükü routera gönderir ve yük üretecini ağırlıkları tutan bir worker üzerinde çalıştırır.',
+  'benchmark.detail.monitoring': 'İzleme',
+  'benchmark.detail.monitoring.tips':
+    'Bu çalışmanın zaman aralığı için panoyu açar. Ayrıştırılmış bir grup, prefill kuyruğunun, decode kuyruğunun ve KV aktarımının ayrı ayrı gösterildiği PD panosuna gider.',
   'benchmark.detail.result.basic': 'Temel'
 };

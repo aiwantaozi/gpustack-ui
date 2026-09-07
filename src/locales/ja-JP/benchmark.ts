@@ -374,5 +374,10 @@ export default {
   'benchmark.form.nonLlmModel.tips':
     'Benchmarking currently only supports LLM models',
   'benchmark.detail.result.duration': 'Duration',
+  'benchmark.form.pdGroup.tips':
+    '分離構成のグループはグループ単位で計測します。すべてのリクエストは router を通るため、メンバーを選ぶ必要はありません。サーバーが負荷を router に送り、重みを保持しているワーカー上で負荷生成コンテナを実行します。',
+  'benchmark.detail.monitoring': 'モニタリング',
+  'benchmark.detail.monitoring.tips':
+    'この実行の時間範囲でダッシュボードを開きます。分離構成のグループは PD ダッシュボードに移動し、prefill キュー・decode キュー・KV 転送がそれぞれ表示されます。',
   'benchmark.detail.result.basic': 'Basic'
 };

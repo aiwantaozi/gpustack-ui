@@ -22,6 +22,9 @@ export interface InstancesData {
   id: number;
   name: string;
   resolved_path: string;
+  // Which role of its model this member served; absent for a plain deployment.
+  // The only thing that tells a group's members apart in a finished report.
+  role?: string | null;
   state: string;
   state_message: string;
   backend: any;

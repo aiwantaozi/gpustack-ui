@@ -369,5 +369,10 @@ export default {
   'benchmark.table.export.results': '导出结果',
   'benchmark.form.nonLlmModel.tips': '基准测试目前仅支持 LLM 模型',
   'benchmark.detail.result.duration': '耗时',
+  'benchmark.form.pdGroup.tips':
+    '分离部署的组整体压测：所有请求都经 router 进入，因此不需要也无法指定成员。服务端会把压力发往 router，并把压测容器放在持有模型权重的节点上。',
+  'benchmark.detail.monitoring': '监控',
+  'benchmark.detail.monitoring.tips':
+    '打开这次运行对应时间范围的监控面板。分离部署的组会跳转到 PD 面板，那里分别展示 prefill 队列、decode 队列与 KV 传输。',
   'benchmark.detail.result.basic': '基础信息'
 };

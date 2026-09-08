@@ -380,7 +380,7 @@ export default {
   'benchmark.detail.monitoring': 'Monitoring',
   'benchmark.detail.monitoring.tips':
     'Open the dashboard for this run, over the interval it ran. A disaggregated group goes to the PD dashboard, where the prefill queue, the decode queue and the KV transfer are shown separately.',
-  'benchmark.form.targetMode': 'Target',
+  'benchmark.form.targetMode': 'Target type',
   'benchmark.form.targetMode.instance': 'Instance (engine)',
   'benchmark.form.targetMode.route': 'Route (deployment)',
   'benchmark.form.targetMode.tips':

@@ -58,10 +58,19 @@ const isGroupOverridden = (role: RoleSpec, group: string) =>
  * model level — without them a stored per-role GPU selection would render as
  * "Auto" and be submitted away.
  *
- * `gpuOptions` is the cascader's option tree. When given, each role's stored
- * flat GPU ids are lifted back into the `[worker, gpu]` pairs the cascader
- * shows, mirroring what `update-modal` does for the model level; when absent
- * (create, or the options have not loaded yet) the ids are left as they are.
+ * `gpuOptions` is the cascader's option tree. When it has entries, each role's
+ * stored flat GPU ids are lifted back into the `[worker, gpu]` pairs the
+ * cascader shows, mirroring what `update-modal` does for the model level. An
+ * EMPTY tree means the inventory has not loaded yet, and the ids are left flat
+ * for `rehydrateRoleGpuIds` to lift once it has — the caller that opens the
+ * edit drawer passes `[]` on purpose, because the options are fetched after
+ * the drawer is open.
+ *
+ * 🔴 The emptiness check is the whole of a bug this had: `[]` is truthy, so an
+ * empty tree took the lifting branch, every id failed to find its parent and
+ * was dropped, and the role opened with its GPU selector blank while the
+ * `gpus_per_replica` beside it still showed. Submitting then wrote that
+ * emptiness back.
  */
 export const rolesSpecToForm = (
   roles?: RoleSpec[] | null,
@@ -85,7 +94,7 @@ export const rolesSpecToForm = (
 
     const isVGPU = !!role.gpu_type_selector?.type;
     const hasGPUSelection = isVGPU || !!role.gpu_selector;
-    const gpuSelector = gpuOptions
+    const gpuSelector = gpuOptions?.length
       ? {
           ...generateGPUSelector(role, gpuOptions).gpu_selector,
           // `generateGPUSelector` only rebuilds the ids; keep the replica
@@ -248,3 +257,46 @@ export const ROLE_UI_ONLY_KEYS = UI_ONLY_KEYS;
  * The fields a role may carry on the wire. Exported for the same reason.
  */
 export const ROLE_PAYLOAD_FIELDS = PAYLOAD_FIELDS;
+
+/**
+ * Lift each role's flat GPU ids into the cascader's `[worker, gpu]` pairs,
+ * once the inventory has actually loaded.
+ *
+ * The edit drawer opens before the GPU inventory is fetched, so the initial
+ * values are built with no options and the ids stay flat (see
+ * `rolesSpecToForm`). The model level is re-hydrated when the fetch returns;
+ * this is the same step for the roles, which otherwise keep ids the cascader
+ * cannot match and render an empty selector over a selection that is really
+ * there.
+ *
+ * Idempotent by shape: an id already lifted is an array, and only strings are
+ * looked up — so running this over already-hydrated roles changes nothing.
+ * Returns `null` when there is nothing to do, which the caller reads as "no
+ * write", so a plain model's form is never touched.
+ */
+export const rehydrateRoleGpuIds = (
+  roles?: RoleFormItem[] | null,
+  gpuOptions?: any[]
+): RoleFormItem[] | null => {
+  if (!roles?.length || !gpuOptions?.length) {
+    return null;
+  }
+  let changed = false;
+  const hydrated = roles.map((role) => {
+    const ids = role.gpu_selector?.gpu_ids;
+    if (!ids?.length || !ids.some((id: any) => typeof id === 'string')) {
+      return role;
+    }
+    changed = true;
+    return {
+      ...role,
+      gpu_selector: {
+        ...role.gpu_selector,
+        ...generateGPUSelector(role, gpuOptions).gpu_selector,
+        // Rebuilding the ids must not drop the width beside them.
+        gpus_per_replica: role.gpu_selector?.gpus_per_replica ?? null
+      }
+    };
+  });
+  return changed ? (hydrated as RoleFormItem[]) : null;
+};

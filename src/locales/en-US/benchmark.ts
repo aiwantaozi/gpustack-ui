@@ -386,5 +386,8 @@ export default {
   'benchmark.form.targetMode.tips':
     "Instance sends the load straight at one engine — a group's router, or one replica of a plain model — so nothing but the engine is in the path. Route sends it through the entrance clients call, so every replica of a plain model takes part; use it to compare a disaggregated group against an aggregated deployment on the same cards. ⚠️ Route puts the server's proxy in the path, which at high rates can be the bottleneck rather than the deployment.",
   'benchmark.detail.targetMode.route': 'Route (deployment) · {route}',
+  'benchmark.form.target.route': 'Route',
+  'benchmark.form.target.route.empty':
+    'No route fronts a servable LLM in this cluster. Deploy a route, or measure an instance instead.',
   'benchmark.detail.result.basic': 'Basic'
 };

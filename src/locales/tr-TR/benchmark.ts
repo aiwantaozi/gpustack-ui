@@ -387,5 +387,8 @@ export default {
   'benchmark.form.targetMode.tips':
     "Örnek: yük doğrudan tek bir motora gider — ayrıştırılmış bir grubun routerı ya da düz bir modelin tek bir kopyası — ve yolda motordan başka bir şey yoktur. Rota: yük, istemcilerin çağırdığı girişten geçer, böylece düz bir modelin tüm kopyaları işin içine girer; ayrıştırılmış ve toplu dağıtımları aynı kart sayısında karşılaştırmak için bunu kullanın. ⚠️ Rota, sunucunun proxy'sini yola dahil eder; yüksek eşzamanlılıkta darboğaz dağıtım değil proxy olabilir.",
   'benchmark.detail.targetMode.route': 'Rota (dağıtım) · {route}',
+  'benchmark.form.target.route': 'Rota',
+  'benchmark.form.target.route.empty':
+    "Bu kümede hizmet verebilen bir LLM'e yönelen rota yok. Bir rota dağıtın ya da bunun yerine bir örnek ölçün.",
   'benchmark.detail.result.basic': 'Temel'
 };

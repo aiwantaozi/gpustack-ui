@@ -174,6 +174,7 @@ export default {
   'benchmark.table.filter.bymodel': 'モデル検索',
   'benchmark.table.filter.bydataset': 'Filter by Dataset',
   'benchmark.table.filter.byLoadType': '負荷タイプで絞り込み',
+  'benchmark.table.filter.byTargetMode': '対象の形態で絞り込み',
   'benchmark.table.filter.byProfile': 'プロファイルで絞り込み',
   'benchmark.table.best': '最適点',
   'benchmark.table.best.unit.concurrency': '同時実行数',
@@ -237,6 +238,7 @@ export default {
   'benchmark.detail.avg.reqLatency': 'Request Latency Avg',
   'benchmark.detail.avg.ttft': 'TTFT Avg',
   'benchmark.detail.avg.tpot': 'TPOT Avg',
+  'benchmark.detail.avg.itl': 'ITL Avg',
   'benchmark.detail.throughput.totalToken': 'Total Throughput',
   'benchmark.detail.throughput.inputToken': 'Input Throughput',
   'benchmark.detail.throughput.outputToken': 'Output Throughput',
@@ -256,6 +258,10 @@ export default {
   'benchmark.detail.percentile.title': 'Percentile',
   'benchmark.detail.modelName': 'Model Name',
   'benchmark.detail.instanceName': 'Instance Name',
+  'benchmark.detail.members.title': 'メンバー',
+  'benchmark.detail.members.role': 'ロール',
+  'benchmark.detail.members.injected': '注入パラメータ',
+  'benchmark.detail.members.endpoint': 'エンドポイント',
   'benchmark.detail.configure': 'Configuration',
   'benchmark.detail.config.deployment': 'デプロイメント',
   'benchmark.detail.config.benchmark': 'ベンチマーク',
@@ -269,12 +275,17 @@ export default {
     'これより上は一度も測定されていません(探索が先に終了しました)ので、「少なくともこの値」と読んでください。実際に破綻する点はさらに上にあり、今回は測定されていません。',
   'benchmark.detail.tpot.tip':
     'TPOT: デコードのみのトークンあたり時間 =(最後のトークン − 最初のトークン)/(出力トークン数 − 1)。初回トークン遅延は含みません。guidellm の inter_token_latency_ms に対応し、vLLM などが報告する TPOT と同じ量です。サーバーが逐次ストリーミングしない場合(出力全体を 1 チャンクで返す、低負荷でよくある)は測定できないため、初回トークンを含むトークンあたり時間にフォールバックします。',
+  'benchmark.detail.itl.tip':
+    'ITL(Inter-Token Latency): 連続するストリーム出力間の実測間隔。間隔ごとに 1 サンプルをリクエスト横断で集計し、初回トークン遅延は含みません。TPOT との違いはサンプルの粒度です。TPOT はリクエストごとに 1 つの平均値のため、単発の詰まりは同じリクエストの他の間隔で薄まりますが、ITL は各間隔を保持するためテールに現れます。vLLM / SGLang の ITL と同じ定義です。1 つのチャンクに複数トークンが含まれる場合(投機的デコードなど)も 1 間隔として数えます。',
   'benchmark.detail.chart.sloBreached': 'SLO 違反',
   'benchmark.detail.chart.success': '成功率',
   'benchmark.detail.reason.peakTradeoff':
     'ピークの {rate} {unit} まで上げてもスループットは {gain}% 増にとどまり、レイテンシは {cost} 増えます',
   'benchmark.detail.unit.avg': '平均',
   'benchmark.detail.p99.ttft': 'TTFT p99',
+  'benchmark.detail.p99.tpot': 'TPOT p99',
+  'benchmark.detail.p99.itl': 'ITL p99',
+  'benchmark.detail.max.itl': 'ITL Max',
   'benchmark.detail.lowSample':
     'このステージのサンプルは {count} 件で、p99 より上はわずか {tail} 件 —— テールはごく少数のリクエストで決まります。参考値として読み、SLO の結論には使わないでください（p99 が推定として機能するには約 1000 件必要）。',
   'benchmark.detail.successPill': '成功率 {pct}% · {ok} / {total} リクエスト',
@@ -314,6 +325,9 @@ export default {
   'benchmark.detail.chart.tpotPercentiles': 'TPOT パーセンタイル',
   'benchmark.detail.chart.tpotPercentiles.note':
     'デコード段のトークンあたり時間(初回トークンを除く) · リクエストごとに 1 値なので、負荷増加によるデコードの低下を示し、単発の詰まりは示さない',
+  'benchmark.detail.chart.itlPercentiles': 'ITL パーセンタイル',
+  'benchmark.detail.chart.itlPercentiles.note':
+    '連続するストリーム出力間の実測間隔 · 間隔ごとに 1 サンプルなので、テールに単発の詰まりが現れる',
   'benchmark.detail.chart.success.note':
     '失敗したリクエストがあるため表示しています',
   'benchmark.detail.chart.legend.shortfall': '不足',
@@ -365,6 +379,7 @@ export default {
   'benchmark.detail.inputOutputTokenLength': 'Token Length (Input/Output)',
   'benchmark.env.gpuName': 'GPU Name',
   'benchmark.env.workerName': 'Worker Name',
+  'benchmark.env.hostedMembers': 'Members',
   'benchmark.env.index': 'Index',
   'benchmark.env.system': 'System',
   'benchmark.env.runtimeVersion': 'Runtime Version',
@@ -383,7 +398,7 @@ export default {
   'benchmark.form.targetMode.instance': 'インスタンス（エンジンを計測）',
   'benchmark.form.targetMode.route': 'ルート（デプロイメントを計測）',
   'benchmark.form.targetMode.tips':
-    'インスタンス：負荷を単一のエンジンへ直接送ります（分離グループの router、または通常モデルの 1 レプリカ）。経路上にエンジン以外は入りません。ルート：クライアントが呼び出す入口から入るため、通常モデルのすべてのレプリカが対象になります。同じカード数で分離構成と集約構成を比較する場合はこちらを使ってください。⚠️ ルートではサーバーのプロキシが経路に入るため、高並列ではデプロイメントではなくプロキシがボトルネックになることがあります。',
+    'インスタンス：負荷を単一のエンジンへ直接送ります（分離グループの router、または通常モデルの 1 レプリカ）。経路上にエンジン以外は入りません。ルート：クライアントが呼び出す入口から入るため、通常モデルのすべてのレプリカが対象になります。同じカード数で分離構成と集約構成を比較する場合はこちらを使ってください。⚠️ ルートではサーバーのプロキシが経路に入ります。高並列ではデプロイメントより先にプロキシが飽和してリクエストを落とすことがあり、落とされたリクエストはレイテンシに含まれないため、TTFT / TPOT が実際より良く見えます。ルートモードの結果は必ずエラー数・未完了数と合わせて読んでください。',
   'benchmark.detail.targetMode.route': 'ルート（デプロイメント）· {route}',
   'benchmark.form.target.route': 'ルート',
   'benchmark.form.target.route.empty':

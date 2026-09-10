@@ -174,6 +174,7 @@ export default {
   'benchmark.table.filter.bymodel': 'Search by model',
   'benchmark.table.filter.bydataset': 'Filter by Dataset',
   'benchmark.table.filter.byLoadType': 'Filter by load type',
+  'benchmark.table.filter.byTargetMode': 'Filter by target type',
   'benchmark.table.filter.byProfile': 'Filter by profile',
   'benchmark.table.best': 'Best @',
   'benchmark.table.best.unit.concurrency': 'conc.',
@@ -238,6 +239,7 @@ export default {
   'benchmark.detail.avg.reqLatency': 'Request Latency Avg',
   'benchmark.detail.avg.ttft': 'TTFT Avg',
   'benchmark.detail.avg.tpot': 'TPOT Avg',
+  'benchmark.detail.avg.itl': 'ITL Avg',
   'benchmark.detail.throughput.totalToken': 'Total Throughput',
   'benchmark.detail.throughput.inputToken': 'Input Throughput',
   'benchmark.detail.throughput.outputToken': 'Output Throughput',
@@ -257,6 +259,10 @@ export default {
   'benchmark.detail.percentile.title': 'Percentile',
   'benchmark.detail.modelName': 'Model Name',
   'benchmark.detail.instanceName': 'Instance Name',
+  'benchmark.detail.members.title': 'Members',
+  'benchmark.detail.members.role': 'Role',
+  'benchmark.detail.members.injected': 'Injected parameters',
+  'benchmark.detail.members.endpoint': 'Endpoint',
   'benchmark.detail.configure': 'Configuration',
   'benchmark.detail.config.deployment': 'Deployment',
   'benchmark.detail.config.benchmark': 'Benchmark',
@@ -270,12 +276,17 @@ export default {
     'Nothing above this was ever measured — the search ended first — so read it as "at least this much". The real breaking point is somewhere above and was not measured.',
   'benchmark.detail.tpot.tip':
     "TPOT: decode-only time per output token = (last token − first token) / (output tokens − 1), first-token latency excluded. This is guidellm's inter_token_latency_ms and the TPOT that vLLM and similar tools report. When the server does not stream incrementally (the whole output in one chunk, common at low load) there is no gap to measure, and this falls back to the per-token time including the first token.",
+  'benchmark.detail.itl.tip':
+    "ITL (Inter-Token Latency): the measured gap between consecutive streamed outputs — one sample per gap, pooled across requests, first-token latency excluded. It differs from TPOT in sample granularity: TPOT is one average per request, so a single stall is divided away by that request's other gaps, while ITL keeps every gap and the stall reaches the tail. Same definition as vLLM and SGLang. A chunk carrying several tokens (speculative decoding) still counts as one gap.",
   'benchmark.detail.chart.sloBreached': 'SLO breached',
   'benchmark.detail.chart.success': 'Success rate',
   'benchmark.detail.reason.peakTradeoff':
     'Pushing to the peak {rate} {unit} adds only {gain}% throughput for {cost} latency',
   'benchmark.detail.unit.avg': 'avg',
   'benchmark.detail.p99.ttft': 'TTFT p99',
+  'benchmark.detail.p99.tpot': 'TPOT p99',
+  'benchmark.detail.p99.itl': 'ITL p99',
+  'benchmark.detail.max.itl': 'ITL Max',
   'benchmark.detail.lowSample':
     'This stage has {count} samples, so only {tail} sit above p99 — the tail is decided by a handful of requests. Read it as indicative, not as an SLO conclusion (p99 needs ~1000 samples to behave like an estimate).',
   'benchmark.detail.successPill': '{pct}% success · {ok} / {total} requests',
@@ -315,6 +326,9 @@ export default {
   'benchmark.detail.chart.tpotPercentiles': 'TPOT percentiles',
   'benchmark.detail.chart.tpotPercentiles.note':
     'Decode time per token, first token excluded · one value per request, so this shows decode slowing under load, not individual stalls',
+  'benchmark.detail.chart.itlPercentiles': 'ITL percentiles',
+  'benchmark.detail.chart.itlPercentiles.note':
+    'Measured gap between consecutive streamed outputs · one sample per gap, so the tail shows individual stalls',
   'benchmark.detail.chart.success.note':
     'Shown because some requests did not succeed',
   'benchmark.detail.chart.legend.shortfall': 'Shortfall',
@@ -366,6 +380,7 @@ export default {
   'benchmark.detail.inputOutputTokenLength': 'Token Length (Input/Output)',
   'benchmark.env.gpuName': 'GPU Name',
   'benchmark.env.workerName': 'Worker Name',
+  'benchmark.env.hostedMembers': 'Members',
   'benchmark.env.index': 'Index',
   'benchmark.env.system': 'System',
   'benchmark.env.runtimeVersion': 'Runtime Version',
@@ -384,7 +399,7 @@ export default {
   'benchmark.form.targetMode.instance': 'Instance (engine)',
   'benchmark.form.targetMode.route': 'Route (deployment)',
   'benchmark.form.targetMode.tips':
-    "Instance sends the load straight at one engine — a group's router, or one replica of a plain model — so nothing but the engine is in the path. Route sends it through the entrance clients call, so every replica of a plain model takes part; use it to compare a disaggregated group against an aggregated deployment on the same cards. ⚠️ Route puts the server's proxy in the path, which at high rates can be the bottleneck rather than the deployment.",
+    "Instance sends the load straight at one engine — a group's router, or one replica of a plain model — so nothing but the engine is in the path. Route sends it through the entrance clients call, so every replica of a plain model takes part; use it to compare a disaggregated group against an aggregated deployment on the same cards. ⚠️ Route puts the server's proxy in the path. At high rates the proxy can saturate before the deployment does and drop requests — and dropped requests never reach the latency numbers, so TTFT / TPOT can look better than they are. Read route-mode results together with the error and incomplete counts.",
   'benchmark.detail.targetMode.route': 'Route (deployment) · {route}',
   'benchmark.form.target.route': 'Route',
   'benchmark.form.target.route.empty':

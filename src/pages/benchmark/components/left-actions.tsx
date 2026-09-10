@@ -4,7 +4,7 @@ import { useIntl } from '@umijs/max';
 import { Button, Input, Space } from 'antd';
 import _ from 'lodash';
 import React from 'react';
-import { loadTypeOptions } from '../config';
+import { loadTypeOptions, targetModeOptions } from '../config';
 
 export interface RightActionsProps {
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -102,6 +102,23 @@ const RightActions: React.FC<RightActionsProps> = ({
         allowClear
         onChange={handleSearchByProfileDebounce}
       ></Input>
+      <BaseSelect
+        allowClear
+        placeholder={intl.formatMessage({
+          id: 'benchmark.table.filter.byTargetMode'
+        })}
+        style={{ width: 180 }}
+        options={targetModeOptions.map((item) => ({
+          label: intl.formatMessage({ id: item.label }),
+          value: item.value
+        }))}
+        onChange={(value) =>
+          handleQueryChange({
+            target_mode: value,
+            page: 1
+          })
+        }
+      ></BaseSelect>
       <BaseSelect
         allowClear
         placeholder={intl.formatMessage({

@@ -176,6 +176,7 @@ export default {
   'benchmark.table.filter.bymodel': 'Поиск модели',
   'benchmark.table.filter.bydataset': 'Filter by Dataset',
   'benchmark.table.filter.byLoadType': 'Фильтр по типу нагрузки',
+  'benchmark.table.filter.byTargetMode': 'Фильтр по форме цели',
   'benchmark.table.filter.byProfile': 'Фильтр по профилю',
   'benchmark.table.best': 'Лучшая @',
   'benchmark.table.best.unit.concurrency': 'парал.',
@@ -241,6 +242,7 @@ export default {
   'benchmark.detail.avg.reqLatency': 'Request Latency Avg',
   'benchmark.detail.avg.ttft': 'TTFT Avg',
   'benchmark.detail.avg.tpot': 'TPOT Avg',
+  'benchmark.detail.avg.itl': 'ITL Avg',
   'benchmark.detail.throughput.totalToken': 'Total Throughput',
   'benchmark.detail.throughput.inputToken': 'Input Throughput',
   'benchmark.detail.throughput.outputToken': 'Output Throughput',
@@ -260,6 +262,10 @@ export default {
   'benchmark.detail.percentile.title': 'Percentile',
   'benchmark.detail.modelName': 'Model Name',
   'benchmark.detail.instanceName': 'Instance Name',
+  'benchmark.detail.members.title': 'Участники',
+  'benchmark.detail.members.role': 'Роль',
+  'benchmark.detail.members.injected': 'Внедрённые параметры',
+  'benchmark.detail.members.endpoint': 'Точка входа',
   'benchmark.detail.configure': 'Configuration',
   'benchmark.detail.config.deployment': 'Развёртывание',
   'benchmark.detail.config.benchmark': 'Бенчмарк',
@@ -273,12 +279,17 @@ export default {
     'Выше этого значения ничего не измерялось — поиск закончился раньше, — поэтому читайте его как «не менее этого». Реальная точка нарушения находится выше и не была измерена.',
   'benchmark.detail.tpot.tip':
     'TPOT: время на выходной токен только для декодирования = (последний токен − первый токен) / (выходные токены − 1), без задержки первого токена. Это inter_token_latency_ms в guidellm и тот же TPOT, который сообщают vLLM и подобные инструменты. Если сервер не отдаёт поток по частям (весь вывод одним фрагментом, обычное дело при низкой нагрузке), измерять нечего, и здесь используется время на токен с учётом первого токена.',
+  'benchmark.detail.itl.tip':
+    'ITL (Inter-Token Latency) — измеренный интервал между последовательными потоковыми ответами: одна выборка на интервал, объединённая по всем запросам, без задержки первого токена. От TPOT отличается гранулярностью выборки: TPOT даёт одно среднее на запрос, поэтому отдельное подвисание усредняется остальными интервалами того же запроса, тогда как ITL сохраняет каждый интервал и подвисание попадает в хвост. Определение совпадает с vLLM и SGLang. Чанк с несколькими токенами (спекулятивное декодирование) по-прежнему считается одним интервалом.',
   'benchmark.detail.chart.sloBreached': 'Нарушение SLO',
   'benchmark.detail.chart.success': 'Доля успешных',
   'benchmark.detail.reason.peakTradeoff':
     'Рост до пика {rate} {unit} даёт всего {gain}% пропускной способности при росте задержки на {cost}',
   'benchmark.detail.unit.avg': 'сред.',
   'benchmark.detail.p99.ttft': 'TTFT p99',
+  'benchmark.detail.p99.tpot': 'TPOT p99',
+  'benchmark.detail.p99.itl': 'ITL p99',
+  'benchmark.detail.max.itl': 'ITL Max',
   'benchmark.detail.lowSample':
     'На этом этапе {count} измерений, выше p99 находится всего {tail} — хвост определяют единичные запросы. Читайте как ориентир, а не как вывод по SLO (для p99 нужно ~1000 измерений).',
   'benchmark.detail.successPill': 'Успешно {pct}% · {ok} / {total} запросов',
@@ -320,6 +331,9 @@ export default {
   'benchmark.detail.chart.tpotPercentiles': 'Перцентили TPOT',
   'benchmark.detail.chart.tpotPercentiles.note':
     'Время декодирования на токен без первого токена · одно значение на запрос, поэтому график показывает замедление декодирования под нагрузкой, а не отдельные подвисания',
+  'benchmark.detail.chart.itlPercentiles': 'Перцентили ITL',
+  'benchmark.detail.chart.itlPercentiles.note':
+    'Измеренный интервал между последовательными потоковыми ответами · одна выборка на интервал, поэтому хвост показывает отдельные подвисания',
   'benchmark.detail.chart.success.note':
     'Показано, потому что часть запросов не удалась',
   'benchmark.detail.chart.legend.shortfall': 'Дефицит',
@@ -373,6 +387,7 @@ export default {
   'benchmark.detail.inputOutputTokenLength': 'Token Length (Input/Output)',
   'benchmark.env.gpuName': 'GPU Name',
   'benchmark.env.workerName': 'Worker Name',
+  'benchmark.env.hostedMembers': 'Members',
   'benchmark.env.index': 'Index',
   'benchmark.env.system': 'System',
   'benchmark.env.runtimeVersion': 'Runtime Version',
@@ -391,7 +406,7 @@ export default {
   'benchmark.form.targetMode.instance': 'Экземпляр (измеряется движок)',
   'benchmark.form.targetMode.route': 'Маршрут (измеряется развёртывание)',
   'benchmark.form.targetMode.tips':
-    'Экземпляр: нагрузка идёт напрямую в один движок — router разделённой группы или одну реплику обычной модели, — и в пути нет ничего, кроме движка. Маршрут: нагрузка входит там же, где и клиентский трафик, поэтому участвуют все реплики обычной модели; используйте этот режим, чтобы сравнить разделённое и объединённое развёртывания на одинаковом числе карт. ⚠️ В режиме маршрута в путь попадает прокси сервера, и при высокой нагрузке узким местом может оказаться именно он, а не развёртывание.',
+    'Экземпляр: нагрузка идёт напрямую в один движок — router разделённой группы или одну реплику обычной модели, — и в пути нет ничего, кроме движка. Маршрут: нагрузка входит там же, где и клиентский трафик, поэтому участвуют все реплики обычной модели; используйте этот режим, чтобы сравнить разделённое и объединённое развёртывания на одинаковом числе карт. ⚠️ В режиме маршрута в путь попадает прокси сервера. При высокой нагрузке прокси может насытиться раньше развёртывания и начать отбрасывать запросы, а отброшенные запросы не попадают в показатели задержки — поэтому TTFT / TPOT могут выглядеть лучше, чем есть. Результаты режима маршрута читайте вместе с числом ошибок и незавершённых запросов.',
   'benchmark.detail.targetMode.route': 'Маршрут (развёртывание) · {route}',
   'benchmark.form.target.route': 'Маршрут',
   'benchmark.form.target.route.empty':

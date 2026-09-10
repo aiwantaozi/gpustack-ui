@@ -83,30 +83,48 @@ const Environment: React.FC = () => {
   // same machine are one machine, and listing it twice would double its cards
   // in a table that exists to say how much hardware the run used. A worker
   // reached by several members carries the union of their cards.
+  //
+  // Which members those were is carried per row (`hosted`) rather than left
+  // implicit. Without it a disaggregated run is a list of identical-looking
+  // machines: the reader cannot tell which one held prefill and which held
+  // decode, and the router's machine — the one marked Main — looks broken
+  // because a router owns no card, so it has no driver or runtime version to
+  // show.
   const dataList = useMemo(() => {
     const rows = new Map<number, any>();
 
     const addWorker = (
       workerId: number,
       gpuIds: string[] | undefined,
-      isMain: boolean
+      isMain: boolean,
+      member: any
     ) => {
       const worker = findWorkerById(workerId);
       if (!worker) {
         return;
       }
       const gpuData = findGPUByGPUIds(gpuIds || []);
+      // A member spanning several workers is the same member on each of them,
+      // so it is listed once per row, not once per worker it reaches.
+      const hostedEntry = { name: member?.name, role: member?.role };
       const existing = rows.get(worker.id);
       if (existing) {
         const seen = new Set(existing.children.map((gpu: GPUData) => gpu.id));
         existing.children.push(...gpuData.filter((gpu) => !seen.has(gpu.id)));
         existing.isMain = existing.isMain || isMain;
+        if (
+          hostedEntry.name &&
+          !existing.hosted.some((m: any) => m.name === hostedEntry.name)
+        ) {
+          existing.hosted.push(hostedEntry);
+        }
         return;
       }
       rows.set(worker.id, {
         ...worker,
         ..._.pick(gpuData?.[0], ['driver_version', 'runtime_version']),
         isMain,
+        hosted: hostedEntry.name ? [hostedEntry] : [],
         children: [...gpuData]
       });
     };
@@ -115,10 +133,11 @@ const Environment: React.FC = () => {
       addWorker(
         member.worker_id,
         member.gpu_ids,
-        member.name === instanceData?.name
+        member.name === instanceData?.name,
+        member
       );
       (member.subordinate_workers || []).forEach((worker: any) =>
-        addWorker(worker.worker_id, worker.gpu_ids, false)
+        addWorker(worker.worker_id, worker.gpu_ids, false, member)
       );
     });
 

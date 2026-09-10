@@ -8,15 +8,18 @@ import React from 'react';
 import BenchmarkStateTag from '../components/benchmark-state-tag';
 import {
   LoadTypeValueMap,
+  TargetModeValueMap,
   VALIDITY_MESSAGE_KEY,
   loadTypeOptions,
-  loadValueDecimals
+  loadValueDecimals,
+  targetModeOptions
 } from '../config';
 import { BenchmarkListItem as ListItem } from '../config/types';
 // sort by this order
 const allFields = [
   'cluster_id',
   'model_name',
+  'target_mode',
   'load_type',
   'profile',
   'dataset_name',
@@ -345,6 +348,40 @@ const useColumnSettings = (options: {
           {text}
         </AutoTooltip>
       )
+    },
+    {
+      title: (
+        <Typography.Text
+          ellipsis={{ tooltip: true }}
+          style={{ color: 'var(--color-text-table-header)' }}
+        >
+          {intl.formatMessage({ id: 'benchmark.form.targetMode' })}
+        </Typography.Text>
+      ),
+      dataIndex: 'target_mode',
+      // What the load was aimed at. A row written before the field existed
+      // measured an instance, so an empty value reads as Instance rather than
+      // "-" — the two modes are not comparable, and a blank here would look
+      // like a third, unknown one.
+      render: (_text: string, record: ListItem) => {
+        const value = record.target_mode || TargetModeValueMap.Instance;
+        const label =
+          value === TargetModeValueMap.Route && record.route_name
+            ? intl.formatMessage(
+                { id: 'benchmark.detail.targetMode.route' },
+                { route: record.route_name }
+              )
+            : intl.formatMessage({
+                id:
+                  targetModeOptions.find((item) => item.value === value)
+                    ?.label || 'benchmark.form.targetMode.instance'
+              });
+        return (
+          <AutoTooltip ghost minWidth={20}>
+            {label}
+          </AutoTooltip>
+        );
+      }
     },
     {
       title: (

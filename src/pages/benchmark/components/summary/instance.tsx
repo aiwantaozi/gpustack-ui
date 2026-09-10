@@ -4,6 +4,7 @@ import { useIntl } from '@umijs/max';
 import { Descriptions, Flex, Tag } from 'antd';
 import React, { useMemo } from 'react';
 import { useDetailContext } from '../../config/detail-context';
+import DeploymentMembers from './deployment-members';
 /** The member whose engine configuration the report describes.
  *
  * Not the endpoint, for a group: the endpoint is the router, which runs no
@@ -250,6 +251,10 @@ const Instance: React.FC = () => {
           }
         }}
       ></Descriptions>
+      {/* Everything above describes the deployment as a whole, read off one
+          representative member. What differs BETWEEN members goes below, and
+          only when there is more than one. */}
+      <DeploymentMembers />
     </div>
   );
 };

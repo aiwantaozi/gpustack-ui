@@ -212,6 +212,17 @@ export interface BenchmarkResultItem {
   inter_token_latency_p99: number | null;
   time_per_output_token_p99: number | null;
   request_latency_p99: number | null;
+  // Measured ITL: the gaps BETWEEN consecutive streamed outputs, one sample per
+  // gap, pooled across requests. Every metric above is one value per REQUEST,
+  // so a single decode stall is averaged away by that request's other gaps —
+  // this is the only reading that keeps it. Same definition as vLLM's ITL.
+  //
+  // null means NOT MEASURED (a point recorded before the runner started
+  // capturing the gaps, or a non-streaming run), never "the gaps were 0 ms".
+  itl_per_chunk_mean: number | null;
+  itl_per_chunk_p95: number | null;
+  itl_per_chunk_p99: number | null;
+  itl_per_chunk_max: number | null;
   tokens_per_second_mean: number | null;
   output_tokens_per_second_mean: number | null;
   input_tokens_per_second_mean: number | null;

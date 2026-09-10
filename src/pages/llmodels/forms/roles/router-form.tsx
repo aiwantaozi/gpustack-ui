@@ -45,6 +45,11 @@ const useStyles = createStyles(({ css }) => ({
       color: var(--ant-color-text-quaternary);
       margin-bottom: 4px;
     }
+    /* One flag per line, not one paragraph.
+       Joined with spaces these wrapped mid-flag — «--host {{wor / ker_ip}}» —
+       which is the one thing a reader of an argument list must not have to
+       reassemble. Read-only in both branches, so there is no input to size
+       around: a compact stack of lines is the whole requirement. */
     .frozen-args {
       font-size: 12px;
       font-family: var(--ant-font-family-code);
@@ -52,10 +57,40 @@ const useStyles = createStyles(({ css }) => ({
       background: var(--ant-color-fill-quaternary);
       border-radius: var(--ant-border-radius);
       padding: 6px 10px;
-      word-break: break-all;
+    }
+    .frozen-line {
+      line-height: 20px;
+      white-space: pre-wrap;
+      /* A flag that genuinely exceeds the width breaks at its own boundary
+         rather than mid-token. */
+      overflow-wrap: anywhere;
+    }
+    .frozen-line + .frozen-line {
+      margin-top: 1px;
     }
   `
 }));
+
+/**
+ * Regroup a flat token list into one line per flag.
+ *
+ * The catalog ships `connection_args` as the argv it will pass — «--kv-connector»
+ * and «nixl» are two separate entries. Rendering the array joined put seven
+ * flags on three wrapped lines; splitting on every token would put a bare
+ * «nixl» on a line of its own. So a token that starts with a dash opens a new
+ * line and everything after it that does not is its value.
+ */
+const flagLines = (tokens: string[]): string[] => {
+  const lines: string[] = [];
+  tokens.forEach((token) => {
+    if (token.startsWith('-') || !lines.length) {
+      lines.push(token);
+      return;
+    }
+    lines[lines.length - 1] = `${lines[lines.length - 1]} ${token}`;
+  });
+  return lines;
+};
 
 const RouterModeMap = {
   Managed: 'managed',
@@ -170,7 +205,13 @@ const RouterForm: React.FC<RouterFormProps> = ({
             id: 'models.form.roles.router.connectionArgs'
           })}
         </div>
-        <div className="frozen-args">{connectionArgs.join(' ')}</div>
+        <div className="frozen-args">
+          {flagLines(connectionArgs).map((line) => (
+            <div className="frozen-line" key={line}>
+              {line}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -186,7 +227,13 @@ const RouterForm: React.FC<RouterFormProps> = ({
               id: 'models.form.roles.router.connectionArgs'
             })}
           </div>
-          <div className="frozen-args">{connectionArgs.join(' ')}</div>
+          <div className="frozen-args">
+            {flagLines(connectionArgs).map((line) => (
+              <div className="frozen-line" key={line}>
+                {line}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {tunableArgs.length > 0 && (
@@ -195,9 +242,11 @@ const RouterForm: React.FC<RouterFormProps> = ({
             {intl.formatMessage({ id: 'models.form.roles.router.tunableArgs' })}
           </div>
           <div className="frozen-args">
-            {tunableArgs
-              .map((arg) => [arg.flag, arg.default].filter(Boolean).join('='))
-              .join('  ')}
+            {tunableArgs.map((arg) => (
+              <div className="frozen-line" key={arg.flag}>
+                {[arg.flag, arg.default].filter(Boolean).join('=')}
+              </div>
+            ))}
           </div>
         </div>
       )}

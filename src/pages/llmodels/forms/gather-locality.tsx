@@ -1,70 +1,17 @@
-import { queryGatherFeasibility } from '@/pages/cluster-management/apis';
+import { queryClusterTopology } from '@/pages/cluster-management/apis';
 import { topologyFieldLabel } from '@/pages/cluster-management/config';
 import {
   ACCELERATOR_DOMAIN,
-  GatherFeasibility,
-  GatherTier,
-  NODE_LAYER
+  NODE_LAYER,
+  TopologyView
 } from '@/pages/cluster-management/config/types';
-import { IconFont } from '@gpustack/core-ui';
+import { IconFont, Select as SealSelect } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Alert, Button, Flex, Form, Radio, Space, Spin, Tooltip } from 'antd';
+import { Button, Flex, Form } from 'antd';
 import { createStyles } from 'antd-style';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FormData } from '../config/types';
 
-/**
- * Every tier costs one solve against live capacity, so the fetch is deferred
- * until the control is opened and debounced once there. Following the form's
- * keystrokes would re-solve the whole cluster per character typed in an
- * unrelated field.
- */
-const FEASIBILITY_DEBOUNCE_MS = 500;
-
-const useStyles = createStyles(({ css }) => ({
-  /* Laid out with `Space direction="vertical"`, not with `display: block` on
-     the Radio. Blocking the Radio breaks its own `input + label` row and the
-     dot ends up on the line above its text — which is exactly what it did. */
-  group: css`
-    width: 100%;
-    .ant-radio-wrapper {
-      align-items: baseline;
-      margin-inline-end: 0;
-    }
-    .verdict {
-      font-size: 12px;
-      margin-left: 8px;
-    }
-    .ok {
-      color: var(--ant-color-success);
-    }
-    .no {
-      color: var(--ant-color-text-tertiary);
-    }
-    .unknown {
-      color: var(--ant-color-warning);
-    }
-  `,
-  hint: css`
-    font-size: 12px;
-    color: var(--ant-color-text-tertiary);
-    margin-top: 6px;
-  `,
-  /* The line under the domain tier. Indented under its radio because it
-     explains that tier and no other. */
-  explain: css`
-    display: block;
-    font-size: 12px;
-    color: var(--ant-color-text-tertiary);
-    margin-left: 24px;
-  `
-}));
-
-/**
- * The topology drawer of the cluster, in a new tab. The form is half filled;
- * navigating away and back would need a draft restore, which costs more than a
- * tab (§8.8). The hash router means the path lives after the `#`.
- */
 const openTopologyDrawer = (clusterId: number) => {
   window.open(
     `${window.location.origin}${window.location.pathname}#/resources/clusters/list?topology=${clusterId}`,
@@ -72,18 +19,40 @@ const openTopologyDrawer = (clusterId: number) => {
   );
 };
 
+const useStyles = createStyles(({ css }) => ({
+  explain: css`
+    font-size: 12px;
+    color: var(--ant-color-text-tertiary);
+  `,
+  hint: css`
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--ant-color-text-tertiary);
+  `
+}));
+
 /**
- * "Below what would you rather not deploy" — not "which layer do you want".
+ * «至少在同一 ___，否则不部署» — the group's placement floor.
  *
- * `MustGather` is a *failure* policy, not a placement one: the group solver
+ * 🔑 The question is «低于什么档次宁可不部署», never «你想要哪一层». The solver
  * already places into the tightest domain that fits, so the only thing this
- * adds is refusing instead of quietly delivering a slower deployment. Asking
- * for a layer directly would be asking a deployer to interpret an operator's
- * private vocabulary ("L2"), while "does it fit" needs no glossary — which is
- * why every option carries a live verdict.
+ * control adds is a floor to refuse below.
  *
- * The most useful option is free: the leaf layer is built in, so "at least on
- * the same host" exists even in a cluster that declared no topology at all.
+ * 🔴 **The options come from the cluster's declared topology, not from a
+ * capacity probe.** An earlier version asked `gather-feasibility` for the
+ * tiers and rendered each one with a live «放得下 / 放不下» verdict. Two things
+ * killed it. On a healthy fleet every tier answers «放得下», so five identical
+ * green strings bought nothing and cost the whole right half of the control.
+ * And when the probe could not answer — which it could not here, because it
+ * solves against a form that is still half-filled — the tier LIST came back
+ * empty too, leaving «尽量靠近» as the only option on a cluster that had racks
+ * declared. Feasibility is a verdict about a finished configuration; asking
+ * for it while the user is still typing conflated «这一档放不下» with «我还不
+ * 知道». So the list is now a fact about the cluster, always available, and
+ * the fit check belongs to the final review before submit.
+ *
+ * The most useful option is free: the leaf layer is built in, so «至少同机»
+ * exists even in a cluster that declared no topology at all.
  */
 const GatherLocality: React.FC = () => {
   const intl = useIntl();
@@ -93,153 +62,65 @@ const GatherLocality: React.FC = () => {
   const strategy = Form.useWatch(['gather', 'strategy'], form);
   const layer = Form.useWatch(['gather', 'layer'], form);
 
-  const [feasibility, setFeasibility] = useState<GatherFeasibility | null>(
-    null
-  );
-  const [loading, setLoading] = useState(false);
-  /**
-   * The server does not have this endpoint.
-   *
-   * Told apart from a failed check on purpose: a 404 means the feature is not
-   * there, which no amount of retrying fixes, and offering a Retry button for
-   * it trains people to ignore the one that matters. A UI newer than the
-   * server it talks to is the normal case during a rollout, and it should look
-   * like "not available here", not like "something went wrong".
-   */
-  const [unsupported, setUnsupported] = useState(false);
+  const [topology, setTopology] = useState<TopologyView | null>(null);
+  const [failed, setFailed] = useState(false);
   /** Rotated per fetch so a slow answer cannot paint over a fresher one. */
   const sessionRef = useRef(0);
-  const timerRef = useRef<any>(null);
 
-  const fetchFeasibility = useCallback(async () => {
-    if (!clusterId) {
-      return;
-    }
+  /**
+   * Fetched when the cluster changes — that IS the action, and it is the only
+   * input the answer depends on. Cheap and cacheable, unlike the capacity
+   * solve it replaces: a cluster's declared layers do not move while a form is
+   * being filled in, so there is nothing to debounce.
+   */
+  const fetchTopology = async (id: number) => {
     const session = ++sessionRef.current;
-    setLoading(true);
     try {
-      const result = await queryGatherFeasibility(
-        {
-          id: clusterId,
-          // The whole form state. Capacity is decided by the resource-fit
-          // selectors, which read the backend, the parameters and the per-role
-          // overrides — a summary would answer a different question than the
-          // one the scheduler will.
-          model_spec: form.getFieldsValue(true)
-        },
+      const result = await queryClusterTopology(
+        { id },
         { skipErrorHandler: true }
       );
       if (sessionRef.current !== session) {
         return;
       }
-      setFeasibility(result);
-      setUnsupported(false);
-    } catch (e: any) {
+      setTopology(result);
+      setFailed(false);
+    } catch (e) {
       if (sessionRef.current !== session) {
         return;
       }
-      if (e?.response?.status === 404) {
-        setUnsupported(true);
-      }
-      // 🔴 Never an error state. A feasibility answer we could not get is not
-      // a deployment problem — the deployment is still legal and will still
-      // schedule. Blocking on it would make this control stricter than the
-      // backend it previews.
-      setFeasibility(null);
-    } finally {
-      if (sessionRef.current === session) {
-        setLoading(false);
-      }
+      // 🔴 Never an error state. Without the declaration the control still
+      // works — «尽量靠近» and «至少同机» need no topology at all — so this
+      // degrades to fewer options rather than to a broken field.
+      setTopology(null);
+      setFailed(true);
     }
-  }, [clusterId, form]);
+  };
 
   useEffect(() => {
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(fetchFeasibility, FEASIBILITY_DEBOUNCE_MS);
-    return () => clearTimeout(timerRef.current);
-  }, [fetchFeasibility]);
+    if (!clusterId) {
+      setTopology(null);
+      return;
+    }
+    fetchTopology(clusterId);
+  }, [clusterId]);
 
-  // Coming back from the topology drawer's tab is exactly when the answer has
-  // changed, so the tab regaining focus re-asks.
-  useEffect(() => {
-    const onFocus = () => fetchFeasibility();
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [fetchFeasibility]);
-
-  const tiers = feasibility?.tiers || [];
   /**
-   * Whether any tier comes from a filled-in location. The host and the
-   * accelerator domain exist on their own; the coarser choices are what
-   * filling in a rack buys, and their absence is a nudge, not a bug.
+   * Root-to-leaf, and only the layers that mean something here:
+   *
+   * - the built-in host layer is offered as «至少同机», always;
+   * - the accelerator domain is its own option and does NOT sit in the layer
+   *   sequence — its containment direction differs by hardware generation
+   *   (see F5), so it is not comparable with racks or rooms;
+   * - a declared layer is offered once at least one worker resolves a value
+   *   there. An `active: false` layer is a name with nothing behind it, and
+   *   refusing to deploy below a tier no machine belongs to would refuse
+   *   everything.
    */
-  const hasTreeTiers = tiers.some(
-    (tier) => tier.layer !== NODE_LAYER && tier.layer !== ACCELERATOR_DOMAIN
+  const treeLayers = (topology?.layers || []).filter(
+    (item) => item.active && item.id !== NODE_LAYER
   );
-  const selectedTier =
-    strategy === 'MustGather'
-      ? tiers.find((tier) => tier.layer === layer)
-      : undefined;
-  const selectedInfeasible =
-    !!selectedTier && !selectedTier.feasible && !selectedTier.unmeasured;
-
-  const tierLabel = (tier: GatherTier) => {
-    if (tier.layer === NODE_LAYER) {
-      return intl.formatMessage({ id: 'models.form.gather.sameHost' });
-    }
-    if (tier.layer === ACCELERATOR_DOMAIN) {
-      return intl.formatMessage({ id: 'models.form.gather.sameDomain' });
-    }
-    return intl.formatMessage(
-      { id: 'models.form.gather.sameLayer' },
-      { layer: topologyFieldLabel(intl, tier.layer, tier.name) }
-    );
-  };
-
-  const verdict = (tier?: GatherTier) => {
-    if (!tier) {
-      return null;
-    }
-    // Unmeasured first: `available` is a floor when it is non-zero, and
-    // presenting a floor as a capacity verdict is what makes an operator stop
-    // looking for the misconfiguration that caused it.
-    if (tier.unmeasured) {
-      return (
-        <span className="verdict unknown">
-          {intl.formatMessage(
-            { id: 'models.form.gather.unknown' },
-            { count: tier.unmeasured }
-          )}
-        </span>
-      );
-    }
-    if (tier.feasible) {
-      return (
-        <span className="verdict ok">
-          {tier.domain
-            ? intl.formatMessage(
-                { id: 'models.form.gather.fits.domain' },
-                { domain: tier.domain }
-              )
-            : intl.formatMessage({ id: 'models.form.gather.fits' })}
-        </span>
-      );
-    }
-    return (
-      <span className="verdict no">
-        {tier.best_domain
-          ? intl.formatMessage(
-              { id: 'models.form.gather.short' },
-              {
-                domain: tier.best_domain,
-                needed: tier.needed,
-                available: tier.available
-              }
-            )
-          : intl.formatMessage({ id: 'models.form.gather.noRoom' })}
-      </span>
-    );
-  };
+  const domainActive = !!topology?.accelerator_domain?.active;
 
   const value = strategy === 'MustGather' ? `must:${layer}` : 'prefer';
 
@@ -256,11 +137,65 @@ const GatherLocality: React.FC = () => {
     form.setFieldValue(['gather', 'layer'], next.slice('must:'.length));
   };
 
+  const options = [
+    {
+      value: 'prefer',
+      label: intl.formatMessage({ id: 'models.form.gather.prefer' }),
+      desc: intl.formatMessage({ id: 'models.form.gather.prefer.tips' })
+    },
+    {
+      value: `must:${NODE_LAYER}`,
+      label: intl.formatMessage({ id: 'models.form.gather.sameHost' })
+    },
+    ...(domainActive
+      ? [
+          {
+            value: `must:${ACCELERATOR_DOMAIN}`,
+            label: intl.formatMessage({ id: 'models.form.gather.sameDomain' }),
+            desc: intl.formatMessage({ id: 'models.form.gather.domain.tips' })
+          }
+        ]
+      : []),
+    ...treeLayers.map((item) => ({
+      value: `must:${item.id}`,
+      label: intl.formatMessage(
+        { id: 'models.form.gather.sameLayer' },
+        { layer: topologyFieldLabel(intl, item.id, item.name) }
+      ),
+      desc: intl.formatMessage({ id: 'models.form.gather.tree.tips' })
+    }))
+  ];
+
+  // Assigned to consts rather than written inline: an inline arrow in JSX is a
+  // new component type on every render, which antd's Select rebuilds the whole
+  // dropdown for.
+  const optionRender = (option: any) => (
+    <Flex vertical gap={2}>
+      <span>{option?.data?.label}</span>
+      {option?.data?.desc && (
+        <span className={styles.explain}>{option.data.desc}</span>
+      )}
+    </Flex>
+  );
+
+  // The default's «放不下就摊开» belongs on the closed control: it is the one
+  // option whose meaning is not in its name.
+  const labelRender = (option: any) => (
+    <Flex align="center" gap={6}>
+      <span>{option?.label}</span>
+      {option?.value === 'prefer' && (
+        <span className={styles.explain}>
+          {intl.formatMessage({ id: 'models.form.gather.prefer.tips' })}
+        </span>
+      )}
+    </Flex>
+  );
+
   return (
     <>
-      {/* Registered so the pair reaches the payload; driven by the radio
-          group below rather than by fields of their own, because the two
-          together are one decision. */}
+      {/* Registered so the pair reaches the payload; driven by the select
+          below rather than by fields of their own, because the two together
+          are one decision. */}
       <Form.Item name={['gather', 'strategy']} hidden noStyle>
         <input />
       </Form.Item>
@@ -268,105 +203,18 @@ const GatherLocality: React.FC = () => {
         <input />
       </Form.Item>
 
-      {/* 🔴 Not wrapped in `Spin`. A spinning Spin lays a mask over its
-          children, and a mask over a radio group is a control nobody can
-          click. The first version compounded it by refetching on mouseenter,
-          so moving the pointer in to click re-raised the mask that blocked the
-          click. Loading is reported next to the options instead, where it
-          cannot intercept anything. */}
-      <Radio.Group
-        className={styles.group}
+      <SealSelect
         value={value}
-        onChange={(e) => handleChange(e.target.value)}
-      >
-        <Space direction="vertical" size={4} style={{ width: '100%' }}>
-          <Radio value="prefer">
-            {intl.formatMessage({ id: 'models.form.gather.prefer' })}
-            <span className="verdict no">
-              {intl.formatMessage({ id: 'models.form.gather.prefer.tips' })}
-            </span>
-          </Radio>
-          {tiers.map((tier) => {
-            const isTree =
-              tier.layer !== NODE_LAYER && tier.layer !== ACCELERATOR_DOMAIN;
-            const radio = (
-              <Radio key={tier.layer} value={`must:${tier.layer}`}>
-                {tierLabel(tier)}
-                {verdict(tier)}
-              </Radio>
-            );
-            return (
-              <Flex orientation="vertical" key={tier.layer}>
-                {/* §6.2b: a tier means "transfer no worse than X", so a domain
-                    spanning two racks satisfies "same rack". Said on hover
-                    where the rack tier is, since that is where it surprises. */}
-                {isTree ? (
-                  <Tooltip
-                    placement="right"
-                    title={intl.formatMessage({
-                      id: 'models.form.gather.tree.tips'
-                    })}
-                  >
-                    {radio}
-                  </Tooltip>
-                ) : (
-                  radio
-                )}
-                {tier.layer === ACCELERATOR_DOMAIN && (
-                  <span className={styles.explain}>
-                    {intl.formatMessage({
-                      id: 'models.form.gather.domain.tips'
-                    })}
-                  </span>
-                )}
-              </Flex>
-            );
-          })}
-        </Space>
-      </Radio.Group>
-
-      {/* Not a validation error: the backend accepts this and the group waits
-          for room. Warned, and the ways out are named, but nothing blocks. */}
-      {selectedInfeasible && (
-        <Alert
-          type="warning"
-          showIcon
-          style={{ marginTop: 8 }}
-          message={intl.formatMessage({
-            id: 'models.form.gather.infeasible.warning'
-          })}
-        />
-      )}
-
-      {/* The stricter options come from the server, so until it answers there
-          is exactly one radio on screen — which reads as a broken control
-          rather than as a pending one. Saying which it is costs a line. */}
-      {loading && !tiers.length && (
-        <Flex align="center" gap={6} className={styles.hint}>
-          <Spin size="small" />
-          <span>
-            {intl.formatMessage({ id: 'models.form.gather.checking' })}
-          </span>
-        </Flex>
-      )}
-      {/* Nothing at all when the server lacks the endpoint: the control still
-          works (the default is the correct answer), and a notice about a
-          capability this deployment does not have is noise on every form. */}
-      {!loading && !tiers.length && !unsupported && (
-        <Flex align="center" gap={6} className={styles.hint}>
-          <span>
-            {intl.formatMessage({ id: 'models.form.gather.unavailable' })}
-          </span>
-          <Button size="small" type="link" onClick={fetchFeasibility}>
-            {intl.formatMessage({ id: 'models.form.gather.retry' })}
-          </Button>
-        </Flex>
-      )}
+        onChange={handleChange}
+        options={options}
+        optionRender={optionRender}
+        labelRender={labelRender}
+      ></SealSelect>
 
       {/* Where the coarser tiers come from, said once and pointing at the
-          place that creates them. Without this the absence of "at least in the
-          same rack" reads as a missing feature rather than an unset one. */}
-      {!hasTreeTiers && !!tiers.length && (
+          place that creates them. Without this the absence of «至少在同一机柜»
+          reads as a missing feature rather than an unset one. */}
+      {!treeLayers.length && !failed && (
         <Flex align="center" gap={6} className={styles.hint}>
           <IconFont type="icon-bulb" />
           <span>

@@ -17,7 +17,15 @@ import { backendOptionsMap } from '../constants/backend-parameters';
 import BackendParametersList from './backend-parameters-list';
 import ModelLoraList from './model-lora-list';
 
-const AdvanceConfig = () => {
+/**
+ * @param pdActive Whether PD is on. When it is, this card drops its
+ *   model-level backend parameters and env: every role carries its own pair,
+ *   so keeping these here showed the same two controls twice and the role
+ *   card's "Same as model" pointed back at a copy nobody should be filling.
+ *   The values are cleared by the mount site (`clearModelParams`), not just
+ *   hidden — see the effect's declaration for why.
+ */
+const AdvanceConfig = ({ pdActive }: { pdActive?: boolean } = {}) => {
   const intl = useIntl();
   const form = Form.useFormInstance();
   const backend = Form.useWatch('backend', form);
@@ -89,17 +97,21 @@ const AdvanceConfig = () => {
           options={modelCategories}
         ></SealSelect>
       </Form.Item>
-      <BackendParametersList></BackendParametersList>
-      <Form.Item<FormData> name="env">
-        <LabelSelector
-          label={intl.formatMessage({
-            id: 'models.form.env'
-          })}
-          btnText={intl.formatMessage({ id: 'common.button.vars' })}
-          onBlur={handleEnvSelectorOnBlur}
-          onDelete={handleDeleteEnvSelector}
-        ></LabelSelector>
-      </Form.Item>
+      {!pdActive && (
+        <>
+          <BackendParametersList></BackendParametersList>
+          <Form.Item<FormData> name="env">
+            <LabelSelector
+              label={intl.formatMessage({
+                id: 'models.form.env'
+              })}
+              btnText={intl.formatMessage({ id: 'common.button.vars' })}
+              onBlur={handleEnvSelectorOnBlur}
+              onDelete={handleDeleteEnvSelector}
+            ></LabelSelector>
+          </Form.Item>
+        </>
+      )}
       {/* `lora_list` has no `RoleSpec` field, so under PD one value lands on
           every role. That is a reason to say so, not a reason to move it: the
           section it used to move to held nothing else, and a field that

@@ -120,6 +120,8 @@ export default {
   'models.localpath.safe.tips':
     'Specify the model directory that contains .safetensors and config.json files, e.g., /data/models/model.',
   'models.localpath.chunks.tips': `Specify the first shard file of the model, e.g., /data/models/model-00001-of-00004.gguf.`,
+  'models.form.replicas.moved.roles':
+    'Per-role replicas, engine and parameters are set in Roles',
   'models.form.replicas.tips':
     'Multiple replicas enable load balancing for { api } inference requests.',
   'models.table.list.empty': 'No Models yet!',
@@ -407,8 +409,6 @@ export default {
     'Requires {runtime} accelerators; this cluster reports {vendors}.',
   'models.form.pd.mode.only.custom':
     'No built-in recipe fits this engine and accelerator. Custom is still available: you supply the connector, ports and handshake variables yourself.',
-  'models.form.pd.mode.derived':
-    'Transport: {mode} · deploying to {vendor} accelerators',
   'models.form.pd.vendor': 'Accelerator vendor',
   'models.form.pd.vendor.tips':
     'This cluster has more than one vendor that could host the group, and a PD group cannot span vendors — the KV transport differs. Pick the partition to deploy onto.',
@@ -433,6 +433,8 @@ export default {
   'models.form.roles.group.parameters': 'Parameters and environment',
   'models.form.roles.group.scheduling': 'Resources and scheduling',
   'models.form.roles.group.cache': 'Shared KV cache',
+  'models.form.roles.group.settings': 'Group settings',
+  'models.form.roles.group.settings.tips': 'Apply to every role',
   'models.form.roles.group.wide': 'Group-wide',
   'models.form.roles.replicas': 'Replicas',
   'models.form.roles.router.managed': 'Managed by the system',
@@ -575,7 +577,7 @@ export default {
   'models.form.roles.cpuonly.tips':
     'The router forwards requests and holds no model weights, so it takes no GPU.',
 
-  'models.form.gather.title': 'KV Transfer Locality',
+  'models.form.gather.title': 'Topology Affinity',
   'models.form.gather.title.tips':
     'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
   'models.form.gather.prefer': 'As close as possible',

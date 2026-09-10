@@ -121,6 +121,8 @@ export default {
   'models.localpath.safe.tips':
     'config.jsonファイルを含む.safetensorsディレクトリを指定してください。例: /data/models/model。',
   'models.localpath.chunks.tips': `モデルの最初のシャードファイルを指定してください。例: /data/models/model-00001-of-00004.gguf。`,
+  'models.form.replicas.moved.roles':
+    '各ロールのレプリカ数・エンジン・パラメータは「ロール構成」で設定します',
   'models.form.replicas.tips':
     '複数のレプリカにより、{api} 推論リクエストの負荷分散が可能になります。',
   'models.table.list.empty': 'まだモデルがありません！',
@@ -408,8 +410,6 @@ export default {
     '{runtime} アクセラレータが必要ですが、このクラスターは {vendors} のみです。',
   'models.form.pd.mode.only.custom':
     '現在のエンジンとアクセラレータの組み合わせに対応する組み込みレシピはありません。「カスタム」モードは利用可能です：コネクタ、ポート、ハンドシェイク変数はご自身で指定してください。',
-  'models.form.pd.mode.derived':
-    '転送方式：{mode} · {vendor} アクセラレータにデプロイ',
   'models.form.pd.vendor': 'アクセラレータのベンダー',
   'models.form.pd.vendor.tips':
     'このクラスターには複数ベンダーのアクセラレータがあり、PD グループはベンダーをまたげません（KV 転送経路が異なるため）。デプロイ先のパーティションを選択してください。',
@@ -434,6 +434,8 @@ export default {
   'models.form.roles.group.parameters': 'エンジンパラメータと環境変数',
   'models.form.roles.group.scheduling': 'リソースとスケジューリング',
   'models.form.roles.group.cache': '共有 KV キャッシュ',
+  'models.form.roles.group.settings': 'グループ設定',
+  'models.form.roles.group.settings.tips': 'すべてのロールに適用',
   'models.form.roles.group.wide': 'グループ全体',
   'models.form.roles.replicas': 'レプリカ数',
   'models.form.roles.router.managed': 'システム管理',
@@ -572,7 +574,7 @@ export default {
   'models.form.roles.cpuonly.tips':
     'Router はリクエストを転送するだけでモデルの重みを保持しないため、GPU を使用しません。',
 
-  'models.form.gather.title': 'KV Transfer Locality',
+  'models.form.gather.title': 'トポロジー親和性',
   'models.form.gather.title.tips':
     'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
   'models.form.gather.prefer': 'As close as possible',

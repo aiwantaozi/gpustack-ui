@@ -1,6 +1,7 @@
-import { ThemeTag } from '@gpustack/core-ui';
+import { LabelInfo, ThemeTag } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Alert, Badge, Form, Segmented } from 'antd';
+import { Alert, Flex, Form, Segmented } from 'antd';
+import { createStyles } from 'antd-style';
 import React from 'react';
 import {
   PD_MODE_CUSTOM,
@@ -14,9 +15,44 @@ import { RoleSection } from './override-section';
 import RoleForm from './role-form';
 import RouterForm from './router-form';
 
+// Same border/radius/padding vocabulary as `RoleSection` — the group-settings
+// card IS one of those cards, and its nested affinity block is a field inside
+// it, not a second card.
+const useStyles = createStyles(({ css }) => ({
+  nested: css`
+    border: 1px solid var(--ant-color-border);
+    border-radius: 6px;
+    padding: 10px 12px 12px;
+    margin-bottom: 12px;
+  `,
+  count: css`
+    padding: 0 5px;
+    border-radius: 4px;
+    background-color: var(--ant-color-fill-tertiary);
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--ant-color-text-tertiary);
+  `,
+  errorDot: css`
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--ant-color-error);
+  `
+}));
+
 interface RolesProps {
   /** Whether PD is on. Off renders nothing at all — see the note below. */
   enabled: boolean;
+  /**
+   * The PD block's body: transport picker entry, vendor, notes.
+   *
+   * Mounted here rather than up in Basic because everything in it is
+   * group-wide, and «哪条通道» is the question «最紧到哪一档» is a refinement
+   * of — putting them in one card is what makes the second read as a
+   * refinement instead of an unrelated control two sections away.
+   */
+  pdBody?: React.ReactNode;
   /** The selected pd mode's catalog entry. */
   mode?: PDMode;
   /** The selected mode's name, for the `custom` exclusions. */
@@ -36,8 +72,9 @@ interface RolesProps {
  * its submit value from *registered* fields, so an unregistered `roles` path
  * cannot reach the payload.
  */
-const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName }) => {
+const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName, pdBody }) => {
   const intl = useIntl();
+  const { styles } = useStyles();
   const form = Form.useFormInstance();
   // `preserve: true` is load-bearing, not defensive. Without it `useWatch`
   // reads `getFieldsValue()`, which returns only REGISTERED fields — and
@@ -87,14 +124,22 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName }) => {
     const label = intl.formatMessage({ id: RoleLabelMap[name] });
     return {
       value: name,
-      label: errorRoles.has(name) ? (
-        // The count is on the label too: "which role is how big" is the first
-        // thing a reader of a PD form wants, and it should not need a click.
-        <Badge dot status="error" offset={[4, -2]}>
-          {`${label} ${role?.replicas ?? 1}`}
-        </Badge>
-      ) : (
-        `${label} ${role?.replicas ?? 1}`
+      // The count rides the tab as a «×N» tag rather than a bare number:
+      // "which role is how big" is the first thing a reader of a PD form
+      // wants and it should not need a click, but «Prefill 1» read as an
+      // index — «Prefill ×1» reads as a quantity.
+      /* 🔴 The error marker is a dot we draw, not `Badge dot`.
+         Badge positions its dot against its child's box, and the child stopped
+         being a plain string when the count became a tag — so the dot landed
+         above the tab's centre, floating between the label and the count with
+         nothing under it. An inline dot after the count sits where the eye
+         already is. */
+      label: (
+        <Flex align="center" justify="center" gap={6}>
+          <span>{label}</span>
+          <span className={styles.count}>{`×${role?.replicas ?? 1}`}</span>
+          {errorRoles.has(name) && <span className={styles.errorDot} />}
+        </Flex>
       )
     };
   });
@@ -122,9 +167,9 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName }) => {
           because that is the order the decisions happen in: how close they
           must be, then where each one goes. */}
       <RoleSection
-        label={intl.formatMessage({ id: 'models.form.gather.title' })}
+        label={intl.formatMessage({ id: 'models.form.roles.group.settings' })}
         description={intl.formatMessage({
-          id: 'models.form.gather.title.tips'
+          id: 'models.form.roles.group.settings.tips'
         })}
         extra={
           <ThemeTag opacity={0.75}>
@@ -132,7 +177,19 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName }) => {
           </ThemeTag>
         }
       >
-        <GatherLocality></GatherLocality>
+        {pdBody}
+        {/* Nested one level in: the affinity choice is scoped by the transport
+            above it (a tier means "no worse than X" *on this channel*), so it
+            reads as a refinement rather than a sibling. */}
+        <div className={styles.nested}>
+          <LabelInfo
+            label={intl.formatMessage({ id: 'models.form.gather.title' })}
+            description={intl.formatMessage({
+              id: 'models.form.gather.title.tips'
+            })}
+          ></LabelInfo>
+          <GatherLocality></GatherLocality>
+        </div>
       </RoleSection>
       <Segmented
         block

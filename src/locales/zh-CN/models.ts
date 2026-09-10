@@ -119,6 +119,8 @@ export default {
     '指向包含 .safetensors, config.json 文件的模型目录，例如 /data/models/model。',
   'models.localpath.chunks.tips':
     '指向模型第一个分片文件，例如 /data/models/model-00001-of-00004.gguf。',
+  'models.form.replicas.moved.roles':
+    '各角色副本数、引擎与参数在「角色配置」中设置',
   'models.form.replicas.tips': '多副本数实现 { api } 接口推理请求的负载均衡。',
   'models.table.list.empty': '暂无已部署模型',
   'models.table.list.getStart':
@@ -387,7 +389,6 @@ export default {
     '需要 {runtime} 加速卡，当前集群只有 {vendors}。',
   'models.form.pd.mode.only.custom':
     '当前引擎与加速卡组合没有内置配方。仍可用「自定义」模式：连接器、端口与握手变量由你自己填写。',
-  'models.form.pd.mode.derived': '传输方案：{mode} · 将部署到 {vendor} 加速卡',
   'models.form.pd.vendor': '加速卡厂商',
   'models.form.pd.vendor.tips':
     '当前集群有多个厂商的加速卡可以承载这个组，而 PD 组不能跨厂商 —— KV 传输通道不同。请选择部署到哪个分区。',
@@ -411,6 +412,8 @@ export default {
   'models.form.roles.group.parameters': '引擎参数与环境变量',
   'models.form.roles.group.scheduling': '资源与调度',
   'models.form.roles.group.cache': '共享 KV 缓存',
+  'models.form.roles.group.settings': '组级设置',
+  'models.form.roles.group.settings.tips': '对所有角色生效',
   'models.form.roles.group.wide': '组级',
   'models.form.roles.replicas': '副本数',
   'models.form.roles.router.managed': '由系统托管',
@@ -536,7 +539,7 @@ export default {
   'models.form.roles.cpuonly.tips':
     'Router 只转发请求、不持有模型权重，因此不占用 GPU。',
 
-  'models.form.gather.title': 'KV 传输局部性',
+  'models.form.gather.title': '拓扑亲和性',
   'models.form.gather.title.tips':
     '这一组必须放在多紧的范围内。调度器本来就会往放得下的最紧域里塞，这里决定的是放不下时「拒绝」还是「摊开」。',
   'models.form.gather.prefer': '尽量靠近',

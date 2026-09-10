@@ -1,4 +1,4 @@
-import { InputNumber, LabelSelector } from '@gpustack/core-ui';
+import { InputNumber, LabelSelector, useAppUtils } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { Form, Input } from 'antd';
 import React from 'react';
@@ -8,7 +8,7 @@ import BackendParametersList from '../backend-parameters-list';
 import CustomBackend from '../custom-backend';
 import ScheduleTypeForm from '../schedule-type';
 import SpeculativeDecode from '../speculative-decode';
-import OverrideSection, { RoleSection } from './override-section';
+import OverrideSection from './override-section';
 import RoleKVCache from './role-kv-cache';
 
 interface RoleFormProps {
@@ -30,6 +30,7 @@ interface RoleFormProps {
  */
 const RoleForm: React.FC<RoleFormProps> = ({ index, cacheDisabledReason }) => {
   const intl = useIntl();
+  const { getRuleMessage } = useAppUtils();
 
   return (
     <>
@@ -41,24 +42,33 @@ const RoleForm: React.FC<RoleFormProps> = ({ index, cacheDisabledReason }) => {
       <Form.Item name={['roles', index, 'name']} hidden>
         <Input />
       </Form.Item>
-      <RoleSection
-        label={intl.formatMessage({ id: 'models.form.roles.replicas' })}
+      {/* The x and the y of xPyD, and the only scaling truth for a group: the
+          model-level replica count is a 0/1 deployment switch. At least one,
+          because not wanting a role means removing it — a zero would leave
+          `dependencies` pointing at a role that never appears.
+
+          🔴 No `RoleSection` wrapper. It put the section's label above a field
+          whose own floating label says the same word, so «副本数» rendered
+          twice, one above the other. */}
+      <Form.Item
+        name={['roles', index, 'replicas']}
+        rules={[
+          {
+            required: true,
+            // Explicit, because antd's default builds the message from the
+            // field PATH — an empty role replica count read «请输入
+            // roles,0,replicas».
+            message: getRuleMessage('input', 'models.form.roles.replicas')
+          }
+        ]}
       >
-        {/* The x and the y of xPyD, and the only scaling truth for a group:
-            the model-level replica count is a 0/1 deployment switch. At least
-            one, because not wanting a role means removing it — a zero would
-            leave `dependencies` pointing at a role that never appears. */}
-        <Form.Item
-          name={['roles', index, 'replicas']}
-          rules={[{ required: true }]}
-        >
-          <InputNumber
-            min={1}
-            style={{ width: '100%' }}
-            label={intl.formatMessage({ id: 'models.form.roles.replicas' })}
-          ></InputNumber>
-        </Form.Item>
-      </RoleSection>
+        <InputNumber
+          min={1}
+          controls={false}
+          style={{ width: '100%' }}
+          label={intl.formatMessage({ id: 'models.form.roles.replicas' })}
+        ></InputNumber>
+      </Form.Item>
 
       <OverrideSection group={OverrideGroupMap.Backend} index={index}>
         <BackendFields namePrefix={['roles', index]}></BackendFields>

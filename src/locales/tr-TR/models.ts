@@ -121,6 +121,8 @@ export default {
   'models.localpath.safe.tips':
     '.safetensors ve config.json dosyaları içeren model dizinini belirtin, örn., /data/models/model.',
   'models.localpath.chunks.tips': `Modelin ilk parça dosyasını belirtin, örn., /data/models/model-00001-of-00004.gguf.`,
+  'models.form.replicas.moved.roles':
+    'Rol başına kopya, motor ve parametreler «Roller» bölümünde ayarlanır',
   'models.form.replicas.tips':
     'Birden fazla kopya, { api } çıkarım istekleri için yük dengelemeyi etkinleştirir.',
   'models.table.list.empty': 'Henüz model yok!',
@@ -407,8 +409,6 @@ export default {
     '{runtime} hızlandırıcı gerekiyor; bu kümede yalnızca {vendors} var.',
   'models.form.pd.mode.only.custom':
     'Bu motor ve hızlandırıcı bileşimi için yerleşik bir reçete yok. Özel mod hâlâ kullanılabilir: bağlayıcı, portlar ve el sıkışma değişkenlerini kendiniz girersiniz.',
-  'models.form.pd.mode.derived':
-    'Taşıma: {mode} · {vendor} hızlandırıcılara dağıtılacak',
   'models.form.pd.vendor': 'Hızlandırıcı üreticisi',
   'models.form.pd.vendor.tips':
     'Bu kümede grubu barındırabilecek birden fazla üretici var ve bir PD grubu üreticiler arasına yayılamaz — KV taşıma yolu farklıdır. Dağıtılacak bölümü seçin.',
@@ -433,6 +433,8 @@ export default {
   'models.form.roles.group.parameters': 'Parametreler ve ortam değişkenleri',
   'models.form.roles.group.scheduling': 'Kaynaklar ve zamanlama',
   'models.form.roles.group.cache': 'Paylaşılan KV önbelleği',
+  'models.form.roles.group.settings': 'Grup ayarları',
+  'models.form.roles.group.settings.tips': 'Tüm rollere uygulanır',
   'models.form.roles.group.wide': 'Grup genelinde',
   'models.form.roles.replicas': 'Replikalar',
   'models.form.roles.router.managed': 'Sistem tarafından yönetilir',
@@ -572,7 +574,7 @@ export default {
   'models.form.roles.cpuonly.tips':
     'Router yalnızca istekleri iletir ve model ağırlığı tutmaz, bu yüzden GPU kullanmaz.',
 
-  'models.form.gather.title': 'KV Transfer Locality',
+  'models.form.gather.title': 'Topoloji Yakınlığı',
   'models.form.gather.title.tips':
     'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
   'models.form.gather.prefer': 'As close as possible',

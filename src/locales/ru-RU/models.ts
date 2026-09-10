@@ -123,6 +123,8 @@ export default {
     'Укажите директорию модели с файлами .safetensors и config.json.',
   'models.localpath.chunks.tips':
     'Укажите первый шард модели, например: /data/models/model-00001-of-00004.gguf.',
+  'models.form.replicas.moved.roles':
+    'Реплики, движок и параметры каждой роли задаются в разделе «Роли»',
   'models.form.replicas.tips':
     'Несколько реплик обеспечивают балансировку нагрузки для { api } запросов.',
   'models.table.list.empty': 'Модели отсутствуют!',
@@ -411,8 +413,6 @@ export default {
     'Требуются ускорители {runtime}; в этом кластере есть только {vendors}.',
   'models.form.pd.mode.only.custom':
     'Для этого сочетания движка и ускорителя нет встроенного рецепта. Режим «Пользовательский» по-прежнему доступен: коннектор, порты и переменные рукопожатия задаёте вы.',
-  'models.form.pd.mode.derived':
-    'Транспорт: {mode} · развёртывание на ускорителях {vendor}',
   'models.form.pd.vendor': 'Производитель ускорителя',
   'models.form.pd.vendor.tips':
     'В этом кластере несколько производителей ускорителей могут разместить группу, а группа PD не может охватывать разных производителей — тракт передачи KV различается. Выберите раздел для развёртывания.',
@@ -437,6 +437,8 @@ export default {
   'models.form.roles.group.parameters': 'Параметры и переменные среды',
   'models.form.roles.group.scheduling': 'Ресурсы и планирование',
   'models.form.roles.group.cache': 'Общий кэш KV',
+  'models.form.roles.group.settings': 'Настройки группы',
+  'models.form.roles.group.settings.tips': 'Применяются ко всем ролям',
   'models.form.roles.group.wide': 'На всю группу',
   'models.form.roles.replicas': 'Реплики',
   'models.form.roles.router.managed': 'Управляется системой',
@@ -576,7 +578,7 @@ export default {
   'models.form.roles.cpuonly.tips':
     'Router только пересылает запросы и не хранит веса модели, поэтому GPU не занимает.',
 
-  'models.form.gather.title': 'KV Transfer Locality',
+  'models.form.gather.title': 'Топологическая аффинность',
   'models.form.gather.title.tips':
     'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
   'models.form.gather.prefer': 'As close as possible',

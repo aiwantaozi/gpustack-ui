@@ -1,7 +1,7 @@
 import { workerListAtom } from '@/atoms/models';
-import { Select as SealSelect, ThemeTag, useAppUtils } from '@gpustack/core-ui';
+import { Select as SealSelect, useAppUtils } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Button, Flex, Form, Radio, Tooltip } from 'antd';
+import { Flex, Form, Switch, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import { useAtomValue } from 'jotai';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -48,51 +48,22 @@ const useStyles = createStyles(({ css }) => ({
       color: var(--ant-color-warning);
     }
   `,
-  // Two cards rather than a switch. A binary toggle is right where the two
-  // states are "this feature off / on"; here they are two deployment shapes
-  // with different consequences, and the control now sits at the top of the
-  // form where no PD context exists yet. A bare switch labelled "PD" asks the
-  // reader to already know what it costs; two labelled options carry the
-  // trade-off in the choice itself.
-  shapes: css`
-    display: grid;
-    /* Falls back to one column when the drawer is narrow: two cards at 1fr
-       each squeeze the description into four-word lines long before the
-       drawer is unusably small. */
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
-    /* The block below is a labelled field; without this its label sits flush
-       against the card border and reads as part of the card. */
-    margin-bottom: 16px;
-    .shape {
-      border: 1px solid var(--ant-color-border);
-      border-radius: 8px;
-      padding: 12px 14px;
-      cursor: pointer;
-      transition: all 0.2s;
-      &:hover:not(.disabled) {
-        border-color: var(--ant-color-primary-border-hover);
-      }
-      &.active {
-        border-color: var(--ant-color-primary);
-        background-color: var(--ant-color-primary-bg);
-      }
-      &.disabled {
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-      .shape-title {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--ant-color-text);
-      }
-      .shape-desc {
-        margin-top: 4px;
-        font-size: 12px;
-        line-height: 1.6;
-        color: var(--ant-color-text-tertiary);
-      }
-    }
+  // One switch, not two cards. The earlier version was a two-card radio, on
+  // the argument that "PD off / on" hides a trade-off two labelled shapes
+  // carry in the choice itself. In review that argument lost to a simpler
+  // one: the second card only ever restated what every non-PD deployment
+  // already is, and it did so at the top of the form where it cost a third of
+  // the visible height. The trade-off now lives in the switch's own
+  // description plus the notes below it.
+  toggleLabel: css`
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--ant-color-text-tertiary);
+  `,
+  modeId: css`
+    font-size: 12px;
+    font-family: var(--ant-font-family-code);
+    color: var(--ant-color-text-tertiary);
   `
 }));
 
@@ -125,6 +96,14 @@ export interface PDEffects {
   // on screen explains why all three members landed on the same labelled
   // workers.
   clearModelScheduling?: boolean;
+  // 🆕 Same argument as `clearModelScheduling`, applied to the other pair the
+  // role card duplicates: every role carries its own backend parameters and
+  // env, so the model-level copies in "Advanced" showed the same two controls
+  // a second time. Removed under PD, and *cleared* rather than hidden —
+  // `role_effective_model` projects a model-level value onto any role that has
+  // none, so a leftover `--tensor-parallel-size` would silently constrain all
+  // three members with nothing on screen saying where it came from.
+  clearModelParams?: boolean;
   // Model-level `replicas` is a 0/1 deployment switch under PD, never a group
   // count: pin the field to 1 and make it read-only.
   replicasLocked: boolean;
@@ -140,6 +119,18 @@ export interface PDEffects {
 
 interface PDDisaggregationProps {
   /**
+   * Which half of this block to render.
+   *
+   * `toggle` is the switch alone, mounted in the replica field's label row;
+   * `body` is everything the switch reveals (vendor, transport picker, notes),
+   * mounted in the group-settings card down in Roles. Two instances, one truth:
+   * `enabled` is derived from `roles`, so neither owns it.
+   *
+   * Only the `toggle` instance runs the enable sequence and publishes effects —
+   * the body would publish the same thing a second time.
+   */
+  variant?: 'toggle' | 'body';
+  /**
    * A precondition this section cannot see (hostNetwork once it becomes a
    * field, a tenant quota, ...). Non-empty disables the whole block and is
    * shown as the reason; it wins over the conditions derived here.
@@ -149,7 +140,7 @@ interface PDDisaggregationProps {
 }
 
 const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
-  const { disabledReason, onEffectsChange } = props;
+  const { disabledReason, onEffectsChange, variant = 'toggle' } = props;
   const intl = useIntl();
   const { styles } = useStyles();
   const form = Form.useFormInstance<FormData>();
@@ -161,7 +152,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     initialValues,
     onValuesChange
   } = useFormContext();
-  const { getPDModes, buildOptions, isCustomMode, findMode } =
+  const { pdModes, getPDModes, buildOptions, isCustomMode, findMode } =
     useQueryPDModes();
   const workerList = useAtomValue(workerListAtom);
 
@@ -189,14 +180,32 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   const roles = Form.useWatch('roles', { form, preserve: true });
   const kvCacheEnabled = Form.useWatch(['extended_kv_cache', 'enabled'], form);
 
-  // The toggle is deliberately NOT a form field: with `roles` empty the
-  // block must leave the form store exactly as it found it, and an off state
-  // written anywhere would ride the submit. Everything PD writes is registered
-  // below, inside the enabled branch only.
-  const [enabled, setEnabled] = useState(
-    isPDModel({ roles: initialValues?.roles }) ||
-      !!initialValues?.disaggregation?.mode
-  );
+  /**
+   * On/off is DERIVED from `roles`, not held in local state.
+   *
+   * The earlier version kept a `useState`, on the argument that the toggle must
+   * not write anything to the form store while off. That argument still holds
+   * — and `roles` already satisfies it: turning PD on seeds it, turning PD off
+   * sets it back to `null`, and a plain model never had it. So the store is
+   * untouched either way and there is nothing to keep in sync.
+   *
+   * 🔑 What forced the change: the switch now lives in the replica field's
+   * label row (`basic.tsx`) while the transport picker lives down in the group
+   * settings card, so «PD 开着吗» is asked from two places. Two components
+   * cannot share one `useState`, but they can read one field.
+   */
+  const enabled =
+    // The watch, for re-renders...
+    !!(roles as RoleFormItem[] | undefined)?.length ||
+    // ...and a synchronous store read, for the FIRST render. `useWatch`
+    // subscribes after the initial render, so on that render it answers
+    // `undefined` even when the store holds a seeded group. Deriving from the
+    // watch alone therefore reported «PD off» once, and the mount effect
+    // published that — which is what made an edit drawer on an existing group
+    // open with its roles tab missing.
+    !!form.getFieldValue('roles')?.length ||
+    !!form.getFieldValue(['disaggregation', 'mode']) ||
+    isPDModel({ roles: initialValues?.roles });
   const [cacheCleared, setCacheCleared] = useState(false);
   // Turning PD off drops `disaggregation` entirely, mode included. Coming back
   // in therefore lands on an empty required field with nothing to explain it,
@@ -248,9 +257,24 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     !!selectedBackend?.isBuiltIn &&
     PD_CAPABLE_BACKENDS.includes(backend as string);
 
-  // A blocked cluster/engine must not leave a "PD is on" form behind: the
-  // fields below unmount with it, so the rendered state is the payload's.
-  const active = enabled && !blocked;
+  /**
+   * 🔴 `blocked` no longer un-sets the displayed state.
+   *
+   * It used to: `active = enabled && !blocked`, on the argument that a blocked
+   * cluster must not leave a «PD is on» form behind. That conflates two
+   * different things — «你不能打开它» and «它没有打开» — and the edit path is
+   * where the difference shows. A cluster whose workers are all offline
+   * reports zero usable GPUs, so opening an existing 1P1D group on it rendered
+   * every piece of PD config (role chips, the Roles tab, the group settings
+   * card) with the switch showing OFF. The form contradicted itself, and the
+   * half that was wrong was the one control the user would reach for.
+   *
+   * So the displayed state is the truth, and `blocked` only governs what the
+   * user may *do*: it disables turning PD ON, never turning it off (greying
+   * out the way back would trap a deployment in a state its backend cannot
+   * serve), and it carries its reason next to the switch.
+   */
+  const active = enabled;
 
   // ---- cross-field effects ------------------------------------------------
 
@@ -279,6 +303,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       mode: next.enabled ? next.mode : null,
       modeData: next.enabled ? resolve(next.mode) : undefined,
       isCustomMode: next.enabled && isCustomMode(next.mode),
+      clearModelParams: next.enabled,
       replicasLocked: next.enabled,
       replicasLockReason: next.enabled
         ? intl.formatMessage({ id: 'models.form.pd.replicas.moved' })
@@ -300,8 +325,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
    */
   const [derived, setDerived] = useState<{
     resolution: PDModeResolution | null;
-    pickerOpen: boolean;
-  }>({ resolution: null, pickerOpen: false });
+  }>({ resolution: null });
 
   // A resolve in flight is invalidated by any later change to its inputs.
   // Without this a slow answer for the previous engine lands after the fast
@@ -317,7 +341,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
    * not a decision the platform can make on the user's behalf.
    */
   const applyResolution = (resolution: PDModeResolution, modes?: PDMode[]) => {
-    setDerived({ resolution, pickerOpen: !resolution.mode });
+    setDerived({ resolution });
     if (!resolution.mode) {
       return;
     }
@@ -329,22 +353,16 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       }
     });
     notifyEffects({
-      enabled: true,
+      // The derived truth, not a literal. Hardcoding `true` here was the other
+      // half of the contradiction above: the resolve path published «PD is on»
+      // while the switch, gated on `blocked`, rendered OFF — so the config
+      // below appeared for a group whose own toggle denied it.
+      enabled: active,
       mode: resolution.mode,
       clearModelKVCache: false,
       modes
     });
   };
-
-  /**
-   * Show the picker unless there is an answer to show instead.
-   *
-   * Derived rather than stored: the stored flag alone left the field hidden
-   * whenever `resolution` was null — which is every render before the first
-   * answer lands, and every render after a failed one. A required field that
-   * renders nothing is worse than one that asks a question.
-   */
-  const pickerVisible = derived.pickerOpen || !derived.resolution?.mode;
 
   const runResolve = async (overrides?: { vendor?: string }) => {
     const session = ++resolveSession.current;
@@ -364,7 +382,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       // than to a field that renders nothing: the catalog is already loaded,
       // so the dropdown still works — only the derivation is missing.
       if (resolveSession.current === session) {
-        setDerived({ resolution: null, pickerOpen: true });
+        setDerived({ resolution: null });
       }
     }
   };
@@ -376,10 +394,31 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   useEffect(() => {
     if (!active) {
       resolveSession.current += 1;
-      setDerived({ resolution: null, pickerOpen: false });
+      setDerived({ resolution: null });
       return;
     }
-    runResolve();
+    /**
+     * 🔴 The catalog is fetched HERE, not only on mount.
+     *
+     * The mount-only fetch below was written for one instance of this block.
+     * With the switch and the body split across two mount points, the body
+     * mounts inside Roles — and on its first render `Form.useWatch('roles')`
+     * has not subscribed yet, so `active` is still false and the mount-only
+     * fetch skips. It never re-runs, so `pdModes` stayed empty for the life of
+     * the form: the transport line fell back to the raw recipe name
+     * («vllm-ascend-mooncake» instead of «Mooncake») and the picker had no
+     * options at all — `custom` included.
+     *
+     * `active` flipping false→true IS the action here, which is why this
+     * belongs on this effect rather than on a fetch-function dependency.
+     */
+    const resolveWithCatalog = async () => {
+      if (!pdModes.length) {
+        await getPDModes();
+      }
+      await runResolve();
+    };
+    resolveWithCatalog();
   }, [active, backend, clusterId]);
 
   // Mount is the one transition no handler can report: editing a model that is
@@ -436,7 +475,8 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       form.setFieldValue('roles', null);
       form.setFieldValue('disaggregation', null);
     }
-    setEnabled(next);
+    // No `setEnabled`: `roles` above IS the state, and the watch re-renders
+    // both the switch and this body from it.
     setCacheCleared(clearModelKVCache);
     notifyEffects({
       enabled: next,
@@ -560,6 +600,29 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
    * "kept visible but disabled, carrying why" only pays off if the why is
    * visible without a discovery step.
    */
+  /**
+   * The closed control: the transport, then the recipe id as an annotation.
+   *
+   * The transport is what the reader is choosing between — «Mooncake» vs
+   * «NIXL» is the decision. The recipe id (`vllm-ascend-mooncake`) is the
+   * platform's identifier for the whole injected bundle, and it earns its
+   * place only as a subordinate note: two recipes can share a transport, so
+   * without it «Mooncake» alone would not say which one is deployed. Grey and
+   * monospaced so it reads as an id rather than as a second label.
+   */
+  const modeLabelRender = (option: any) => {
+    const mode = findMode(option?.value);
+    const transport = transportLabel(mode);
+    return (
+      <Flex align="baseline" gap={8}>
+        <span>{transport || option?.value}</span>
+        {!!transport && option?.value !== transport && (
+          <span className={styles.modeId}>{option.value}</span>
+        )}
+      </Flex>
+    );
+  };
+
   const modeOptionRender = (option: any) => {
     const reason = option?.data?.reason;
     const label = option?.data?.label ?? option?.label;
@@ -583,71 +646,45 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     );
   };
 
+  /**
+   * The switch, and nothing else.
+   *
+   * Rendered into the replica field's label row, because turning it on is
+   * exactly what moves the replica count out of that field and into the roles
+   * — the control and its consequence share a line. Sized for that row: no
+   * title, no description, no card. The label is the row's own «PD 分离».
+   */
+  if (variant === 'toggle') {
+    const toggle = (
+      <Flex align="center" gap={8} data-field="pdMode">
+        <span className={styles.toggleLabel}>
+          {intl.formatMessage({ id: 'models.form.pd.shape.pd' })}
+        </span>
+        <Switch
+          checked={active}
+          // Blocked only bars the way IN. An existing group must always be
+          // able to turn itself off.
+          disabled={blocked && !enabled}
+          onChange={(next) =>
+            handleEnableChange(
+              next ? PDEnableValueMap.Disaggregated : PDEnableValueMap.Off
+            )
+          }
+        />
+      </Flex>
+    );
+    /* The reason has to be reachable, and a disabled Switch never receives
+       hover on touch — so the tooltip wraps the label too, which is not
+       disabled. */
+    return blocked && blockedReason ? (
+      <Tooltip title={blockedReason}>{toggle}</Tooltip>
+    ) : (
+      toggle
+    );
+  }
+
   return (
     <div className={styles.sectionCard} data-field="pdMode">
-      {/* Which shape is deployed today, so an edit that switches away still
-          says what it is switching away from. Absent on create, where there is
-          nothing current yet. */}
-      <div className={styles.shapes}>
-        {[
-          {
-            value: PDEnableValueMap.Off,
-            title: intl.formatMessage({ id: 'models.form.pd.shape.mono' }),
-            desc: intl.formatMessage({ id: 'models.form.pd.shape.mono.tips' })
-          },
-          {
-            value: PDEnableValueMap.Disaggregated,
-            title: intl.formatMessage({ id: 'models.form.pd.shape.pd' }),
-            desc: intl.formatMessage({ id: 'models.form.pd.shape.pd.tips' })
-          }
-        ].map((shape) => {
-          const selected =
-            (active ? PDEnableValueMap.Disaggregated : PDEnableValueMap.Off) ===
-            shape.value;
-          // Only the disaggregated card can be blocked; the plain shape is
-          // always available, and greying out the way back would trap a
-          // deployment in a state its backend cannot serve.
-          const unavailable =
-            blocked && shape.value === PDEnableValueMap.Disaggregated;
-          const card = (
-            <div
-              key={shape.value}
-              className={`shape${selected ? ' active' : ''}${
-                unavailable ? ' disabled' : ''
-              }`}
-              role="radio"
-              aria-checked={selected}
-              tabIndex={unavailable ? -1 : 0}
-              onClick={() => !unavailable && handleEnableChange(shape.value)}
-              onKeyDown={(e) => {
-                if (!unavailable && (e.key === 'Enter' || e.key === ' ')) {
-                  e.preventDefault();
-                  handleEnableChange(shape.value);
-                }
-              }}
-            >
-              <Flex align="center" gap={8}>
-                <Radio checked={selected} disabled={unavailable}></Radio>
-                <span className="shape-title">{shape.title}</span>
-                {currentShape === shape.value && (
-                  <ThemeTag opacity={0.75}>
-                    {intl.formatMessage({ id: 'models.form.pd.shape.current' })}
-                  </ThemeTag>
-                )}
-              </Flex>
-              <div className="shape-desc">{shape.desc}</div>
-            </div>
-          );
-          return unavailable ? (
-            <Tooltip key={shape.value} title={blockedReason || false}>
-              {card}
-            </Tooltip>
-          ) : (
-            card
-          );
-        })}
-      </div>
-
       {active && (
         <>
           {/* The toggle's own state, registered only while on so the off
@@ -701,30 +738,14 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
               preference, so none of them needs the user to choose. The picker
               below stays one click away — and opens by itself when the server
               derives nothing. */}
-          {!pickerVisible && derived.resolution?.mode && (
-            <Flex align="center" gap={8} style={{ marginBottom: 16 }}>
-              <span>
-                {intl.formatMessage(
-                  { id: 'models.form.pd.mode.derived' },
-                  {
-                    mode:
-                      transportLabel(findMode(derived.resolution.mode)) ||
-                      derived.resolution.mode,
-                    vendor: derived.resolution.vendor
-                  }
-                )}
-              </span>
-              <Button
-                type="link"
-                size="small"
-                onClick={() =>
-                  setDerived((prev) => ({ ...prev, pickerOpen: true }))
-                }
-              >
-                {intl.formatMessage({ id: 'common.button.edit' })}
-              </Button>
-            </Flex>
-          )}
+          {/* 🔴 The read-only line and the «更换传输方案» link are gone.
+              They existed to keep a derived answer from looking like a
+              question: a Select on a value the platform decided invites
+              second-guessing. But it cost two controls where the form has one
+              everywhere else, and the affinity field right below it — the same
+              kind of choice at a finer grain — was already a Select. Two
+              controls for one topic, in two different shapes, read as two
+              topics. The Select IS the picker now. */}
           {derived.resolution?.unresolved_reason && (
             <div className="note note-warning" style={{ marginBottom: 8 }}>
               {derived.resolution.unresolved_reason}
@@ -737,7 +758,6 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
               would drop what `applyResolution` just wrote. */}
           <Form.Item
             name={['disaggregation', 'mode']}
-            hidden={!pickerVisible}
             rules={[
               {
                 required: true,
@@ -757,6 +777,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
               })}
               options={visibleModeOptions}
               optionRender={modeOptionRender}
+              labelRender={modeLabelRender}
               onChange={handleModeChange}
             ></SealSelect>
           </Form.Item>

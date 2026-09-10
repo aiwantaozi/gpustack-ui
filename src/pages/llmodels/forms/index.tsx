@@ -155,6 +155,14 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
     if (next.clearModelKVCache) {
       form.setFieldValue('extended_kv_cache', { enabled: false });
     }
+    if (next.clearModelParams) {
+      // Same reason as `clearModelScheduling`: hidden-but-set would keep
+      // projecting onto every role through `role_effective_model`.
+      form.setFieldsValue({
+        backend_parameters: [],
+        env: {}
+      } as any);
+    }
     // Only when it actually differs. An unconditional write fires the form's
     // onValuesChange on every notification, and that is what drives the
     // compatibility check — so writing the value it already holds turns each
@@ -629,12 +637,15 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
           }}
         >
           <BasicForm
-            hideReplicas={pdEffects.enabled}
-            // Above the replica count rather than in the panel below it: the
-            // shape decides whether a model-level count exists at all, and a
-            // form that asks for the number first has to take it back.
-            pdSlot={
+            pdActive={pdEffects.enabled}
+            // In the replica field's own label row: turning it on is exactly
+            // what moves the count out of that field and into the roles, so
+            // the control sits on the line it changes. The body it reveals
+            // (transport, vendor, notes) is mounted in the Roles tab's
+            // group-settings card instead — see `Roles`.
+            pdToggle={
               <PDDisaggregation
+                variant="toggle"
                 onEffectsChange={handlePDEffectsChange}
               ></PDDisaggregation>
             }
@@ -665,6 +676,13 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
                           enabled={pdEffects.enabled}
                           mode={pdEffects.modeData}
                           modeName={pdEffects.mode}
+                          // The PD block's body, mounted inside the
+                          // group-settings card so «哪条通道 / 最紧到哪一档»
+                          // read as one group-wide topic instead of two
+                          // sections a scroll apart.
+                          pdBody={
+                            <PDDisaggregation variant="body"></PDDisaggregation>
+                          }
                         ></Roles>
                       )
                     }
@@ -709,7 +727,7 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
                 key: TABKeysMap.ADVANCED,
                 label: intl.formatMessage({ id: 'resources.form.advanced' }),
                 forceRender: true,
-                children: <AdvanceConfig></AdvanceConfig>
+                children: <AdvanceConfig pdActive={pdEffects.enabled} />
               }
             ]}
           ></CollapsePanel>

@@ -257,11 +257,9 @@ export default {
   'clusters.topology.view.table': 'テーブル',
   'clusters.topology.view.tree': 'ツリー',
   'clusters.topology.search.placeholder': 'ホストを検索…',
-  'clusters.topology.filter.unfilled': '未入力のみ',
   'clusters.topology.columns': '列の設定',
   'clusters.topology.columns.fields': '位置フィールド',
-  'clusters.topology.columns.other': 'その他',
-  'clusters.topology.columns.custom': 'カスタムフィールド…',
+  'clusters.topology.columns.custom': '階層を追加…',
   'clusters.topology.columns.mapping': 'ラベルキーのマッピング…',
   'clusters.topology.columns.deleteCustom': 'フィールド「{name}」を削除',
   'clusters.topology.columns.deleteCustom.confirm':
@@ -309,8 +307,6 @@ export default {
   'clusters.topology.column.fillUnfilled': '未入力の {count} 台を一括入力…',
   'clusters.topology.column.fillBySwitch':
     'アクセススイッチ別に入力（{count} グループ）…',
-  'clusters.topology.column.gpus': 'GPU / 空き',
-  'clusters.topology.column.source': 'ソース',
   'clusters.topology.source.user': '手入力',
   'clusters.topology.source.discovered': '自動',
   'clusters.topology.source.node': 'K8s ノード',
@@ -384,7 +380,7 @@ export default {
   'clusters.topology.keys.usage':
     '{count} 台の worker がこのキーを持っています（{values} 個の値）',
   'clusters.topology.keys.exists': 'このキーはすでに追加されています',
-  'clusters.topology.custom.title': 'カスタムフィールド',
+  'clusters.topology.custom.title': '階層を追加',
   'clusters.topology.custom.name.required': '名前を入力してください',
   'clusters.topology.custom.name.taken': 'この名前は使用済みか予約語です',
   'clusters.topology.custom.name.tips':

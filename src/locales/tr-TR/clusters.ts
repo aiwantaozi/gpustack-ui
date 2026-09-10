@@ -255,11 +255,9 @@ export default {
   'clusters.topology.view.table': 'Tablo',
   'clusters.topology.view.tree': 'Ağaç',
   'clusters.topology.search.placeholder': 'Sunucu ara…',
-  'clusters.topology.filter.unfilled': 'Yalnızca doldurulmamışlar',
   'clusters.topology.columns': 'Sütunlar',
   'clusters.topology.columns.fields': 'Konum alanları',
-  'clusters.topology.columns.other': 'Diğer',
-  'clusters.topology.columns.custom': 'Özel alan…',
+  'clusters.topology.columns.custom': 'Katman ekle…',
   'clusters.topology.columns.mapping': 'Etiket anahtarı eşlemesi…',
   'clusters.topology.columns.deleteCustom': '“{name}” alanını sil',
   'clusters.topology.columns.deleteCustom.confirm':
@@ -310,8 +308,6 @@ export default {
     'Doldurulmamış {count} taneyi doldur…',
   'clusters.topology.column.fillBySwitch':
     'Erişim anahtarına göre doldur ({count} grup)…',
-  'clusters.topology.column.gpus': 'GPU / boş',
-  'clusters.topology.column.source': 'Kaynak',
   'clusters.topology.source.user': 'elle',
   'clusters.topology.source.discovered': 'otomatik',
   'clusters.topology.source.node': 'K8s düğümü',
@@ -385,7 +381,7 @@ export default {
   'clusters.topology.keys.usage':
     '{count} worker bu anahtarı taşıyor ({values} değer)',
   'clusters.topology.keys.exists': 'Bu anahtar zaten eklendi',
-  'clusters.topology.custom.title': 'Özel alan',
+  'clusters.topology.custom.title': 'Katman ekle',
   'clusters.topology.custom.name.required': 'Bir ad girin',
   'clusters.topology.custom.name.taken': 'Bu ad alınmış veya ayrılmış',
   'clusters.topology.custom.name.tips':

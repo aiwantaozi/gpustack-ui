@@ -256,11 +256,9 @@ export default {
   'clusters.topology.view.table': 'Таблица',
   'clusters.topology.view.tree': 'Дерево',
   'clusters.topology.search.placeholder': 'Поиск хостов…',
-  'clusters.topology.filter.unfilled': 'Только незаполненные',
   'clusters.topology.columns': 'Столбцы',
   'clusters.topology.columns.fields': 'Поля расположения',
-  'clusters.topology.columns.other': 'Прочее',
-  'clusters.topology.columns.custom': 'Пользовательское поле…',
+  'clusters.topology.columns.custom': 'Добавить уровень…',
   'clusters.topology.columns.mapping': 'Сопоставление ключей меток…',
   'clusters.topology.columns.deleteCustom': 'Удалить поле «{name}»',
   'clusters.topology.columns.deleteCustom.confirm':
@@ -309,8 +307,6 @@ export default {
   'clusters.topology.column.fillUnfilled': 'Заполнить незаполненные ({count})…',
   'clusters.topology.column.fillBySwitch':
     'Заполнить по коммутатору доступа ({count} групп)…',
-  'clusters.topology.column.gpus': 'GPU / свободно',
-  'clusters.topology.column.source': 'Источник',
   'clusters.topology.source.user': 'вручную',
   'clusters.topology.source.discovered': 'авто',
   'clusters.topology.source.node': 'узел K8s',
@@ -384,7 +380,7 @@ export default {
   'clusters.topology.keys.usage':
     'Этот ключ есть у {count} worker ({values} значений)',
   'clusters.topology.keys.exists': 'Этот ключ уже добавлен',
-  'clusters.topology.custom.title': 'Пользовательское поле',
+  'clusters.topology.custom.title': 'Добавить уровень',
   'clusters.topology.custom.name.required': 'Введите имя',
   'clusters.topology.custom.name.taken': 'Это имя занято или зарезервировано',
   'clusters.topology.custom.name.tips':

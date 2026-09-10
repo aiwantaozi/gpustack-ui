@@ -254,11 +254,9 @@ export default {
   'clusters.topology.view.table': 'Table',
   'clusters.topology.view.tree': 'Tree',
   'clusters.topology.search.placeholder': 'Search hosts…',
-  'clusters.topology.filter.unfilled': 'Unfilled only',
   'clusters.topology.columns': 'Columns',
   'clusters.topology.columns.fields': 'Location fields',
-  'clusters.topology.columns.other': 'Other',
-  'clusters.topology.columns.custom': 'Custom field…',
+  'clusters.topology.columns.custom': 'Add layer…',
   'clusters.topology.columns.mapping': 'Label key mapping…',
   'clusters.topology.columns.deleteCustom': 'Delete field “{name}”',
   'clusters.topology.columns.deleteCustom.confirm':
@@ -306,8 +304,6 @@ export default {
   'clusters.topology.column.fillUnfilled': 'Fill the {count} unfilled…',
   'clusters.topology.column.fillBySwitch':
     'Fill by access switch ({count} groups)…',
-  'clusters.topology.column.gpus': 'GPUs / free',
-  'clusters.topology.column.source': 'Source',
   'clusters.topology.source.user': 'hand-filled',
   'clusters.topology.source.discovered': 'auto',
   'clusters.topology.source.node': 'K8s node',
@@ -380,7 +376,7 @@ export default {
   'clusters.topology.keys.usage':
     '{count} workers carry this key ({values} values)',
   'clusters.topology.keys.exists': 'This key is already added',
-  'clusters.topology.custom.title': 'Custom field',
+  'clusters.topology.custom.title': 'Add layer',
   'clusters.topology.custom.name.required': 'Enter a name',
   'clusters.topology.custom.name.taken': 'This name is taken or reserved',
   'clusters.topology.custom.name.tips':

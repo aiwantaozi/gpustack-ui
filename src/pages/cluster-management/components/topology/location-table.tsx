@@ -1,23 +1,15 @@
 import { useIntl } from '@umijs/max';
-import { Flex, Table, Tooltip } from 'antd';
+import { Table, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import { useEffect, useRef, useState } from 'react';
 import { TopologyWorker } from '../../config/types';
-import ColumnMenu from './column-menu';
-import {
-  LocationField,
-  isDiscovered,
-  isFilled,
-  valueOptions
-} from './location';
+import { LocationField, isFilled, valueOptions } from './location';
 import LocationCell from './location-cell';
 
 /** Past this many rows the table renders only what is on screen. */
 const VIRTUAL_THRESHOLD = 50;
 const HOST_WIDTH = 180;
 const FIELD_WIDTH = 180;
-const GPUS_WIDTH = 100;
-const SOURCE_WIDTH = 220;
 const SELECT_WIDTH = 40;
 
 const useStyles = createStyles(({ css }) => ({
@@ -78,8 +70,6 @@ interface LocationTableProps {
   /** Every worker, for value ranking — the dropdown must not shrink with a filter. */
   allWorkers: TopologyWorker[];
   fields: LocationField[];
-  showGpus: boolean;
-  showSource: boolean;
   selectedIds: number[];
   onSelectionChange: (ids: number[]) => void;
   highlightId?: number | null;
@@ -91,15 +81,7 @@ interface LocationTableProps {
     value: string | null
   ) => Promise<void>;
   onBusy: (busy: boolean) => void;
-  onFillUnfilled: (field: LocationField, workers: TopologyWorker[]) => void;
-  onFillBySwitch: (field: LocationField) => void;
 }
-
-const sourceLabelId: Record<string, string> = {
-  user: 'clusters.topology.source.user',
-  discovered: 'clusters.topology.source.discovered',
-  node: 'clusters.topology.source.node'
-};
 
 /**
  * [S1a] One row per worker, one column per location field, every cell
@@ -109,16 +91,12 @@ const LocationTable: React.FC<LocationTableProps> = ({
   workers,
   allWorkers,
   fields,
-  showGpus,
-  showSource,
   selectedIds,
   onSelectionChange,
   highlightId,
   height,
   onAssign,
-  onBusy,
-  onFillUnfilled,
-  onFillBySwitch
+  onBusy
 }) => {
   const intl = useIntl();
   const { styles } = useStyles();
@@ -170,20 +148,6 @@ const LocationTable: React.FC<LocationTableProps> = ({
     setEditing(fallback ? { id: fallback.id, field: from.field } : null);
   };
 
-  const switchGroups = (field: LocationField) => {
-    if (field.id !== 'rack') {
-      return 0;
-    }
-    const groups = new Set(
-      allWorkers
-        .filter(
-          (worker) => !isFilled(worker, 'rack') && isFilled(worker, 'switch')
-        )
-        .map((worker) => worker.location.switch.value)
-    );
-    return groups.size;
-  };
-
   const columns: any[] = [
     {
       title: intl.formatMessage({ id: 'clusters.topology.field.host' }),
@@ -211,24 +175,14 @@ const LocationTable: React.FC<LocationTableProps> = ({
       )
     },
     ...fields.map((field) => {
-      const unfilled = allWorkers.filter(
-        (worker) => !isFilled(worker, field.id)
-      );
       return {
-        title: (
-          <Flex align="center" justify="space-between" gap={4}>
-            <span>{field.label}</span>
-            <ColumnMenu
-              field={field}
-              unfilledCount={unfilled.length}
-              switchGroups={switchGroups(field)}
-              onFillUnfilled={() => onFillUnfilled(field, unfilled)}
-              onFillBySwitch={
-                field.id === 'rack' ? () => onFillBySwitch(field) : undefined
-              }
-            />
-          </Flex>
-        ),
+        // 🔴 The per-column «⋮» menu was removed in review. It held
+        // «批量填未填的» and «按交换机填», both of which are still reachable —
+        // selecting rows and using the bulk action does the same thing, and
+        // does it with the rows in view. A menu on every column header put
+        // three affordances on a table whose job is to show one value per
+        // cell.
+        title: field.label,
         dataIndex: ['location', field.id],
         key: field.id,
         width: FIELD_WIDTH,
@@ -254,71 +208,17 @@ const LocationTable: React.FC<LocationTableProps> = ({
       };
     })
   ];
-  if (showGpus) {
-    columns.push({
-      title: intl.formatMessage({ id: 'clusters.topology.column.gpus' }),
-      dataIndex: 'gpus',
-      key: 'gpus',
-      width: GPUS_WIDTH,
-      render: (_: any, worker: TopologyWorker) => (
-        <span>
-          {worker.gpus} / {worker.free_gpus}
-        </span>
-      )
-    });
-  }
-  if (showSource) {
-    columns.push({
-      title: intl.formatMessage({ id: 'clusters.topology.column.source' }),
-      dataIndex: 'source',
-      key: 'source',
-      width: SOURCE_WIDTH,
-      render: (_: any, worker: TopologyWorker) => {
-        const filled = fields.filter((field) => isFilled(worker, field.id));
-        if (!filled.length) {
-          return null;
-        }
-        const summary = filled
-          .map((field) => {
-            const location = worker.location[field.id];
-            return `${field.label} ${intl.formatMessage({
-              id: sourceLabelId[location.source] || sourceLabelId.user
-            })}`;
-          })
-          .join(' · ');
-        return (
-          <Tooltip
-            title={
-              <Flex orientation="vertical" gap={2}>
-                {filled.map((field) => {
-                  const location = worker.location[field.id];
-                  return (
-                    <span key={field.id}>
-                      {field.label}: {location.key}
-                      {isDiscovered(location) &&
-                        location.display &&
-                        ` (${location.value})`}
-                    </span>
-                  );
-                })}
-              </Flex>
-            }
-          >
-            <span className="text-tertiary" style={{ fontSize: 12 }}>
-              {summary}
-            </span>
-          </Tooltip>
-        );
-      }
-    });
-  }
+  // 🔴 «卡 / 空闲» was removed in review: this table answers «这台机器在拓扑
+  // 的哪个位置», and card capacity is the worker list's question. Keeping it
+  // here meant the one column nobody edits was the widest thing competing
+  // with the columns that are editable.
+  // 🔴 «来源» was removed in review, like «卡 / 空闲» before it. The cell
+  // already carries a lock icon when a value was discovered rather than
+  // typed, so a whole column repeating «机柜 手填» for every row said the same
+  // thing a second time — and it was off by default, which meant the column
+  // existed mainly as a checkbox.
 
-  const totalWidth =
-    SELECT_WIDTH +
-    HOST_WIDTH +
-    FIELD_WIDTH * fields.length +
-    (showGpus ? GPUS_WIDTH : 0) +
-    (showSource ? SOURCE_WIDTH : 0);
+  const totalWidth = SELECT_WIDTH + HOST_WIDTH + FIELD_WIDTH * fields.length;
 
   return (
     <Table

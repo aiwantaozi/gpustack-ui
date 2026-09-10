@@ -9,7 +9,6 @@ import { useSize } from 'ahooks';
 import {
   Alert,
   Button,
-  Checkbox,
   Flex,
   Input,
   Modal,
@@ -40,7 +39,7 @@ import ColumnSettings from './column-settings';
 import useColumnPrefs from './hooks/use-column-prefs';
 import usePreview from './hooks/use-preview';
 import useTopology from './hooks/use-topology';
-import { LocationField, allFields, isDiscovered, isFilled } from './location';
+import { LocationField, allFields, isDiscovered } from './location';
 import LocationTable from './location-table';
 import Onboarding from './onboarding';
 import { SetLocationPopover } from './set-location';
@@ -52,7 +51,6 @@ import {
 } from './spec';
 import TreeView, { TREE_GROUPING } from './tree-view';
 
-const VIEW_MODE_KEY = 'gpustack.topology.viewMode';
 const ONBOARDING_KEY = 'gpustack.topology.onboarding.dismissed';
 /** Below this viewport width the drawer takes the whole screen. */
 const FULL_WIDTH_BELOW = 1280;
@@ -123,8 +121,6 @@ interface TopologyDrawerProps {
 interface BatchState {
   open: boolean;
   field?: string;
-  /** Remaining switch groups for "fill by access switch", one panel each. */
-  queue: { field: string; workers: TopologyWorker[] }[];
 }
 
 /**
@@ -155,14 +151,18 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
   const prefs = useColumnPrefs(clusterId);
 
   const [viewMode, setViewMode] = useState<ViewMode>(
-    () => (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || 'table'
+    /* Always «表格» on open, deliberately NOT the last choice.
+       The table is the working surface — its cells are the editable ones —
+       while the tree is a read-only cross-check of what the labels produced.
+       Remembering the tree meant a drawer opened for «把位置填上» landed on the
+       one view where nothing can be filled in. */
+    'table'
   );
   const [search, setSearch] = useState('');
-  const [onlyUnfilled, setOnlyUnfilled] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [grouping, setGrouping] = useState<string>(TREE_GROUPING);
   const [lastField, setLastField] = useState<string>('rack');
-  const [batch, setBatch] = useState<BatchState>({ open: false, queue: [] });
+  const [batch, setBatch] = useState<BatchState>({ open: false });
   const [mappingOpen, setMappingOpen] = useState(false);
   const [customLayer, setCustomLayer] = useState<SpecContext | null>(null);
   const [highlightId, setHighlightId] = useState<number | null>(null);
@@ -190,10 +190,9 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
     if (!open) {
       preview.reset();
       setSearch('');
-      setOnlyUnfilled(false);
       setSelectedIds([]);
       setGrouping(TREE_GROUPING);
-      setBatch({ open: false, queue: [] });
+      setBatch({ open: false });
       setMappingOpen(false);
       setCustomLayer(null);
       setHighlightId(null);
@@ -208,9 +207,8 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
-    localStorage.setItem(VIEW_MODE_KEY, mode);
     // The selection survives a trip to the tree; only its action bar hides.
-    setBatch({ open: false, queue: [] });
+    setBatch({ open: false });
   };
 
   const everyField: LocationField[] = displayed
@@ -220,9 +218,7 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
   const allWorkers = displayed?.workers || [];
   const needle = search.trim().toLowerCase();
   const workers = allWorkers.filter(
-    (worker) =>
-      (!needle || worker.name.toLowerCase().includes(needle)) &&
-      (!onlyUnfilled || fields.some((field) => !isFilled(worker, field.id)))
+    (worker) => !needle || worker.name.toLowerCase().includes(needle)
   );
   const selectedWorkers = allWorkers.filter((worker) =>
     selectedIds.includes(worker.id)
@@ -289,7 +285,7 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
   const openBatch = (targets: TopologyWorker[], field: string) => {
     setViewMode('table');
     setSelectedIds(targets.map((w) => w.id));
-    setBatch({ open: true, field, queue: [] });
+    setBatch({ open: true, field });
   };
 
   const handleBatchApply = async (fieldId: string, value: string | null) => {
@@ -303,42 +299,8 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
       message.error(e?.message);
       return;
     }
-    // The selection stays so the next field can be filled for the same hosts;
-    // a queued switch group replaces it and reopens the panel.
-    const [next, ...rest] = batch.queue;
-    if (next) {
-      setSelectedIds(next.workers.map((w) => w.id));
-      setBatch({ open: true, field: next.field, queue: rest });
-    } else {
-      setBatch({ open: false, queue: [] });
-    }
-  };
-
-  /**
-   * "Fill by access switch": hosts without a rack, grouped by the switch the
-   * device reported. The operator names each group's rack; the grouping was
-   * the hard part and it is already done.
-   */
-  const fillBySwitch = (field: LocationField) => {
-    const groups = new Map<string, TopologyWorker[]>();
-    allWorkers
-      .filter(
-        (worker) => !isFilled(worker, field.id) && isFilled(worker, 'switch')
-      )
-      .forEach((worker) => {
-        const key = worker.location.switch.value;
-        groups.set(key, [...(groups.get(key) || []), worker]);
-      });
-    const queue = Array.from(groups.values()).map((members) => ({
-      field: field.id,
-      workers: members
-    }));
-    const [first, ...rest] = queue;
-    if (!first) {
-      return;
-    }
-    setSelectedIds(first.workers.map((w) => w.id));
-    setBatch({ open: true, field: first.field, queue: rest });
+    // The selection stays so the next field can be filled for the same hosts.
+    setBatch({ open: false });
   };
 
   const saveFailed = (e: any) =>
@@ -468,7 +430,6 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
 
   const clearFilters = () => {
     setSearch('');
-    setOnlyUnfilled(false);
   };
 
   const width = size.width < FULL_WIDTH_BELOW ? '100%' : DRAWER_WIDTH;
@@ -560,10 +521,12 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
                     }
                   )}
                 </span>,
-                () => {
-                  changeViewMode('table');
-                  setOnlyUnfilled(true);
-                }
+                /* Switches to the table and stops there. It used to also
+                   turn on an «只看未填的» filter, which was removed in review:
+                   in the table an unfilled cell is an empty input carrying a
+                   «填写机柜» placeholder, so the rows this link points at are
+                   already the ones that stand out. */
+                () => changeViewMode('table')
               )}
             </>
           )}
@@ -631,22 +594,12 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Checkbox
-            checked={onlyUnfilled}
-            onChange={(e) => setOnlyUnfilled(e.target.checked)}
-          >
-            {intl.formatMessage({ id: 'clusters.topology.filter.unfilled' })}
-          </Checkbox>
           <span style={{ marginLeft: 'auto' }}>
             <ColumnSettings
               disabled={!topo.topology}
               fields={everyField}
               isShown={prefs.isShown}
               onToggle={prefs.setShown}
-              gpus={prefs.gpus}
-              source={prefs.source}
-              onGpus={prefs.setGpus}
-              onSource={prefs.setSource}
               referencedBy={(id) =>
                 topo.topology?.layers.find((layer) => layer.id === id)
                   ?.referenced_by_models
@@ -698,8 +651,6 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
                   workers={workers}
                   allWorkers={allWorkers}
                   fields={fields}
-                  showGpus={prefs.gpus}
-                  showSource={prefs.source}
                   selectedIds={selectedIds}
                   onSelectionChange={setSelectedIds}
                   highlightId={highlightId}
@@ -709,10 +660,6 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
                   )}
                   onAssign={assign}
                   onBusy={(busy) => (busy ? topo.beginBusy() : topo.endBusy())}
-                  onFillUnfilled={(field, targets) =>
-                    openBatch(targets, field.id)
-                  }
-                  onFillBySwitch={fillBySwitch}
                 />
               </div>
             </Flex>
@@ -734,11 +681,7 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
             <SetLocationPopover
               open={batch.open}
               onOpenChange={(next) =>
-                setBatch({
-                  open: next,
-                  field: batch.field,
-                  queue: next ? batch.queue : []
-                })
+                setBatch({ open: next, field: batch.field })
               }
               targets={selectedWorkers}
               allWorkers={allWorkers}

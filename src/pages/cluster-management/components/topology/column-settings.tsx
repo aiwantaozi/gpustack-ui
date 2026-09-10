@@ -52,10 +52,6 @@ interface ColumnSettingsProps {
   fields: LocationField[];
   isShown: (field: LocationField) => boolean;
   onToggle: (id: string, shown: boolean) => void;
-  gpus: boolean;
-  source: boolean;
-  onGpus: (shown: boolean) => void;
-  onSource: (shown: boolean) => void;
   /**
    * Models gathering on a custom layer, or undefined when the server does not
    * say — then `onDeleteCustom` finds out itself before deleting.
@@ -77,10 +73,6 @@ const ColumnSettings: React.FC<ColumnSettingsProps> = ({
   fields,
   isShown,
   onToggle,
-  gpus,
-  source,
-  onGpus,
-  onSource,
   referencedBy,
   onDeleteCustom,
   onAddCustom,
@@ -173,20 +165,9 @@ const ColumnSettings: React.FC<ColumnSettingsProps> = ({
           {!field.builtin && deleteButton(field)}
         </Flex>
       ))}
-      <Divider />
-      <div className="group">
-        {intl.formatMessage({ id: 'clusters.topology.columns.other' })}
-      </div>
-      <Flex align="center" className="row">
-        <Checkbox checked={gpus} onChange={(e) => onGpus(e.target.checked)}>
-          {intl.formatMessage({ id: 'clusters.topology.column.gpus' })}
-        </Checkbox>
-      </Flex>
-      <Flex align="center" className="row">
-        <Checkbox checked={source} onChange={(e) => onSource(e.target.checked)}>
-          {intl.formatMessage({ id: 'clusters.topology.column.source' })}
-        </Checkbox>
-      </Flex>
+      {/* The «其它» group is gone with its last member: «卡 / 空闲» and «来源»
+          were both removed in review, and a group heading over nothing reads
+          as a section that failed to load. */}
       <Divider />
       <Flex orientation="vertical" align="flex-start">
         <Button

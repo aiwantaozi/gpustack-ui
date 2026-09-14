@@ -7,15 +7,26 @@ import { useEffect, useRef, useState } from 'react';
 import { topologyFieldLabel } from '../../../config';
 import {
   ClusterListItem,
-  NODE_LAYER,
+  NODE_LAYER_NAME,
   TopologyView
 } from '../../../config/types';
 import { UsePreview } from '../hooks/use-preview';
 import { fieldLayers } from '../location';
 import { loadSpecContext, saveTopologySpec } from '../spec';
 import CustomLayer, { CustomLayerValue } from './custom-layer';
-import { Draft, DraftLayer, draftFromView, insertLayer, toWire } from './draft';
+import {
+  Draft,
+  DraftLayer,
+  draftFromView,
+  insertLayer,
+  newCustomLayer,
+  removeLayer,
+  renameLayer,
+  setLayerDisabled,
+  toWire
+} from './draft';
 import FieldChain from './field-chain';
+import RenameLayer from './rename-layer';
 
 /** How long the "count left zero" blink lasts. */
 const FLASH_MS = 1000;
@@ -88,6 +99,8 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
   const [saving, setSaving] = useState(false);
   /** The "add layer" modal. It used to also carry which chain to add to. */
   const [adding, setAdding] = useState(false);
+  /** The rung being renamed, if any. */
+  const [renaming, setRenaming] = useState<DraftLayer | null>(null);
   const [flashing, setFlashing] = useState<Set<string>>(new Set());
   const prevCountsRef = useRef<Record<string, number>>({});
 
@@ -166,17 +179,52 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
     if (!draft) {
       return;
     }
-    const layer: DraftLayer = {
-      id: value.name,
-      name: value.name,
-      builtin: false,
-      active: false,
-      labelKeys: value.labelKeys,
-      primaryKey: null,
-      customised: true
-    };
+    const layer = newCustomLayer(value.name, value.labelKeys);
     update(insertLayer(draft, layer, value.index));
     setAdding(false);
+  };
+
+  const handleRename = (displayName: string | null) => {
+    if (!draft || !renaming) {
+      return;
+    }
+    update(
+      renameLayer(
+        draft,
+        renaming.id,
+        displayName,
+        // Recomputed here rather than in the reducer: turning a name into a
+        // label needs `intl`, and a pure transform over the draft should not
+        // reach for the UI's locale.
+        displayName || topologyFieldLabel(intl, renaming.name, renaming.name)
+      )
+    );
+    setRenaming(null);
+  };
+
+  /**
+   * Deleting a custom rung. Guarded here as well as server-side, because the
+   * server's refusal arrives as a 400 on Save — long after the gesture, and
+   * with the rest of the edit already staged behind it.
+   */
+  const handleDelete = (row: DraftLayer) => {
+    if (!draft) {
+      return;
+    }
+    const referencedBy =
+      fieldLayers(displayed).find((layer) => layer.id === row.id)
+        ?.referenced_by_models || [];
+    if (referencedBy.length) {
+      Modal.warning({
+        title: intl.formatMessage({ id: 'clusters.topology.layer.inUse' }),
+        content: intl.formatMessage(
+          { id: 'clusters.topology.layer.inUse.tips' },
+          { models: referencedBy.join(', ') }
+        )
+      });
+      return;
+    }
+    update(removeLayer(draft, row.id));
   };
 
   const handleClose = () => {
@@ -228,19 +276,20 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
   // the chain itself says it and the statistic argues for nothing.
 
   /**
-   * Names a new custom layer may not take: a rung's name is its id, and
-   * `worker.location` is one flat map keyed by those ids, so two rungs sharing
-   * a name would share a column and a saved gather target.
+   * Names a new custom layer may not take.
+   *
+   * 🔴 Names, not ids. A rung's name stopped being its id: ids are generated
+   * (`custom-a7f3c1`) and cannot be typed into collision, while two rungs
+   * *called* the same thing still can — and that is the collision that shows,
+   * because the deployment form's "at least in the same ___" would then list
+   * one word twice.
+   *
+   * The leaf is in here for the same reason and is not in `draft.chain`: it
+   * is never a declared rung, only ever the bottom of the chain.
    */
   const reserved = [
-    ...(view.vocabulary?.fields || []).map((field) => field.id),
-    ...(view.layers || [])
-      .filter((layer) => layer.builtin)
-      .map((layer) => layer.id),
-    // Layers added to the draft but not yet saved are not in the view.
-    ...(draft?.chain || []).map((layer) => layer.id),
-    NODE_LAYER,
-    'host'
+    intl.formatMessage({ id: 'clusters.topology.field.host' }),
+    NODE_LAYER_NAME
   ];
 
   const vocabulary = {
@@ -338,6 +387,11 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
               vocabulary={vocabulary}
               onAddLayer={() => setAdding(true)}
               onKeysChange={handleKeysChange}
+              onRename={setRenaming}
+              onToggleDisabled={(row) =>
+                draft && update(setLayerDisabled(draft, row.id, !row.disabled))
+              }
+              onDelete={handleDelete}
             />
           </Flex>
 
@@ -373,6 +427,19 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
       {/* The picker draws the one chain and asks only where in it the new
           layer goes — which is now the whole question, including for an
           accelerator domain. */}
+      {renaming && (
+        <RenameLayer
+          open
+          layer={renaming}
+          taken={(draft?.chain || [])
+            .filter((layer) => layer.id !== renaming.id)
+            .map((layer) => layer.label)
+            .concat(intl.formatMessage({ id: 'clusters.topology.field.host' }))}
+          onOk={handleRename}
+          onCancel={() => setRenaming(null)}
+        />
+      )}
+
       {draft && adding && (
         <CustomLayer
           open

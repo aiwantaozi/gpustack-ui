@@ -4,7 +4,7 @@ import { useIntl } from '@umijs/max';
 import { Button, Empty, Flex, Segmented, Tree } from 'antd';
 import { createStyles } from 'antd-style';
 import { useState } from 'react';
-import { topologyFieldLabel } from '../../config';
+import { topologyLayerLabel } from '../../config';
 import {
   NODE_LAYER,
   TopologyDomain,
@@ -137,9 +137,7 @@ const TreeView: React.FC<TreeViewProps> = ({
     }
     // A rung hidden by the column picker still labels its tree node.
     const rung = view.layers.find((layer) => layer.id === id);
-    return rung?.builtin === false
-      ? rung.name
-      : topologyFieldLabel(intl, id, rung?.name);
+    return topologyLayerLabel(intl, rung) || id;
   };
 
   const capacity = (list: TopologyWorker[]) =>

@@ -1,4 +1,4 @@
-import { topologyFieldLabel } from '../../config';
+import { topologyLayerLabel } from '../../config';
 import {
   NODE_LAYER,
   TopologyLayerView,
@@ -36,9 +36,10 @@ const toField =
   (intl: Intl) =>
   (layer: TopologyLayerView): LocationField => ({
     id: layer.id,
-    label: layer.builtin
-      ? topologyFieldLabel(intl, layer.id, layer.name)
-      : layer.name,
+    // `displayName ?? t(name)`. The builtin/custom split that used to be here
+    // is gone: both kinds carry a canonical name now, and a custom layer
+    // called `accelerator_domain` gets the translation just like a builtin.
+    label: topologyLayerLabel(intl, layer),
     builtin: layer.builtin,
     active: layer.active,
     primaryKey: layer.primary_key,

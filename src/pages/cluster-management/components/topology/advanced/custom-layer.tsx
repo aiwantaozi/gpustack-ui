@@ -3,7 +3,7 @@ import { Alert, Flex, Input, Modal } from 'antd';
 import { createStyles } from 'antd-style';
 import classNames from 'classnames';
 import { useState } from 'react';
-import { TopologyKnownKey } from '../../../config/types';
+import { RACK_LAYER, TopologyKnownKey } from '../../../config/types';
 import { DraftLayer } from './draft';
 import { KeyList } from './field-chain';
 import { CUSTOM_FIELD, KeyVocabulary } from './key-editor';
@@ -96,7 +96,7 @@ interface CustomLayerProps {
   open: boolean;
   /** The chain as it stands, root to leaf, host excluded. */
   chain: DraftLayer[];
-  /** Vocabulary ids and other names a custom layer may not take. */
+  /** Names a custom layer may not take — the leaf's, and the vocabulary's. */
   reserved: string[];
   /** Editing an existing layer; absent when creating. */
   initial?: (CustomLayerValue & { id: string }) | null;
@@ -135,14 +135,20 @@ const CustomLayer: React.FC<CustomLayerProps> = ({
     initial?.index ??
       Math.max(
         0,
-        chain.findIndex((l) => l.id === 'rack')
+        chain.findIndex((l) => l.id === RACK_LAYER)
       )
   );
 
   const others = chain.filter((layer) => layer.id !== initial?.id);
   const trimmed = name.trim();
+  // Checked against what each rung is *called*, not against ids. Ids are
+  // generated now and cannot collide by typing; two rungs sharing a label
+  // still can, and that is the collision that matters — the deployment form's
+  // "at least in the same ___" would offer the same word twice.
+  const clash = (candidate: string) =>
+    candidate.trim().toLocaleLowerCase() === trimmed.toLocaleLowerCase();
   const taken =
-    reserved.includes(trimmed) || others.some((l) => l.id === trimmed);
+    reserved.some(clash) || others.some((l) => clash(l.label) || clash(l.name));
   const nameError = !trimmed
     ? intl.formatMessage({ id: 'clusters.topology.custom.name.required' })
     : taken
@@ -155,7 +161,7 @@ const CustomLayer: React.FC<CustomLayerProps> = ({
     trimmed ||
     intl.formatMessage({ id: 'clusters.topology.custom.slot.placeholder' });
   /** Slot i sits above rung i; the host is the rung after the last layer. */
-  const rungs = [...others.map((layer) => layer.name), host];
+  const rungs = [...others.map((layer) => layer.label), host];
 
   const explain = (at: number) =>
     at === 0

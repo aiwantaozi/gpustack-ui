@@ -190,7 +190,23 @@ export interface SystemConfig {
  * nothing — and why a missing label can only cost resolution, never
  * schedulability.
  */
-export const NODE_LAYER = 'NodeTopologyLayer';
+export const NODE_LAYER = 'builtin-000004';
+
+/**
+ * The leaf's canonical name, and so its i18n key. Separate from the id for the
+ * same reason every other rung's is: the id is a registry number and has no
+ * translation.
+ */
+export const NODE_LAYER_NAME = 'host';
+
+/**
+ * The rack rung's id.
+ *
+ * Named rather than written out at each use. It is the default grouping and
+ * the one rung the empty-state guidance talks about, and with ids opaque a
+ * literal `'builtin-000003'` in a component says nothing about racks.
+ */
+export const RACK_LAYER = 'builtin-000003';
 
 // 🔴 The accelerator domain is no longer a model of its own. It was, twice:
 // first as a flat dimension beside the tree (`ACCELERATOR_DOMAIN`,
@@ -220,11 +236,33 @@ export type GatherStrategy = 'MustGather' | 'PreferGather';
 
 export interface TopologyLayer {
   /**
-   * A vocabulary id (`rack`) or an operator-chosen custom name. Custom names
-   * are shown verbatim in the deployment form, so there is no separate
-   * display field — which pushes them towards a word a deployer recognises.
+   * Stable identity, fixed at creation and never changed: `builtin-NNNNNN` for
+   * a vocabulary rung, `custom-<6 hex>` for one the operator added.
+   * `parentLayer` and a model's `gather.layer` point at this, which is why a
+   * rename writes `displayName` instead of touching it.
+   */
+  id: string;
+  /**
+   * Canonical name — the vocabulary slug (`rack`) for a built-in rung, the
+   * operator's original wording for a custom one. Set once at creation and
+   * never rewritten: it is the i18n lookup key, so putting a *translated*
+   * label here would freeze the row into whichever UI language last saved it.
    */
   name: string;
+  /**
+   * What the operator renamed this layer to. Absent means never renamed,
+   * which is the only way to say so — the effective label is
+   * `displayName ?? t(name)`. Shown verbatim and never translated: these are
+   * the operator's words, not ours.
+   */
+  displayName?: string | null;
+  /**
+   * Built-in rungs only: do not group by this layer even though workers carry
+   * its label. Distinct from a layer nobody filled in, which is a fact about
+   * the data and returns the moment someone writes the label; this is a
+   * decision and does not. A custom layer is deleted rather than disabled.
+   */
+  disabled?: boolean;
   /**
    * any-of, tried in order, first present wins. The same physical layer is
    * spelled differently by every vendor and cloud, and a mixed fleet must not
@@ -276,8 +314,13 @@ export interface TopologyKnownKey {
 
 export interface TopologyLayerView {
   id: string;
+  /** Canonical name; the i18n key. See `TopologyLayer.name`. */
   name: string;
+  /** The operator's own wording, if they set one. Never translated. */
+  display_name?: string | null;
   builtin: boolean;
+  /** Switched off by the operator; in this list so the panel can switch it back. */
+  disabled?: boolean;
   /** At least one worker resolves a value here; only active layers form the tree. */
   active: boolean;
   label_keys: string[];

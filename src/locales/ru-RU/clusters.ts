@@ -341,6 +341,17 @@ export default {
   'clusters.topology.mapping.noKeys': 'Ключи меток не заданы',
   'clusters.topology.layer.labelKeys': 'Ключи меток',
   'clusters.topology.layer.addKey': 'Добавить ключ',
+  'clusters.topology.layer.rename': 'Переименовать',
+  'clusters.topology.layer.rename.tips':
+    'Меняется только отображаемое имя. Идентификатор уровня, его ключи меток и уже сохранённая в моделях топологическая привязка не затрагиваются. Оставьте поле пустым, чтобы вернуть имя по умолчанию. Идентификатор уровня:',
+  'clusters.topology.layer.rename.taken':
+    'Другой уровень этой цепочки уже так называется.',
+  'clusters.topology.layer.disable': 'Отключить',
+  'clusters.topology.layer.disabled': ' (отключён)',
+  'clusters.topology.layer.enable': 'Включить',
+  'clusters.topology.layer.inUse': 'Уровень всё ещё используется',
+  'clusters.topology.layer.inUse.tips':
+    'Эти модели ссылаются на уровень в топологической привязке и потеряют её: {models}. Сначала измените эти модели.',
   'clusters.topology.layer.name': 'Имя',
   'clusters.topology.advanced.hostKeys': 'Встроено, по имени worker',
   'clusters.topology.advanced.locked':

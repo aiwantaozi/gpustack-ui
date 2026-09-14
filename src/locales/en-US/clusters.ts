@@ -337,6 +337,17 @@ export default {
   'clusters.topology.mapping.noKeys': 'No label keys',
   'clusters.topology.layer.labelKeys': 'Label keys',
   'clusters.topology.layer.addKey': 'Add key',
+  'clusters.topology.layer.rename': 'Rename',
+  'clusters.topology.layer.rename.tips':
+    "Changes the display name only. The layer's identity, its label keys and any topology affinity already saved on a model are untouched. Leave it empty to restore the default. Layer id:",
+  'clusters.topology.layer.rename.taken':
+    'Another layer on this chain is already called that.',
+  'clusters.topology.layer.disable': 'Disable',
+  'clusters.topology.layer.disabled': ' (disabled)',
+  'clusters.topology.layer.enable': 'Enable',
+  'clusters.topology.layer.inUse': 'This layer is still in use',
+  'clusters.topology.layer.inUse.tips':
+    'These models set their topology affinity to this layer and would lose it: {models}. Change those models first.',
   'clusters.topology.layer.name': 'Name',
   'clusters.topology.advanced.hostKeys': 'Built in, by worker name',
   'clusters.topology.advanced.locked':

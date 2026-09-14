@@ -1,5 +1,5 @@
 import { queryClusterTopology } from '@/pages/cluster-management/apis';
-import { topologyFieldLabel } from '@/pages/cluster-management/config';
+import { topologyLayerLabel } from '@/pages/cluster-management/config';
 import {
   NODE_LAYER,
   TopologyLayerView,
@@ -146,7 +146,7 @@ const GatherLocality: React.FC = () => {
   const tierLabel = (item: TopologyLayerView) =>
     intl.formatMessage(
       { id: 'models.form.gather.sameLayer' },
-      { layer: topologyFieldLabel(intl, item.id, item.name) }
+      { layer: topologyLayerLabel(intl, item) }
     );
 
   const options: any[] = [

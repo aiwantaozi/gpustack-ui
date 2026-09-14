@@ -341,6 +341,17 @@ export default {
   'clusters.topology.mapping.noKeys': 'Etiket anahtarı yok',
   'clusters.topology.layer.labelKeys': 'Etiket anahtarları',
   'clusters.topology.layer.addKey': 'Anahtar ekle',
+  'clusters.topology.layer.rename': 'Yeniden adlandır',
+  'clusters.topology.layer.rename.tips':
+    'Yalnızca görünen adı değiştirir. Katmanın kimliği, etiket anahtarları ve modellerde kayıtlı topoloji yakınlığı etkilenmez. Varsayılan ada dönmek için boş bırakın. Katman kimliği:',
+  'clusters.topology.layer.rename.taken':
+    'Bu zincirdeki başka bir katman zaten bu adı kullanıyor.',
+  'clusters.topology.layer.disable': 'Devre dışı bırak',
+  'clusters.topology.layer.disabled': ' (devre dışı)',
+  'clusters.topology.layer.enable': 'Etkinleştir',
+  'clusters.topology.layer.inUse': 'Bu katman hâlâ kullanımda',
+  'clusters.topology.layer.inUse.tips':
+    'Şu modeller topoloji yakınlığı olarak bu katmanı gösteriyor ve kısıtı kaybeder: {models}. Önce bu modelleri değiştirin.',
   'clusters.topology.layer.name': 'Ad',
   'clusters.topology.advanced.hostKeys': 'Yerleşik, worker adına göre',
   'clusters.topology.advanced.locked':

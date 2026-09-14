@@ -341,6 +341,17 @@ export default {
   'clusters.topology.mapping.noKeys': 'ラベルキー未設定',
   'clusters.topology.layer.labelKeys': 'ラベルキー',
   'clusters.topology.layer.addKey': 'キーを追加',
+  'clusters.topology.layer.rename': '名前を変更',
+  'clusters.topology.layer.rename.tips':
+    '表示名のみを変更します。階層の識別子、ラベルキー、モデルに保存済みのトポロジー親和性は変わりません。空欄にすると既定の名前に戻ります。階層 ID：',
+  'clusters.topology.layer.rename.taken':
+    '同じチェーン上の別の階層がその名前を使用しています。',
+  'clusters.topology.layer.disable': '無効化',
+  'clusters.topology.layer.disabled': '（無効）',
+  'clusters.topology.layer.enable': '有効化',
+  'clusters.topology.layer.inUse': 'この階層はまだ使用されています',
+  'clusters.topology.layer.inUse.tips':
+    '次のモデルがこの階層をトポロジー親和性に指定しており、削除すると制約を失います：{models}。先にこれらのモデルを変更してください。',
   'clusters.topology.layer.name': '名前',
   'clusters.topology.advanced.hostKeys': '組み込み、worker 名による',
   'clusters.topology.advanced.locked':

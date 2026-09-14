@@ -206,7 +206,7 @@ export default {
 
   // 拓扑：这个集群的 worker 相距多远。
   // Topology: where this cluster's workers sit.
-  'clusters.topology.title': '拓扑',
+  'clusters.topology.title': '拓扑管理',
   'clusters.topology.noRebalance':
     '位置只影响之后的调度，已运行的部署不会被重新放置。',
   'clusters.topology.load.failed': '拓扑信息加载失败。',
@@ -319,6 +319,17 @@ export default {
   'clusters.topology.mapping.noKeys': '未设置标签键',
   'clusters.topology.layer.labelKeys': '标签键',
   'clusters.topology.layer.addKey': '加键',
+  'clusters.topology.layer.rename': '重命名',
+  'clusters.topology.layer.rename.tips':
+    '只改显示名称，不影响该层级的标识、标签键，以及模型里已保存的拓扑亲和性设置。留空可恢复默认名称。层级标识：',
+  'clusters.topology.layer.rename.taken':
+    '该名称已被同一条链上的其他层级使用。',
+  'clusters.topology.layer.disable': '停用',
+  'clusters.topology.layer.disabled': '（已停用）',
+  'clusters.topology.layer.enable': '启用',
+  'clusters.topology.layer.inUse': '该层级仍被模型使用',
+  'clusters.topology.layer.inUse.tips':
+    '以下模型的拓扑亲和性指向该层级，删除会使它们失去约束：{models}。请先修改这些模型。',
   'clusters.topology.layer.name': '名称',
   'clusters.topology.advanced.hostKeys': '内置，按 worker 名',
   'clusters.topology.advanced.locked':

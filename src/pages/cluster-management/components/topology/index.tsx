@@ -20,13 +20,18 @@ import {
 import { createStyles } from 'antd-style';
 import { useEffect, useRef, useState } from 'react';
 import { topologyFieldLabel } from '../../config';
-import { NODE_LAYER, TopologyView, TopologyWorker } from '../../config/types';
+import {
+  NODE_LAYER_NAME,
+  RACK_LAYER,
+  TopologyView,
+  TopologyWorker
+} from '../../config/types';
 import AdvancedDrawer from './advanced';
 import CustomLayer, { CustomLayerValue } from './advanced/custom-layer';
 import {
-  DraftLayer,
   draftFromView,
   insertLayer,
+  newCustomLayer,
   removeLayer,
   toWire
 } from './advanced/draft';
@@ -156,7 +161,7 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [grouping, setGrouping] = useState<string>(TREE_GROUPING);
-  const [lastField, setLastField] = useState<string>('rack');
+  const [lastField, setLastField] = useState<string>(RACK_LAYER);
   const [batch, setBatch] = useState<BatchState>({ open: false });
   const [mappingOpen, setMappingOpen] = useState(false);
   const [customLayer, setCustomLayer] = useState<SpecContext | null>(null);
@@ -219,7 +224,7 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
     selectedIds.includes(worker.id)
   );
 
-  const rackLayer = displayed?.layers.find((layer) => layer.id === 'rack');
+  const rackLayer = displayed?.layers.find((layer) => layer.id === RACK_LAYER);
   const anyHandFilled = allWorkers.some((worker) =>
     Object.values(worker.location || {}).some(
       (location) => location.source === 'user'
@@ -360,15 +365,7 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
       return;
     }
     const { cluster } = customLayer;
-    const layer: DraftLayer = {
-      id: value.name,
-      name: value.name,
-      builtin: false,
-      active: false,
-      labelKeys: value.labelKeys,
-      primaryKey: null,
-      customised: true
-    };
+    const layer = newCustomLayer(value.name, value.labelKeys);
     const draft = insertLayer(
       draftFromView(intl, topo.topology, cluster.topology),
       layer,
@@ -390,19 +387,19 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
     customLayer && topo.topology
       ? draftFromView(intl, topo.topology, customLayer.cluster.topology).chain
       : [];
-  // A rung's name is its id, and `worker.location` is one flat map keyed by
-  // those ids, so every id already in play is taken. `accelerator_domain` is
-  // NOT reserved any more — it is now a perfectly good name for a layer an
-  // operator adds, and reserving it would forbid the one thing the new model
-  // asks them to do.
-  const reserved = topo.topology
-    ? [
-        ...(topo.topology.vocabulary?.fields || []).map((field) => field.id),
-        ...topo.topology.layers.map((layer) => layer.id),
-        NODE_LAYER,
-        'host'
-      ]
-    : [];
+  // 🔴 Names, not ids. Ids are generated now and cannot be typed into
+  // collision; two rungs *called* the same thing still can, and that is the
+  // one that shows — the deployment form's "at least in the same ___" would
+  // list one word twice. `custom-layer` checks the chain itself, so only the
+  // leaf (never a declared rung) has to be named here.
+  //
+  // `accelerator_domain` is NOT reserved — it is a perfectly good name for a
+  // layer an operator adds, and reserving it would forbid the one thing the
+  // new model asks them to do.
+  const reserved = [
+    intl.formatMessage({ id: 'clusters.topology.field.host' }),
+    NODE_LAYER_NAME
+  ];
 
   const showOnboarding =
     viewMode === 'table' &&
@@ -476,7 +473,9 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
                   ),
                   () => {
                     changeViewMode('tree');
-                    setGrouping(field.id === 'rack' ? TREE_GROUPING : field.id);
+                    setGrouping(
+                      field.id === RACK_LAYER ? TREE_GROUPING : field.id
+                    );
                   }
                 )}
               </Flex>
@@ -492,7 +491,7 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
                     { id: 'clusters.topology.overview.unfilled' },
                     {
                       count: rackLayer.unclassified,
-                      field: fieldLabel('rack')
+                      field: fieldLabel(RACK_LAYER)
                     }
                   )}
                 </span>,

@@ -3,11 +3,12 @@ import {
   DownOutlined,
   HolderOutlined,
   LockOutlined,
+  MoreOutlined,
   PlusOutlined,
   RightOutlined
 } from '@ant-design/icons';
 import { useIntl } from '@umijs/max';
-import { Button, Flex, Tooltip } from 'antd';
+import { Button, Dropdown, Flex, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import classNames from 'classnames';
 import { useState } from 'react';
@@ -85,6 +86,16 @@ const useStyles = createStyles(({ css }) => ({
     .more {
       flex-shrink: 0;
       white-space: nowrap;
+    }
+    .row-note {
+      margin-left: 6px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--ant-color-text-quaternary);
+    }
+    .row-actions {
+      flex-shrink: 0;
+      margin-left: 4px;
     }
     .count {
       margin-left: auto;
@@ -262,6 +273,8 @@ export const KeyList: React.FC<KeyListProps> = ({
 interface FieldRowProps {
   fieldId: string;
   name: React.ReactNode;
+  /** The row's own actions, rendered at the right of the header. */
+  actions?: React.ReactNode;
   keys: string[];
   lockedKey?: string | null;
   vocabulary: KeyVocabulary;
@@ -284,6 +297,7 @@ interface FieldRowProps {
 export const FieldRow: React.FC<FieldRowProps> = ({
   fieldId,
   name,
+  actions,
   keys,
   lockedKey,
   vocabulary,
@@ -344,6 +358,17 @@ export const FieldRow: React.FC<FieldRowProps> = ({
             { classified, total }
           )}
         </span>
+        {/* Stops the click from also toggling the row: the menu is about the
+            layer, not about opening its key list. */}
+        {actions && (
+          <span
+            className="row-actions"
+            onClick={(e) => e.stopPropagation()}
+            role="presentation"
+          >
+            {actions}
+          </span>
+        )}
       </Flex>
       {expanded && (
         <div className="body">
@@ -404,6 +429,9 @@ interface FieldChainProps {
   // The one chain's unused rungs stay folded, as they always did.
   onAddLayer?: () => void;
   onKeysChange: (id: string, keys: string[]) => void;
+  onRename: (row: DraftLayer) => void;
+  onToggleDisabled: (row: DraftLayer) => void;
+  onDelete: (row: DraftLayer) => void;
 }
 
 /**
@@ -419,15 +447,20 @@ const FieldChain: React.FC<FieldChainProps> = ({
   flashing,
   vocabulary,
   onAddLayer,
-  onKeysChange
+  onKeysChange,
+  onRename,
+  onToggleDisabled,
+  onDelete
 }) => {
   const intl = useIntl();
   const { styles } = useStyles();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showUnused, setShowUnused] = useState(false);
 
+  // A disabled rung is never "in use" however its data looks — that is the
+  // difference between switching it off and nobody having filled it in.
   const inUse = (row: DraftLayer) =>
-    row.active || !row.builtin || row.customised;
+    !row.disabled && (row.active || !row.builtin || row.customised);
   const unused = rows.filter((row) => !inUse(row)).length;
   const shown = showUnused ? rows : rows.filter(inUse);
 
@@ -442,6 +475,34 @@ const FieldChain: React.FC<FieldChainProps> = ({
   };
 
   const hostLabel = intl.formatMessage({ id: 'clusters.topology.field.host' });
+
+  /**
+   * What a rung offers. The two branches are the design's own split: a
+   * built-in rung belongs to the vocabulary and can only be switched off,
+   * while a custom one exists because someone added it and can be removed.
+   * Offering "delete" on a built-in would promise something the server
+   * refuses, and "disable" on a custom one would leave a row meaning nothing.
+   */
+  const rowActions = (row: DraftLayer) => [
+    {
+      key: 'rename',
+      label: intl.formatMessage({ id: 'clusters.topology.layer.rename' })
+    },
+    row.builtin
+      ? {
+          key: 'disable',
+          label: intl.formatMessage({
+            id: row.disabled
+              ? 'clusters.topology.layer.enable'
+              : 'clusters.topology.layer.disable'
+          })
+        }
+      : {
+          key: 'delete',
+          danger: true,
+          label: intl.formatMessage({ id: 'common.button.delete' })
+        }
+  ];
 
   return (
     <Flex orientation="vertical" gap={8}>
@@ -472,7 +533,50 @@ const FieldChain: React.FC<FieldChainProps> = ({
           >
             <FieldRow
               fieldId={row.id}
-              name={row.name}
+              // Both a disabled rung and one nobody filled in are folded away
+              // and drawn grey, but they are not the same state: the second
+              // comes back the moment a worker grows the label, the first
+              // does not. Only one of them needs saying.
+              name={
+                row.disabled ? (
+                  <>
+                    {row.label}
+                    <span className="row-note">
+                      {intl.formatMessage({
+                        id: 'clusters.topology.layer.disabled'
+                      })}
+                    </span>
+                  </>
+                ) : (
+                  row.label
+                )
+              }
+              actions={
+                <Dropdown
+                  trigger={['click']}
+                  menu={{
+                    items: rowActions(row),
+                    onClick: ({ key }) => {
+                      if (key === 'rename') {
+                        onRename(row);
+                      } else if (key === 'disable') {
+                        onToggleDisabled(row);
+                      } else if (key === 'delete') {
+                        onDelete(row);
+                      }
+                    }
+                  }}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MoreOutlined />}
+                    aria-label={intl.formatMessage({
+                      id: 'common.table.operation'
+                    })}
+                  />
+                </Dropdown>
+              }
               keys={row.labelKeys}
               lockedKey={row.primaryKey}
               vocabulary={vocabulary}
@@ -519,7 +623,7 @@ const FieldChain: React.FC<FieldChainProps> = ({
         {rows.map((row) => (
           <span key={row.id}>
             <span className={classNames({ unused: !inUse(row) })}>
-              {row.name}
+              {row.label}
             </span>
             <span className="sup">⊃</span>
           </span>

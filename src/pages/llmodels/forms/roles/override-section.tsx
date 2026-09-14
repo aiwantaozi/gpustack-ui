@@ -140,6 +140,15 @@ interface OverrideSectionProps {
    * inherited parameters to avoid.
    */
   seedFromModel?: boolean;
+  /**
+   * Rendered above the group in **both** branches.
+   *
+   * For what the platform writes into the role regardless of the switch: a
+   * prefill's KV connector configuration is injected whether or not the user
+   * also customized its parameters, so it belongs to neither branch and
+   * showing it in only one would claim the switch controls it.
+   */
+  prefix?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -159,6 +168,7 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
   disabledReason,
   inheritContent,
   seedFromModel = true,
+  prefix,
   children
 }) => {
   const intl = useIntl();
@@ -250,6 +260,7 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
         )
       }
     >
+      {prefix}
       {overridden ? (
         <>
           {emptyOverride && (

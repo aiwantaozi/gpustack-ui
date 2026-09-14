@@ -561,6 +561,12 @@ export default {
   'models.form.roles.router.connectionArgs':
     '接続パラメータ（GPUStack が注入）',
   'models.form.roles.router.tunableArgs': 'ルーティングと復旧（上書き可）',
+  'models.form.roles.managed': 'システム管理',
+  'models.form.roles.managed.tips':
+    'PD モードとグループのスケジュール先から GPUStack が自動生成します。読み取り専用で、同じ内容を再度指定する必要はありません。二重波括弧の値はプレースホルダーで、デプロイ時に実際のアドレス・ポート・NIC に置き換わります。',
+  'models.form.roles.managed.connector': 'KV コネクタ',
+  'models.form.roles.managed.args': 'エンジン引数',
+  'models.form.roles.managed.mounts': 'ホストマウント',
   'models.form.roles.resources': 'リソース',
   'models.form.roles.resources.cpu': 'CPU（コア）',
   'models.form.roles.resources.memory': 'メモリ（GiB）',

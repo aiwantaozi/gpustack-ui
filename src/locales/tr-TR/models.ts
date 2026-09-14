@@ -561,6 +561,12 @@ export default {
     'Bağlantı parametreleri (GPUStack tarafından verilir)',
   'models.form.roles.router.tunableArgs':
     'Strateji ve dayanıklılık (geçersiz kılınabilir)',
+  'models.form.roles.managed': 'Sistem tarafından yönetilir',
+  'models.form.roles.managed.tips':
+    'GPUStack tarafından PD moduna ve grubun zamanlandığı yere göre doldurulur. Salt okunurdur ve bunların hiçbirini yeniden belirtmeniz gerekmez. Çift süslü parantez içindeki değerler yer tutucudur; dağıtım sırasında gerçek adresler, portlar ve ağ arayüzü ile değiştirilir.',
+  'models.form.roles.managed.connector': 'KV bağlayıcı',
+  'models.form.roles.managed.args': 'Motor argümanları',
+  'models.form.roles.managed.mounts': 'Ana makine bağlamaları',
   'models.form.roles.resources': 'Kaynaklar',
   'models.form.roles.resources.cpu': 'CPU (çekirdek)',
   'models.form.roles.resources.memory': 'Bellek (GiB)',

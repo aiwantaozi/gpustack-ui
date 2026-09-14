@@ -565,6 +565,12 @@ export default {
     'Параметры подключения (задаёт GPUStack)',
   'models.form.roles.router.tunableArgs':
     'Стратегия и устойчивость (можно переопределить)',
+  'models.form.roles.managed': 'Управляется системой',
+  'models.form.roles.managed.tips':
+    'Заполняется GPUStack на основе режима PD и места размещения группы. Только для чтения, повторять эти значения не нужно. Значения в двойных фигурных скобках — это заполнители, которые при развёртывании заменяются реальными адресами, портами и сетевым интерфейсом.',
+  'models.form.roles.managed.connector': 'KV-коннектор',
+  'models.form.roles.managed.args': 'Аргументы движка',
+  'models.form.roles.managed.mounts': 'Монтирования хоста',
   'models.form.roles.resources': 'Ресурсы',
   'models.form.roles.resources.cpu': 'CPU (ядра)',
   'models.form.roles.resources.memory': 'Память (ГиБ)',

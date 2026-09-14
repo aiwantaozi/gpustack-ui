@@ -1,6 +1,6 @@
 // columns.ts
 import { systemConfigAtom } from '@/atoms/system';
-import { StatusMaps } from '@/config';
+import { StatusColorMap, StatusMaps } from '@/config';
 import { OPENAI_COMPATIBLE, tableSorter } from '@/config/settings';
 import { TargetStatusValueMap } from '@/pages/model-routes/config';
 import { usePluginListColumns } from '@/plugins/list-extra-columns';
@@ -15,7 +15,6 @@ import {
   GrafanaIcon,
   IconFont,
   icons,
-  StatusTag,
   ThemeTag,
   type TableColumnProps
 } from '@gpustack/core-ui';
@@ -39,7 +38,8 @@ import {
   ModelStateMap,
   ModelStateValueMap,
   MyModelsStatusLabelMap,
-  MyModelsStatusValueMap
+  MyModelsStatusValueMap,
+  RoleValueMap
 } from '../config';
 import { generateSource } from '../config/button-actions';
 import { ListItem } from '../config/types';
@@ -68,6 +68,59 @@ const useStyles = createStyles(({ css }) => ({
     }
   `
 }));
+
+/**
+ * The replica cell's status indicator.
+ *
+ * 🔴 Restored in review, after a spell as a `StatusTag`. The tag renders the
+ * state as a worded pill («运行中»), and in a cell whose whole content is
+ * «9 / 9» that word is the same fact twice — «ready equals total» already says
+ * running. Worse, the pill is the widest thing in a narrow column, so it
+ * pushed the numbers it was describing off to the side. A dot carries the one
+ * thing the numbers cannot: the deployment's own state, as a colour, with the
+ * reason on hover when there is one.
+ */
+const Dot = ({ color }: { color: string }) => (
+  <span
+    style={{
+      backgroundColor: color,
+      borderRadius: '50%',
+      height: 8,
+      width: 8,
+      flexShrink: 0,
+      display: 'flex'
+    }}
+  ></span>
+);
+
+/**
+ * The group's shape as «xPyD» — «1P1D», «1P3D», «2P2D».
+ *
+ * 🔑 That notation is the field's own: llm-d, Dynamo and vLLM all describe a
+ * disaggregated deployment that way, so it needs no legend. A flat «PD» badge
+ * said only «this row is disaggregated», which the row's own replica count
+ * already implied; the ratio is the thing a reader of a PD list actually wants
+ * and it costs the same width.
+ *
+ * The router is left out on purpose — «xPyD» counts the GPU-bearing roles, and
+ * every group has exactly one router, so including it would add a constant.
+ *
+ * Falls back to «PD» when the roles have not arrived: the list endpoint is the
+ * source, and a row mid-refresh should not flash «0P0D».
+ */
+const pdRatioTag = (
+  record: ListItem,
+  intl: { formatMessage: (d: { id: string }) => string }
+): string => {
+  const count = (name: string) =>
+    (record.roles || []).find((role: any) => role?.name === name)?.replicas;
+  const prefill = count(RoleValueMap.Prefill);
+  const decode = count(RoleValueMap.Decode);
+  if (prefill == null || decode == null) {
+    return intl.formatMessage({ id: 'models.pd.tag' });
+  }
+  return `${prefill}P${decode}D`;
+};
 
 const ActionList: ActionItem[] = [
   {
@@ -302,9 +355,7 @@ const useModelsColumns = ({
                   id: 'models.form.pd.mode'
                 })}: ${record.disaggregation.mode}`}
               >
-                <ThemeTag>
-                  {intl.formatMessage({ id: 'models.pd.tag' })}
-                </ThemeTag>
+                <ThemeTag>{pdRatioTag(record, intl)}</ThemeTag>
               </Tooltip>
             )}
           </Flex>
@@ -381,7 +432,29 @@ const useModelsColumns = ({
                 cursor: isPD ? 'default' : undefined
               }}
             >
-              <StatusTag statusValue={replicaStatus(record, ready)} />
+              {/* The colour still comes from `replicaStatus` — i.e. from
+                  `Model.state` and `state_message`, not from the numbers. Only
+                  the WORD is gone. Driving it off the counts instead (which is
+                  what this cell did before PD) would have collapsed «starting»
+                  and «failed» into one orange, and dropped the message
+                  entirely; a status nobody can read the reason of is the
+                  silent-failure mode this feature exists to beat. */}
+              {(() => {
+                const dotStatus = replicaStatus(record, ready);
+                const dot = (
+                  <Dot
+                    color={
+                      StatusColorMap[dotStatus.status]?.text ||
+                      'var(--ant-color-fill-secondary)'
+                    }
+                  />
+                );
+                return dotStatus.message ? (
+                  <Tooltip title={dotStatus.message}>{dot}</Tooltip>
+                ) : (
+                  dot
+                );
+              })()}
               <span style={{ flexShrink: 0 }}>
                 {ready} / {total}
               </span>

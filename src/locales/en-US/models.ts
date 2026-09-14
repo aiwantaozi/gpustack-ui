@@ -560,10 +560,15 @@ export default {
     'PD disaggregation needs at least 2 available GPUs (one Prefill, one Decode); the selected cluster has {count}.',
   'models.pd.ratio': 'Ratio',
   'models.form.roles.router.entrypoint': 'Command',
-  'models.form.roles.router.connectionArgs':
-    'Connection arguments (set by GPUStack)',
+  'models.form.roles.router.connectionArgs': 'Connection arguments',
   'models.form.roles.router.tunableArgs':
     'Strategy and resilience (overridable)',
+  'models.form.roles.managed': 'Managed by the system',
+  'models.form.roles.managed.tips':
+    'Filled in by GPUStack from the PD mode and where the group is scheduled. Read-only, and there is no need to repeat any of it. Values in double braces are placeholders, replaced with the real addresses, ports and NIC at deployment.',
+  'models.form.roles.managed.connector': 'KV connector',
+  'models.form.roles.managed.args': 'Engine arguments',
+  'models.form.roles.managed.mounts': 'Host mounts',
   'models.form.roles.resources': 'Resources',
   'models.form.roles.resources.cpu': 'CPU (cores)',
   'models.form.roles.resources.memory': 'Memory (GiB)',

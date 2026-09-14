@@ -15,6 +15,7 @@ import BackendParametersList from '../backend-parameters-list';
 import CustomBackend from '../custom-backend';
 import OverrideSection, { RoleSection } from './override-section';
 import RouterTunables from './router-tunables';
+import SystemManaged, { flagLines } from './system-managed';
 
 const GIB = 1024 ** 3;
 
@@ -32,65 +33,12 @@ const useStyles = createStyles(({ css }) => ({
       color: var(--ant-color-text-quaternary);
     }
   `,
-  // The platform's own arguments, shown in the custom branch above the user's.
-  // Rendered as disabled-looking rows rather than disabled inputs: they are
-  // not fields, and an input the user can focus but not change reads as broken.
-  frozen: css`
-    margin-bottom: 8px;
-    .frozen-group + .frozen-group {
-      margin-top: 8px;
-    }
-    .frozen-title {
-      font-size: 12px;
-      color: var(--ant-color-text-quaternary);
-      margin-bottom: 4px;
-    }
-    /* One flag per line, not one paragraph.
-       Joined with spaces these wrapped mid-flag — «--host {{wor / ker_ip}}» —
-       which is the one thing a reader of an argument list must not have to
-       reassemble. Read-only in both branches, so there is no input to size
-       around: a compact stack of lines is the whole requirement. */
-    .frozen-args {
-      font-size: 12px;
-      font-family: var(--ant-font-family-code);
-      color: var(--ant-color-text-tertiary);
-      background: var(--ant-color-fill-quaternary);
-      border-radius: var(--ant-border-radius);
-      padding: 6px 10px;
-    }
-    .frozen-line {
-      line-height: 20px;
-      white-space: pre-wrap;
-      /* A flag that genuinely exceeds the width breaks at its own boundary
-         rather than mid-token. */
-      overflow-wrap: anywhere;
-    }
-    .frozen-line + .frozen-line {
-      margin-top: 1px;
-    }
+  groupTitle: css`
+    font-size: 12px;
+    color: var(--ant-color-text-quaternary);
+    margin-bottom: 4px;
   `
 }));
-
-/**
- * Regroup a flat token list into one line per flag.
- *
- * The catalog ships `connection_args` as the argv it will pass — «--kv-connector»
- * and «nixl» are two separate entries. Rendering the array joined put seven
- * flags on three wrapped lines; splitting on every token would put a bare
- * «nixl» on a line of its own. So a token that starts with a dash opens a new
- * line and everything after it that does not is its value.
- */
-const flagLines = (tokens: string[]): string[] => {
-  const lines: string[] = [];
-  tokens.forEach((token) => {
-    if (token.startsWith('-') || !lines.length) {
-      lines.push(token);
-      return;
-    }
-    lines[lines.length - 1] = `${lines[lines.length - 1]} ${token}`;
-  });
-  return lines;
-};
 
 const RouterModeMap = {
   Managed: 'managed',
@@ -136,11 +84,27 @@ const RouterForm: React.FC<RouterFormProps> = ({
   const { styles } = useStyles();
   const form = Form.useFormInstance();
   const managed = Form.useWatch(['roles', index, 'managed'], form);
+  const roleImage = Form.useWatch(['roles', index, 'image_name'], form);
+  const roleCommand = Form.useWatch(['roles', index, 'run_command'], form);
+
+  // The server's own rule, verbatim (`is_managed_router`): the platform keeps
+  // assembling the router's invocation until the role carries BOTH an image
+  // and a command of its own — only both opt out.
+  //
+  // Deliberately not `managed !== false`. That switch and this rule disagree
+  // in the case the switch itself creates: going Custom seeds an image from
+  // the Model and no command, which is still a router the platform assembles
+  // and still gets the connection arguments. Gating the block on the switch
+  // therefore hid flags the router does receive, and the user's only reading
+  // of that was "they are gone, I must add them" — which admission then
+  // refuses, `--prefill` being `action="append"` in both shipped routers.
+  const systemAssembled = !(roleImage && roleCommand);
 
   const router = mode?.router;
   const connectionArgs = router?.connection_args || [];
   const tunableArgs = router?.tunable_args || [];
   const entrypoint = (router?.entrypoint || []).join(' ');
+  const hasManagedArgs = connectionArgs.length > 0 || tunableArgs.length > 0;
 
   // What the catalog derives, shown read-only. The peers row has no value yet
   // by definition — the addresses are injected once the prefill and decode
@@ -226,60 +190,44 @@ const RouterForm: React.FC<RouterFormProps> = ({
   // The platform's own arguments. Read-only in both branches, but for two
   // different reasons: collapsed they are the summary of what the system
   // decided, and expanded they are what the user's own get appended to.
-  const connectionArgsBlock = connectionArgs.length > 0 && (
-    <div className={styles.frozen}>
-      <div className="frozen-group">
-        <div className="frozen-title">
-          {intl.formatMessage({
+  const connectionArgsBlock = systemAssembled && (
+    <SystemManaged
+      groups={[
+        {
+          title: intl.formatMessage({
             id: 'models.form.roles.router.connectionArgs'
-          })}
-        </div>
-        <div className="frozen-args">
-          {flagLines(connectionArgs).map((line) => (
-            <div className="frozen-line" key={line}>
-              {line}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+          }),
+          lines: flagLines(connectionArgs)
+        }
+      ]}
+    ></SystemManaged>
   );
 
   // The collapsed view: both halves as text, because "same as the system"
-  // still has to say what the system chose.
-  const frozenArgs = (
-    <div className={styles.frozen}>
-      {connectionArgs.length > 0 && (
-        <div className="frozen-group">
-          <div className="frozen-title">
-            {intl.formatMessage({
-              id: 'models.form.roles.router.connectionArgs'
-            })}
-          </div>
-          <div className="frozen-args">
-            {flagLines(connectionArgs).map((line) => (
-              <div className="frozen-line" key={line}>
-                {line}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {tunableArgs.length > 0 && (
-        <div className="frozen-group">
-          <div className="frozen-title">
-            {intl.formatMessage({ id: 'models.form.roles.router.tunableArgs' })}
-          </div>
-          <div className="frozen-args">
-            {tunableArgs.map((arg) => (
-              <div className="frozen-line" key={arg.flag}>
-                {[arg.flag, arg.default].filter(Boolean).join('=')}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+  // still has to say what the system chose. No header here — the section is
+  // already reading as "what the system decided", and the tunables below are
+  // the half that is NOT read-only, so one "system-managed" label spanning
+  // both would be wrong about the second.
+  const managedArgs = (
+    <SystemManaged
+      header={false}
+      groups={[
+        {
+          title: intl.formatMessage({
+            id: 'models.form.roles.router.connectionArgs'
+          }),
+          lines: flagLines(connectionArgs)
+        },
+        {
+          title: intl.formatMessage({
+            id: 'models.form.roles.router.tunableArgs'
+          }),
+          lines: tunableArgs.map((arg) =>
+            [arg.flag, arg.default].filter(Boolean).join('=')
+          )
+        }
+      ]}
+    ></SystemManaged>
   );
 
   return (
@@ -377,36 +325,37 @@ const RouterForm: React.FC<RouterFormProps> = ({
         )}
       </RoleSection>
 
-      {/* Shown on BOTH branches. The platform half — the connection arguments
-          and the catalog's tunables — only exists under a managed router, but
-          the user half does not: a hand-written router still takes arguments,
-          and it still needs environment variables. Ascend's is the standing
-          example, where the router cannot start without
-          `TORCH_DEVICE_BACKEND_AUTOLOAD=0` (V11). Hiding the whole section on
-          the custom branch left no way to set one. */}
+      {/* Shown on BOTH branches, and so is the platform half inside it. A
+          hand-written router still takes arguments and still needs environment
+          variables — Ascend's is the standing example, where the router cannot
+          start without `TORCH_DEVICE_BACKEND_AUTOLOAD=0` (V11) — and the
+          platform keeps injecting its own until the role carries both an image
+          and a command, which is what `systemAssembled` reads. */}
       <OverrideSection
         group={OverrideGroupMap.Parameters}
         index={index}
-        // Under a managed router both branches show the platform's arguments:
-        // collapsed they *are* the summary, and expanded they are what the
-        // user's own get appended to. A custom router has no platform half, so
-        // it falls back to the generic summary.
-        inheritContent={managed !== false ? frozenArgs : undefined}
+        // Both branches show the platform's arguments while it is the one
+        // assembling: collapsed they *are* the summary, and expanded they are
+        // what the user's own get appended to. A fully hand-written router has
+        // no platform half, so it falls back to the generic summary.
+        inheritContent={
+          systemAssembled && hasManagedArgs ? managedArgs : undefined
+        }
         seedFromModel={false}
       >
-        {managed !== false && connectionArgsBlock}
+        {connectionArgsBlock}
         {/* The declared knobs, as controls rather than as text: the flag
               names are the platform's vocabulary, and making the user retype
               one to change a routing policy is the part that reads as a
               missing feature. */}
-        {managed !== false && tunableArgs.length > 0 && (
-          <div className="frozen-title" style={{ marginBottom: 4 }}>
+        {systemAssembled && tunableArgs.length > 0 && (
+          <div className={styles.groupTitle}>
             {intl.formatMessage({
               id: 'models.form.roles.router.tunableArgs'
             })}
           </div>
         )}
-        {managed !== false && (
+        {systemAssembled && (
           <RouterTunables
             args={tunableArgs}
             namePrefix={['roles', index]}

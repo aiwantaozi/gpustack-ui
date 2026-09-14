@@ -355,6 +355,32 @@ export interface PDTunableArg {
   description?: string | null;
 }
 
+/**
+ * What the platform writes into one prefill or decode member.
+ *
+ * Read-only to the form in every branch: these are rendered from placement
+ * facts the form does not have, which is why the values still carry their
+ * `{{...}}` placeholders here. Deliberately isomorphic to a cache provider's
+ * `injection` block — same vocabulary, same rendering rules.
+ */
+export interface PDRoleInjection {
+  // Port bands the scheduler allocates. Not displayed on their own: each one
+  // is referenced by an `args` or `env` entry as `{{ports.<name>}}`, which is
+  // where a reader meets it in the form the engine will see.
+  ports?: { name: string; count?: number; inject_to?: string }[] | null;
+  // The KV connector descriptor, structured because that is the shape the
+  // extended-KV-cache assembler consumes. Reaches the engine as one
+  // `--kv-transfer-config` JSON blob.
+  connector?: Record<string, any> | null;
+  env?: Record<string, string> | null;
+  args?: string[] | null;
+  // Host paths bind-mounted into the member. Ascend's `/etc/hccn.conf` is the
+  // shipped case: without it cross-host transfers fail on every rank while
+  // same-host ones succeed.
+  host_mounts?: string[] | null;
+  files?: Record<string, any> | null;
+}
+
 export interface PDMode {
   name: string;
   display_name: string;
@@ -376,7 +402,9 @@ export interface PDMode {
   // carries the engine too, because the picker lists several engines' recipes
   // side by side and there it has to say *which* NIXL.
   transport?: string | null;
-  roles?: Record<string, any>;
+  // Keyed by role name (`prefill`, `decode`). Empty on `custom`, which injects
+  // nothing.
+  roles?: Record<string, PDRoleInjection>;
   router?: {
     protocol?: string;
     image?: string | null;

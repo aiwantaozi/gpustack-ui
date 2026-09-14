@@ -101,6 +101,10 @@ export const SetLocationPanel: React.FC<SetLocationPanelProps> = ({
     }
   };
 
+  // Flat, in chain order. It was briefly grouped under «层级» / «加速器域»,
+  // because two chains could each carry a rung called something like «机柜» and
+  // the list gave no way to tell which one a value was about. One chain, one
+  // list: chain order alone says where a field sits.
   const fieldOptions = fields.map((f) => ({ value: f.id, label: f.label }));
 
   return (

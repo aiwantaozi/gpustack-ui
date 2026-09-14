@@ -4,8 +4,8 @@ import { useIntl } from '@umijs/max';
 import { Button, Empty, Flex, Segmented, Tree } from 'antd';
 import { createStyles } from 'antd-style';
 import { useState } from 'react';
+import { topologyFieldLabel } from '../../config';
 import {
-  ACCELERATOR_DOMAIN,
   NODE_LAYER,
   TopologyDomain,
   TopologyView,
@@ -16,8 +16,15 @@ import { LocationField, isDiscovered, shownValue } from './location';
 /** Hosts shown per domain before "N more". Forty expanded is not a view. */
 const HOSTS_PREVIEW = 3;
 
-/** The nested tree; any other value is a field id to group flat by. */
+/** The cluster's one nested tree. Any other value groups flat by that field. */
 export const TREE_GROUPING = 'tree';
+
+// 🔴 `DOMAIN_TREE_GROUPING` is gone with the second tree. The switch used to
+// pick between "by layer" and "by accelerator domain", and every group carried
+// the *other* tree's value in its margin («这个域跨 3 个机柜») because neither
+// tree could show that on its own. With one chain the domain, if an operator
+// declared one, is a rung of this tree — so it is already on screen, in its
+// own place, and a margin note would repeat an ancestor's name.
 
 const useStyles = createStyles(({ css }) => ({
   tree: css`
@@ -56,6 +63,20 @@ const useStyles = createStyles(({ css }) => ({
     .warn {
       color: var(--ant-color-warning);
     }
+    /* The bucket says why nothing landed here, under its own row: the reason
+       is the whole point of the node, and it does not fit on the line. */
+    .bucket {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+      min-width: 0;
+    }
+    .bucket .why {
+      color: var(--ant-color-text-tertiary);
+      font-size: 12px;
+      white-space: normal;
+    }
     .host {
       cursor: pointer;
       &:hover {
@@ -83,15 +104,15 @@ interface Group {
   label: React.ReactNode;
   workers: TopologyWorker[];
   unfilledField?: string;
-  tail?: React.ReactNode;
+  /** Why this bucket is not empty, and what to do about it. */
+  why?: React.ReactNode;
   children?: Group[];
 }
 
 /**
- * [S1b] The same workers, grouped two ways, because a domain may span racks
- * and one tree would lose a dimension. Both are computed here from `workers`
- * — switching costs no request, and the toolbar's filter applies to both.
- * Nothing is edited on the tree (P8): clicking a host goes back to its row.
+ * [S1b] The cluster's one tree, re-counted here from `workers` so the
+ * toolbar's filter applies without a request. Nothing is edited on the tree
+ * (P8): clicking a host goes back to its row.
  */
 const TreeView: React.FC<TreeViewProps> = ({
   view,
@@ -108,11 +129,18 @@ const TreeView: React.FC<TreeViewProps> = ({
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
 
   const byId = new Map(workers.map((worker) => [worker.id, worker]));
-  const fieldLabel = (id: string) =>
-    fields.find((field) => field.id === id)?.label ||
-    (id === ACCELERATOR_DOMAIN
-      ? intl.formatMessage({ id: 'clusters.topology.field.acceleratorDomain' })
-      : id);
+
+  const fieldLabel = (id: string) => {
+    const shown = fields.find((field) => field.id === id);
+    if (shown) {
+      return shown.label;
+    }
+    // A rung hidden by the column picker still labels its tree node.
+    const rung = view.layers.find((layer) => layer.id === id);
+    return rung?.builtin === false
+      ? rung.name
+      : topologyFieldLabel(intl, id, rung?.name);
+  };
 
   const capacity = (list: TopologyWorker[]) =>
     intl.formatMessage(
@@ -124,49 +152,29 @@ const TreeView: React.FC<TreeViewProps> = ({
       }
     );
 
-  const distinct = (list: TopologyWorker[], field: string) =>
-    Array.from(
-      new Set(list.map((w) => shownValue(w.location?.[field])).filter(Boolean))
-    );
-
-  /** Which other field to list on a group's tail: domains under a rack, racks under a domain. */
-  const crossField = (field: string) =>
-    field === ACCELERATOR_DOMAIN ? 'rack' : ACCELERATOR_DOMAIN;
-
-  const groupTail = (field: string, list: TopologyWorker[]) => {
-    const other = crossField(field);
-    const values = distinct(list, other);
-    if (!values.length) {
-      return null;
-    }
-    return (
-      <>
-        <span>
-          {fieldLabel(other)}: {values.join(' · ')}
-        </span>
-        {field !== ACCELERATOR_DOMAIN && values.length > 1 && (
-          <span className="warn">
-            <WarningOutlined style={{ marginRight: 4 }} />
-            {intl.formatMessage(
-              { id: 'clusters.topology.tree.spansDomains' },
-              { count: values.length }
-            )}
-          </span>
-        )}
-      </>
-    );
-  };
-
   const allDiscovered = (list: TopologyWorker[], field: string) =>
     list.every((w) => isDiscovered(w.location?.[field]));
 
   const bucketLabel = (field: string) =>
-    field === ACCELERATOR_DOMAIN
-      ? intl.formatMessage({ id: 'clusters.topology.tree.unknownDomain' })
-      : intl.formatMessage(
-          { id: 'clusters.topology.tree.unfilled' },
-          { field: fieldLabel(field) }
-        );
+    intl.formatMessage(
+      { id: 'clusters.topology.tree.unfilled' },
+      { field: fieldLabel(field) }
+    );
+
+  /**
+   * 🔴 The one node the industry's tools do not have. A missing label never
+   * fails a deployment — the group simply never gathers, silently — so the
+   * only place it can surface is here, and it has to say which key is missing:
+   * "no rack yet" is a symptom, `topology.gpustack.ai/rack` is the fix.
+   */
+  const layerPrimaryKey = (field: string) =>
+    view.layers.find((layer) => layer.id === field)?.label_keys?.[0] || '';
+
+  const bucketWhy = (field: string) =>
+    intl.formatMessage(
+      { id: 'clusters.topology.tree.unfilled.why' },
+      { key: layerPrimaryKey(field) || fieldLabel(field) }
+    );
 
   /** Flat: one group per value of `field`, plus the unfilled bucket. */
   const flatGroups = (field: string, list: TopologyWorker[]): Group[] => {
@@ -194,15 +202,15 @@ const TreeView: React.FC<TreeViewProps> = ({
             )}
           </>
         ),
-        workers: members,
-        tail: groupTail(field, members)
+        workers: members
       }));
     if (unfilled.length) {
       groups.push({
         key: `${field}:<unfilled>`,
         label: bucketLabel(field),
         workers: unfilled,
-        unfilledField: field
+        unfilledField: field,
+        why: bucketWhy(field)
       });
     }
     return groups;
@@ -231,57 +239,86 @@ const TreeView: React.FC<TreeViewProps> = ({
         : `${fieldLabel(node.layer)} ${node.name}`,
       workers: members,
       unfilledField: node.unclassified ? node.layer : undefined,
-      tail: node.unclassified ? null : groupTail(node.layer, members),
+      why: node.unclassified ? bucketWhy(node.layer) : undefined,
       children: children.length ? children : undefined
     };
   };
 
-  const groups: Group[] =
-    grouping === TREE_GROUPING
-      ? ((view.tree?.children || [])
-          .filter((child) => child.layer !== NODE_LAYER)
-          .map((child) => nestedGroups(child, ''))
-          .filter(Boolean) as Group[])
-      : flatGroups(grouping, workers);
+  /** The nested tree, or a flat grouping by whichever field was picked. */
+  const nested = grouping === TREE_GROUPING;
+  const root = view.tree;
+  const rootLayer = view.layers.find(
+    (layer) => layer.active && layer.id !== NODE_LAYER
+  );
+
+  const groups: Group[] = nested
+    ? ((root?.children || [])
+        .filter((child) => child.layer !== NODE_LAYER)
+        .map((child) => nestedGroups(child, ''))
+        .filter(Boolean) as Group[])
+    : flatGroups(grouping, workers);
 
   // Hosts directly under the root (no layer active at all) in nested mode.
-  const rootHosts =
-    grouping === TREE_GROUPING
-      ? ((view.tree?.children || [])
-          .filter((child) => child.layer === NODE_LAYER)
-          .flatMap((child) => child.worker_ids || [])
-          .map((id) => byId.get(id))
-          .filter(Boolean) as TopologyWorker[])
-      : [];
+  const rootHosts = nested
+    ? ((root?.children || [])
+        .filter((child) => child.layer === NODE_LAYER)
+        .flatMap((child) => child.worker_ids || [])
+        .map((id) => byId.get(id))
+        .filter(Boolean) as TopologyWorker[])
+    : [];
 
-  const hostNode = (worker: TopologyWorker, parentKey: string) => {
-    const other = grouping === ACCELERATOR_DOMAIN ? 'rack' : ACCELERATOR_DOMAIN;
-    const location = worker.location?.[other];
-    return {
-      key: `${parentKey}/host:${worker.id}`,
-      isLeaf: true,
-      selectable: false,
-      title: (
-        <span className="row host" onClick={() => onHostClick(worker)}>
-          <AutoTooltip ghost title={worker.name} minWidth={20}>
-            {worker.name}
-          </AutoTooltip>
-          {location?.value && (
-            <span className="meta">
-              {isDiscovered(location) && <LockOutlined />} {fieldLabel(other)}{' '}
-              {shownValue(location)}
-            </span>
+  /**
+   * The bucket the server did not send. A tree whose top rung is declared but
+   * whose value some worker misses drops that worker out of every node — and
+   * an invisible worker is exactly the failure mode this view exists to catch.
+   * Only when the chain has an active rung: a chain nobody declared has not
+   * failed to classify anything, it simply is not in use.
+   */
+  const placed = new Set(groups.flatMap((g) => g.workers.map((w) => w.id)));
+  const stranded =
+    nested && rootLayer
+      ? workers.filter((worker) => !placed.has(worker.id))
+      : [];
+  // No double-count guard is needed: a server that already sent an
+  // unclassified node placed those workers in `groups`, so they are not
+  // stranded to begin with.
+  if (stranded.length) {
+    groups.push({
+      key: `${rootLayer!.id}:<stranded>`,
+      label: bucketLabel(rootLayer!.id),
+      workers: stranded,
+      unfilledField: rootLayer!.id,
+      why: bucketWhy(rootLayer!.id)
+    });
+  }
+  const strandedIds = new Set(stranded.map((worker) => worker.id));
+  const looseHosts = stranded.length
+    ? rootHosts.filter((worker) => !strandedIds.has(worker.id))
+    : rootHosts;
+
+  // A host row carries only its name and its capacity. It used to also repeat
+  // the other chain's value («node-9 · 加速器域 pod-1»), which was the one
+  // place that fact appeared while grouping by rack. One chain puts it on an
+  // ancestor node instead, so repeating it here would be the same string twice
+  // in one column.
+  const hostNode = (worker: TopologyWorker, parentKey: string) => ({
+    key: `${parentKey}/host:${worker.id}`,
+    isLeaf: true,
+    selectable: false,
+    title: (
+      <span className="row host" onClick={() => onHostClick(worker)}>
+        <AutoTooltip ghost title={worker.name} minWidth={20}>
+          {worker.name}
+        </AutoTooltip>
+        <span className="tail">
+          {intl.formatMessage(
+            { id: 'clusters.topology.tree.hostCapacity' },
+            { gpus: worker.gpus, free: worker.free_gpus }
           )}
-          <span className="tail">
-            {intl.formatMessage(
-              { id: 'clusters.topology.tree.hostCapacity' },
-              { gpus: worker.gpus, free: worker.free_gpus }
-            )}
-          </span>
         </span>
-      )
-    };
-  };
+      </span>
+    )
+  });
 
   const hostNodes = (list: TopologyWorker[], parentKey: string): any[] => {
     const shown = revealed.has(parentKey) ? list : list.slice(0, HOSTS_PREVIEW);
@@ -309,10 +346,8 @@ const TreeView: React.FC<TreeViewProps> = ({
     return nodes;
   };
 
-  const groupNode = (group: Group): any => ({
-    key: group.key,
-    selectable: false,
-    title: (
+  const groupNode = (group: Group): any => {
+    const row = (
       <span className="row">
         <span className="label">
           {group.unfilledField && (
@@ -322,7 +357,6 @@ const TreeView: React.FC<TreeViewProps> = ({
         </span>
         <span className="meta">{capacity(group.workers)}</span>
         <span className="tail">
-          {group.tail}
           {group.unfilledField && (
             <Button
               type="link"
@@ -338,11 +372,23 @@ const TreeView: React.FC<TreeViewProps> = ({
           )}
         </span>
       </span>
-    ),
-    children: group.children
-      ? group.children.map(groupNode)
-      : hostNodes(group.workers, group.key)
-  });
+    );
+    return {
+      key: group.key,
+      selectable: false,
+      title: group.why ? (
+        <span className="bucket">
+          {row}
+          <span className="why">{group.why}</span>
+        </span>
+      ) : (
+        row
+      ),
+      children: group.children
+        ? group.children.map(groupNode)
+        : hostNodes(group.workers, group.key)
+    };
+  };
 
   const treeData = [
     {
@@ -356,7 +402,7 @@ const TreeView: React.FC<TreeViewProps> = ({
           <span className="meta">{capacity(workers)}</span>
         </span>
       ),
-      children: [...groups.map(groupNode), ...hostNodes(rootHosts, 'root')]
+      children: [...groups.map(groupNode), ...hostNodes(looseHosts, 'root')]
     }
   ];
 
@@ -370,17 +416,16 @@ const TreeView: React.FC<TreeViewProps> = ({
     });
   collect(groups);
 
+  // One tree, so the switch only ever has a second entry when the overview
+  // sent us here to look at a single rung flat («机房 3 个»). It is not a
+  // permanent mode: nothing offers it until something asks for it.
   const options = [
     {
       value: TREE_GROUPING,
       label: intl.formatMessage({ id: 'clusters.topology.tree.byLayer' })
-    },
-    {
-      value: ACCELERATOR_DOMAIN,
-      label: intl.formatMessage({ id: 'clusters.topology.tree.byDomain' })
     }
   ];
-  if (grouping !== TREE_GROUPING && grouping !== ACCELERATOR_DOMAIN) {
+  if (grouping !== TREE_GROUPING) {
     options.push({
       value: grouping,
       label: intl.formatMessage(
@@ -393,12 +438,23 @@ const TreeView: React.FC<TreeViewProps> = ({
   return (
     <Flex orientation="vertical" gap={12}>
       <Flex align="center" justify="space-between">
-        <Segmented
-          size="small"
-          value={grouping}
-          options={options}
-          onChange={(value) => onGroupingChange(value as string)}
-        />
+        {/* Hidden while it holds a single option. With one tree that is the
+            normal case, and a Segmented with nothing to switch to is a control
+            that looks like a choice and offers none. It reappears only when the
+            overview sent the reader to a flat rung — which is also the only
+            time there is somewhere to switch back to. */}
+        {options.length > 1 ? (
+          <Segmented
+            size="small"
+            value={grouping}
+            options={options}
+            onChange={(value) => onGroupingChange(value as string)}
+          />
+        ) : (
+          /* Keeps the expand/collapse pair pinned right when the switch is
+             gone; `justify="space-between"` needs two children. */
+          <span />
+        )}
         <Flex gap={4}>
           <Button
             type="link"

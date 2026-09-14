@@ -1,8 +1,4 @@
-import {
-  DeleteOutlined,
-  PlusOutlined,
-  SettingOutlined
-} from '@ant-design/icons';
+import { DeleteOutlined, SettingOutlined } from '@ant-design/icons';
 import { useIntl } from '@umijs/max';
 import {
   Button,
@@ -58,7 +54,6 @@ interface ColumnSettingsProps {
    */
   referencedBy: (id: string) => string[] | undefined;
   onDeleteCustom: (field: LocationField) => Promise<void>;
-  onAddCustom: () => void;
   onOpenMapping: () => void;
   disabled?: boolean;
 }
@@ -75,7 +70,6 @@ const ColumnSettings: React.FC<ColumnSettingsProps> = ({
   onToggle,
   referencedBy,
   onDeleteCustom,
-  onAddCustom,
   onOpenMapping,
   disabled
 }) => {
@@ -170,18 +164,13 @@ const ColumnSettings: React.FC<ColumnSettingsProps> = ({
           as a section that failed to load. */}
       <Divider />
       <Flex orientation="vertical" align="flex-start">
-        <Button
-          type="link"
-          size="small"
-          style={{ padding: 0 }}
-          onClick={() => {
-            setOpen(false);
-            onAddCustom();
-          }}
-        >
-          <PlusOutlined />
-          {intl.formatMessage({ id: 'clusters.topology.columns.custom' })}
-        </Button>
+        {/* 🔴 One entry, not two. This popover used to offer «添加层级…»
+            beside «标签键映射…», and both ended in the same place — the chain
+            editor, which is where a layer is created, renamed, keyed and
+            ordered. Splitting «add» out of «manage» made one of those four
+            operations look like it lived somewhere else. The popover's own job
+            is column visibility; layer management is one topic and gets one
+            door. */}
         <Button
           type="link"
           size="small"
@@ -191,7 +180,7 @@ const ColumnSettings: React.FC<ColumnSettingsProps> = ({
             onOpenMapping();
           }}
         >
-          {intl.formatMessage({ id: 'clusters.topology.columns.mapping' })}
+          {intl.formatMessage({ id: 'clusters.topology.columns.manage' })}
         </Button>
       </Flex>
     </div>

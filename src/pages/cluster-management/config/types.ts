@@ -192,12 +192,26 @@ export interface SystemConfig {
  */
 export const NODE_LAYER = 'NodeTopologyLayer';
 
-/**
- * Orthogonal to the layer chain: an NVL72 domain is a whole rack, a
- * CloudMatrix384 domain spans sixteen. It is a scope of its own in the
- * scheduler and a column of its own in the UI.
- */
-export const ACCELERATOR_DOMAIN = 'accelerator_domain';
+// 🔴 The accelerator domain is no longer a model of its own. It was, twice:
+// first as a flat dimension beside the tree (`ACCELERATOR_DOMAIN`,
+// `TopologyView.accelerator_domain`), then as a second chain of the same type
+// (`acceleratorLayers` / `accelerator_tree` / a `chain` marker on every field).
+// Both are gone, and neither should come back as a compatibility path.
+//
+// The argument for a second dimension was that the domain nests in no fixed
+// place — inside a host on an 8-card server, across sixteen racks on a
+// CloudMatrix384. Review found that too weak to pay for: as long as a domain's
+// boundary is a run of *adjacent racks* it is simply a rung of the one chain,
+// and on all four generations it is (NVL72 = 1 rack, NVL36×2 = 2,
+// CloudMatrix384 = 16, Atlas 950 = 160). Where the domain is smaller than a
+// machine (910B2), "same domain" and "same host" mean the same thing to PD,
+// and the built-in leaf already covers that.
+//
+// So a domain is now a layer an operator adds, pointed at whichever key their
+// fleet publishes. The keys survive as *suggestions* in the add-layer dialog
+// (the server's `known_keys`), and `TopologyFieldLabelMap` still carries a
+// display name for the `accelerator_domain` id — an operator who names the
+// layer that gets «加速器域» for free. Nothing else treats it specially.
 
 /** The domain a worker lands in when every one of a layer's label keys misses. */
 export const UNCLASSIFIED = '<unclassified>';
@@ -225,25 +239,25 @@ export interface TopologyLayer {
   parentLayer?: string | null;
 }
 
-export interface AcceleratorDomainSpec {
-  labelKeys?: string[];
-  /**
-   * Sub-domain, any-of. Machines in the same domain *and* sub-domain are
-   * closer than same-domain-only (Atlas 950's compute cabinet). Usually the
-   * keys of a location field, so a rack plays both roles at once.
-   */
-  subDomainKeys?: string[];
-}
-
 export interface ClusterTopology {
   /**
-   * Empty means vocabulary mode. Entries are custom layers plus any vocabulary
-   * field whose keys were customised (`name` == the vocabulary id).
+   * One chain, root to leaf. Empty means vocabulary mode. Entries are custom
+   * layers plus any vocabulary field whose keys were customised
+   * (`name` == the vocabulary id).
+   *
+   * No `acceleratorLayers` / `acceleratorDomain` sibling: the column is JSON
+   * with `extra="ignore"`, so an old cluster's declaration is dropped on read
+   * and there is deliberately no migration. A stale accelerator declaration
+   * simply stops having an effect.
    */
   layers?: TopologyLayer[];
-  acceleratorDomain?: AcceleratorDomainSpec | null;
-  defaultGatherStrategy?: GatherStrategy | null;
-  defaultGatherLayer?: string | null;
+  /**
+   * No `defaultGatherStrategy` / `defaultGatherLayer` either. The cluster used
+   * to carry a gather default that models without one inherited; it was never
+   * exposed in this UI, and a deployment could be refused for a floor its own
+   * form never showed. Gone from the server too — the deploy form's own
+   * 拓扑亲和性 field is now the only source.
+   */
 }
 
 export interface TopologyVocabularyField {
@@ -277,17 +291,6 @@ export interface TopologyLayerView {
    * Older servers omit the field, and the UI then asks the models API itself.
    */
   referenced_by_models?: string[];
-}
-
-export interface AcceleratorDomainView {
-  active: boolean;
-  domains: number;
-  classified: number;
-  unclassified: number;
-  label_keys: string[];
-  sub_domain_keys: string[];
-  /** The field whose keys `sub_domain_keys` mirror, when it is one. */
-  sub_domain_field: string | null;
 }
 
 export type LocationSource = 'user' | 'discovered' | 'node';
@@ -328,8 +331,6 @@ export interface TopologyDomain {
   free_gpus: number;
   /** Carried only on the unclassified bucket and the leaf — see the API doc. */
   worker_ids?: number[];
-  /** Accelerator domains present under this node; two or more is worth a look. */
-  accelerator_domains?: string[];
   children?: TopologyDomain[];
 }
 
@@ -348,15 +349,15 @@ export interface TopologyView {
   };
   /** Root-to-leaf, every vocabulary field plus custom layers, the host last. */
   layers: TopologyLayerView[];
-  accelerator_domain: AcceleratorDomainView;
   workers: TopologyWorker[];
+  /** The one tree, built from `layers`. */
   tree: TopologyDomain;
   suggestions: TopologySuggestion[];
 }
 
 export interface LocationAssignment {
   worker_ids: number[];
-  /** A vocabulary field id, `accelerator_domain`, or a custom layer name. */
+  /** A vocabulary field id or a custom layer name. */
   layer: string;
   /** null deletes the field's own key and lets a discovered value show again. */
   value: string | null;

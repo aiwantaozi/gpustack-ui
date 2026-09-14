@@ -245,10 +245,6 @@ export default {
     'Заполните вручную, если устройство не сообщает',
   'clusters.topology.overview.workers': '{count} worker',
   'clusters.topology.overview.domains': '{field}: {count}',
-  'clusters.topology.overview.acceleratorDomains':
-    'Доменов ускорителей: {count}',
-  'clusters.topology.overview.acceleratorDomains.auto':
-    'Доменов ускорителей: {count} (авто)',
   'clusters.topology.overview.unfilled': '{count} без значения «{field}»',
   'clusters.topology.previewing': '● Предпросмотр',
   'clusters.topology.previewing.long':
@@ -258,7 +254,7 @@ export default {
   'clusters.topology.search.placeholder': 'Поиск хостов…',
   'clusters.topology.columns': 'Столбцы',
   'clusters.topology.columns.fields': 'Поля расположения',
-  'clusters.topology.columns.custom': 'Добавить уровень…',
+  'clusters.topology.columns.manage': 'Управление уровнями',
   'clusters.topology.columns.mapping': 'Сопоставление ключей меток…',
   'clusters.topology.columns.deleteCustom': 'Удалить поле «{name}»',
   'clusters.topology.columns.deleteCustom.confirm':
@@ -313,24 +309,21 @@ export default {
   'clusters.topology.host.online': 'В сети',
   'clusters.topology.host.offline': 'Не в сети',
   'clusters.topology.tree.byLayer': 'По уровням',
-  'clusters.topology.tree.byDomain': 'По домену ускорителей',
   'clusters.topology.tree.byField': 'По «{field}»',
   'clusters.topology.tree.expandAll': 'Развернуть всё',
   'clusters.topology.tree.collapseAll': 'Свернуть всё',
-  'clusters.topology.tree.spansDomains': 'охватывает доменов: {count}',
   'clusters.topology.tree.unfilled': 'Без значения «{field}»',
-  'clusters.topology.tree.unknownDomain': 'Неизвестный домен',
+  'clusters.topology.tree.unfilled.why':
+    'Нет метки {key} (и ни одного из её вариантов)',
   'clusters.topology.tree.more': 'ещё {count}',
   'clusters.topology.tree.hostCapacity': '{gpus} GPU · свободно {free}',
   'clusters.topology.onboarding.hosts': 'Обнаружено хостов: {hosts}.',
-  'clusters.topology.onboarding.withDomains':
-    'Обнаружено хостов: {hosts}, доменов ускорителей: {domains} (авто).',
   'clusters.topology.onboarding.goal':
     'Чтобы участники PD-группы размещались рядом:',
   'clusters.topology.onboarding.steps':
     '① Выберите машины одной стойки → ② «Задать расположение» с именем стойки → ③ При развёртывании выберите «та же стойка»',
   'clusters.topology.onboarding.domains':
-    'Для машин с многоузловым NVLink или суперподом Ascend домен ускорителей появится здесь автоматически.',
+    'Домен ускорителей, о котором сообщает оборудование (многоузловой NVLink, суперпод Ascend), тоже может быть уровнем: добавьте его в «Добавить уровень» и укажите подходящий ключ метки — значения подставятся сами.',
   'clusters.topology.onboarding.dismiss': 'Понятно',
   'clusters.topology.mapping.title': 'Сопоставление ключей меток',
   'clusters.topology.mapping.intro':
@@ -340,31 +333,18 @@ export default {
     'Вложенность: каждый уровень лежит внутри уровня выше',
   'clusters.topology.mapping.layers.status': 'Используется полей: {count}',
   'clusters.topology.mapping.layers.status.empty': 'Поля не заполнены',
-  'clusters.topology.mapping.domain.status': 'Доменов: {count}',
-  'clusters.topology.mapping.domain.status.inactive': 'Не распознано',
   'clusters.topology.mapping.showUnused':
     'Показать неиспользуемые поля ({count})',
   'clusters.topology.mapping.hideUnused': 'Скрыть неиспользуемые поля',
   'clusters.topology.mapping.moreKeys': '+ ещё {count} ключ(ей)',
   'clusters.topology.mapping.classified': 'Распознано {classified} / {total}',
   'clusters.topology.mapping.noKeys': 'Ключи меток не заданы',
-  'clusters.topology.mapping.domain.tips':
-    'Плоские группы, а не уровень: машины, которые напрямую видят память друг друга по NVLink / HCCS / UB, обводятся в один домен. Домен может охватывать несколько стоек или состоять из одной машины',
-  'clusters.topology.mapping.domain.stats':
-    'Доменов: {domains}; самый большой охватывает {racks} стоек',
-  'clusters.topology.mapping.subDomain.tips':
-    'Машины одного домена и яруса размещаются вместе в первую очередь (например, вычислительный шкаф Atlas 950); когда домены появятся, выберите поле расположения как ярус внутри домена',
-  'clusters.topology.mapping.subDomain.placeholder':
-    'Ни один worker пока не сообщает домен ускорителей',
   'clusters.topology.layer.labelKeys': 'Ключи меток',
   'clusters.topology.layer.addKey': 'Добавить ключ',
   'clusters.topology.layer.name': 'Имя',
   'clusters.topology.advanced.hostKeys': 'Встроено, по имени worker',
   'clusters.topology.advanced.locked':
     'Собственный ключ GPUStack: сюда записываются значения из таблицы. Нельзя удалить или переместить.',
-  'clusters.topology.advanced.subDomain': 'Поддомен',
-  'clusters.topology.advanced.subDomain.none': 'Нет',
-  'clusters.topology.advanced.subDomain.keys': 'Свои ключи…',
   'clusters.topology.advanced.suggestions': 'Обнаруженные ключи меток',
   'clusters.topology.advanced.suggestion':
     '{workers} worker · {values} значений · похоже на {field}',

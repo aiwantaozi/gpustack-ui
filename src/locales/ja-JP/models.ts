@@ -602,13 +602,17 @@ export default {
   'models.form.groupSettings.tips':
     'These cannot differ between roles: one value is applied to Prefill and Decode alike.',
 
-  // Topology-aware gather tiers
-  'models.form.gather.sameDomain':
-    '少なくとも同じアクセラレータードメイン、そうでなければデプロイしない',
-  'models.form.gather.domain.tips':
-    'ドメイン内では相手のメモリを直接アドレスでき、ドメイン間はネットワーク経由になります',
+  // Topology-aware gather tiers. One chain, root to leaf: the option list is
+  // flat in chain order and the retreat line says what happens when a rung
+  // does not fit. The `chain.*` group headings are gone with the second chain.
   'models.form.gather.tree.tips':
-    '同じアクセラレータードメイン内の転送は同じラック内より速いため、これも条件を満たします',
+    '宣言された階層に沿って集約します。1 つ上の段ほど範囲が広くなります',
+  'models.form.gather.retreat':
+    '「{tier}」を選択中。この段でのみ判定します。収まらなければデプロイを拒否し、「{top}」へ自動的に広げることはありません。自動で広げるには「できるだけ近くに」を選んでください。',
+  'models.form.gather.retreat.top':
+    '「{tier}」を選択中。これが最も広い段のため、収まらなければデプロイを拒否します。自動で広げるには「できるだけ近くに」を選んでください。',
+  'models.form.gather.retreat.host':
+    '「{tier}」を選択中。ホストはこれ以上狭くできない最小の段のため、収まらなければデプロイを拒否します。自動で広げるには「できるだけ近くに」を選んでください。',
   'models.form.gather.goFill': '入力する',
   'models.form.gather.infeasible.warning':
     '現在の容量ではこのグループは配置できません。保存すると空きが出るまで待機します。選択肢：「できるだけ近く」に変更（ホストをまたぎ、KV 転送が遅くなる）· レプリカ数またはレプリカあたりの GPU 数を減らす'

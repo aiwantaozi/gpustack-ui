@@ -246,10 +246,6 @@ export default {
     'デバイスが報告しない場合は手入力',
   'clusters.topology.overview.workers': '{count} 台の worker',
   'clusters.topology.overview.domains': '{field} {count} 個',
-  'clusters.topology.overview.acceleratorDomains':
-    'アクセラレータードメイン {count} 個',
-  'clusters.topology.overview.acceleratorDomains.auto':
-    'アクセラレータードメイン {count} 個（自動）',
   'clusters.topology.overview.unfilled': '{count} 台に{field}がありません',
   'clusters.topology.previewing': '● プレビュー中',
   'clusters.topology.previewing.long':
@@ -259,7 +255,7 @@ export default {
   'clusters.topology.search.placeholder': 'ホストを検索…',
   'clusters.topology.columns': '列の設定',
   'clusters.topology.columns.fields': '位置フィールド',
-  'clusters.topology.columns.custom': '階層を追加…',
+  'clusters.topology.columns.manage': '階層を管理',
   'clusters.topology.columns.mapping': 'ラベルキーのマッピング…',
   'clusters.topology.columns.deleteCustom': 'フィールド「{name}」を削除',
   'clusters.topology.columns.deleteCustom.confirm':
@@ -313,24 +309,21 @@ export default {
   'clusters.topology.host.online': 'オンライン',
   'clusters.topology.host.offline': 'オフライン',
   'clusters.topology.tree.byLayer': 'レイヤー別',
-  'clusters.topology.tree.byDomain': 'アクセラレータードメイン別',
   'clusters.topology.tree.byField': '{field}別',
   'clusters.topology.tree.expandAll': 'すべて展開',
   'clusters.topology.tree.collapseAll': 'すべて折りたたむ',
-  'clusters.topology.tree.spansDomains': '{count} 個のドメインにまたがる',
   'clusters.topology.tree.unfilled': '{field}未設定',
-  'clusters.topology.tree.unknownDomain': '不明なドメイン',
+  'clusters.topology.tree.unfilled.why':
+    'ラベル {key}（またはその候補キー）がありません',
   'clusters.topology.tree.more': 'あと {count} 台',
   'clusters.topology.tree.hostCapacity': '{gpus} GPU · 空き {free}',
   'clusters.topology.onboarding.hosts': '{hosts} 台のホストを認識しました。',
-  'clusters.topology.onboarding.withDomains':
-    '{hosts} 台のホストと {domains} 個のアクセラレータードメイン（自動）を認識しました。',
   'clusters.topology.onboarding.goal':
     'PD 分離グループのメンバーを近くに配置するには：',
   'clusters.topology.onboarding.steps':
     '① 同じラックのマシンを選択 → ②「位置を設定」でラック名を入力 → ③ デプロイ時に「同じラック」を選択',
   'clusters.topology.onboarding.domains':
-    'マルチノード NVLink や Ascend スーパーポッドのマシンは、アクセラレータードメインが自動で表示されます。',
+    'デバイスが報告するアクセラレータードメイン（マルチノード NVLink、Ascend スーパーポッド）も 1 つの階層にできます。「階層を追加」で対応するラベルキーを指定すれば、その階層はそのまま値が入ります。',
   'clusters.topology.onboarding.dismiss': '了解',
   'clusters.topology.mapping.title': 'ラベルキーのマッピング',
   'clusters.topology.mapping.intro':
@@ -340,31 +333,18 @@ export default {
     '入れ子構造：下の階層は必ず上の階層の中にあります',
   'clusters.topology.mapping.layers.status': '{count} 個のフィールドを使用中',
   'clusters.topology.mapping.layers.status.empty': 'フィールド未入力',
-  'clusters.topology.mapping.domain.status': '{count} 個のドメイン',
-  'clusters.topology.mapping.domain.status.inactive': '未認識',
   'clusters.topology.mapping.showUnused':
     '未使用の {count} 個のフィールドを表示',
   'clusters.topology.mapping.hideUnused': '未使用のフィールドを隠す',
   'clusters.topology.mapping.moreKeys': '+ {count} 個の候補キー',
   'clusters.topology.mapping.classified': '認識 {classified} / {total}',
   'clusters.topology.mapping.noKeys': 'ラベルキー未設定',
-  'clusters.topology.mapping.domain.tips':
-    '階層ではない並列のグループ：NVLink / HCCS / UB で互いのメモリに直接アクセスできるマシンを 1 つに囲みます。1 つのドメインは複数のラックにまたがることも、1 台だけのこともあります',
-  'clusters.topology.mapping.domain.stats':
-    'ドメイン {domains} 個、最大で {racks} ラックにまたがります',
-  'clusters.topology.mapping.subDomain.tips':
-    '同じドメインかつ同じ階層のマシンを優先して一緒に配置します（Atlas 950 の計算キャビネットなど）。ドメインができたら、位置フィールドをドメイン内の階層として選べます',
-  'clusters.topology.mapping.subDomain.placeholder':
-    'アクセラレータードメインを報告するワーカーはまだありません',
   'clusters.topology.layer.labelKeys': 'ラベルキー',
   'clusters.topology.layer.addKey': 'キーを追加',
   'clusters.topology.layer.name': '名前',
   'clusters.topology.advanced.hostKeys': '組み込み、worker 名による',
   'clusters.topology.advanced.locked':
     'GPUStack 固有キー：手入力値はここに書かれます。削除・移動不可。',
-  'clusters.topology.advanced.subDomain': 'ドメイン内階層',
-  'clusters.topology.advanced.subDomain.none': 'なし',
-  'clusters.topology.advanced.subDomain.keys': '独自キー…',
   'clusters.topology.advanced.suggestions': '発見されたラベルキー',
   'clusters.topology.advanced.suggestion':
     '{workers} 台 · {values} 個の値 · {field} のようです',

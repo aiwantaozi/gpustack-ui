@@ -606,13 +606,17 @@ export default {
   'models.form.groupSettings.tips':
     'These cannot differ between roles: one value is applied to Prefill and Decode alike.',
 
-  // Topology-aware gather tiers
-  'models.form.gather.sameDomain':
-    'Тот же домен ускорителей, иначе не развёртывать',
-  'models.form.gather.domain.tips':
-    'Внутри домена узлы напрямую адресуют память друг друга; между доменами трафик идёт по сети',
+  // Topology-aware gather tiers. One chain, root to leaf: the option list is
+  // flat in chain order and the retreat line says what happens when a rung
+  // does not fit. The `chain.*` group headings are gone with the second chain.
   'models.form.gather.tree.tips':
-    'Передача внутри одного домена ускорителей быстрее, чем внутри одной стойки, поэтому домен также удовлетворяет этому условию',
+    'Собирает по объявленной иерархии: уровнем выше — на шаг шире',
+  'models.form.gather.retreat':
+    'Выбрано «{tier}». Проверяется только на этом уровне: если не помещается, в развёртывании будет отказано — автоматического расширения до «{top}» не произойдёт. Чтобы расширять автоматически, выберите «Размещать рядом».',
+  'models.form.gather.retreat.top':
+    'Выбрано «{tier}». Это уже самый широкий уровень, поэтому, если не помещается, в развёртывании будет отказано. Чтобы расширять автоматически, выберите «Размещать рядом».',
+  'models.form.gather.retreat.host':
+    'Выбрано «{tier}». Хост — самый узкий уровень, ниже ничего нет, поэтому, если не помещается, в развёртывании будет отказано. Чтобы расширять автоматически, выберите «Размещать рядом».',
   'models.form.gather.goFill': 'Заполнить',
   'models.form.gather.infeasible.warning':
     'При текущей ёмкости эту группу разместить нельзя; после сохранения она будет ждать освобождения места. Варианты: переключиться на «как можно ближе» (может занять несколько хостов, KV-передача медленнее) · уменьшить число реплик или GPU на реплику'

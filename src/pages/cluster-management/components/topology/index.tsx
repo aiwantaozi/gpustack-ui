@@ -20,12 +20,7 @@ import {
 import { createStyles } from 'antd-style';
 import { useEffect, useRef, useState } from 'react';
 import { topologyFieldLabel } from '../../config';
-import {
-  ACCELERATOR_DOMAIN,
-  NODE_LAYER,
-  TopologyView,
-  TopologyWorker
-} from '../../config/types';
+import { NODE_LAYER, TopologyView, TopologyWorker } from '../../config/types';
 import AdvancedDrawer from './advanced';
 import CustomLayer, { CustomLayerValue } from './advanced/custom-layer';
 import {
@@ -39,7 +34,7 @@ import ColumnSettings from './column-settings';
 import useColumnPrefs from './hooks/use-column-prefs';
 import usePreview from './hooks/use-preview';
 import useTopology from './hooks/use-topology';
-import { LocationField, allFields, isDiscovered } from './location';
+import { LocationField, allFields } from './location';
 import LocationTable from './location-table';
 import Onboarding from './onboarding';
 import { SetLocationPopover } from './set-location';
@@ -225,10 +220,6 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
   );
 
   const rackLayer = displayed?.layers.find((layer) => layer.id === 'rack');
-  const domainView = displayed?.accelerator_domain;
-  const domainAllAuto = allWorkers
-    .filter((worker) => worker.location?.[ACCELERATOR_DOMAIN])
-    .every((worker) => isDiscovered(worker.location[ACCELERATOR_DOMAIN]));
   const anyHandFilled = allWorkers.some((worker) =>
     Object.values(worker.location || {}).some(
       (location) => location.source === 'user'
@@ -399,13 +390,15 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
     customLayer && topo.topology
       ? draftFromView(intl, topo.topology, customLayer.cluster.topology).chain
       : [];
+  // A rung's name is its id, and `worker.location` is one flat map keyed by
+  // those ids, so every id already in play is taken. `accelerator_domain` is
+  // NOT reserved any more — it is now a perfectly good name for a layer an
+  // operator adds, and reserving it would forbid the one thing the new model
+  // asks them to do.
   const reserved = topo.topology
     ? [
         ...(topo.topology.vocabulary?.fields || []).map((field) => field.id),
-        ...topo.topology.layers
-          .filter((layer) => layer.builtin)
-          .map((layer) => layer.id),
-        ACCELERATOR_DOMAIN,
+        ...topo.topology.layers.map((layer) => layer.id),
         NODE_LAYER,
         'host'
       ]
@@ -463,50 +456,32 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
             ),
             clearFilters
           )}
-          {fields
-            .filter((field) => field.id !== ACCELERATOR_DOMAIN)
-            .map((field) => {
-              const layer = displayed.layers.find((l) => l.id === field.id);
-              if (!layer?.domains) {
-                return null;
-              }
-              return (
-                <Flex key={field.id} align="center" gap={8}>
-                  <span className="sep">·</span>
-                  {overviewLink(
-                    intl.formatMessage(
-                      { id: 'clusters.topology.overview.domains' },
-                      { field: field.label, count: layer.domains }
-                    ),
-                    () => {
-                      changeViewMode('tree');
-                      setGrouping(
-                        field.id === 'rack' ? TREE_GROUPING : field.id
-                      );
-                    }
-                  )}
-                </Flex>
-              );
-            })}
-          {!!domainView?.domains && (
-            <>
-              <span className="sep">·</span>
-              {overviewLink(
-                intl.formatMessage(
-                  {
-                    id: domainAllAuto
-                      ? 'clusters.topology.overview.acceleratorDomains.auto'
-                      : 'clusters.topology.overview.acceleratorDomains'
-                  },
-                  { count: domainView.domains }
-                ),
-                () => {
-                  changeViewMode('tree');
-                  setGrouping(ACCELERATOR_DOMAIN);
-                }
-              )}
-            </>
-          )}
+          {/* One counter per rung that resolved anything — an operator's own
+              «加速器域» layer gets one on exactly the same terms as «机柜», which
+              is the whole point of folding it into the chain. The dedicated
+              «加速器域 N 个» counter it replaces was the last place the domain
+              was named as a dimension of its own. */}
+          {fields.map((field) => {
+            const layer = displayed.layers.find((l) => l.id === field.id);
+            if (!layer?.domains) {
+              return null;
+            }
+            return (
+              <Flex key={field.id} align="center" gap={8}>
+                <span className="sep">·</span>
+                {overviewLink(
+                  intl.formatMessage(
+                    { id: 'clusters.topology.overview.domains' },
+                    { field: field.label, count: layer.domains }
+                  ),
+                  () => {
+                    changeViewMode('tree');
+                    setGrouping(field.id === 'rack' ? TREE_GROUPING : field.id);
+                  }
+                )}
+              </Flex>
+            );
+          })}
           {!!rackLayer?.unclassified && (
             <>
               <span className="sep">·</span>
@@ -605,7 +580,6 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
                   ?.referenced_by_models
               }
               onDeleteCustom={deleteCustomLayer}
-              onAddCustom={openCustomLayer}
               onOpenMapping={() => setMappingOpen(true)}
             />
           </span>
@@ -642,7 +616,6 @@ const TopologyDrawer: React.FC<TopologyDrawerProps> = ({
               {showOnboarding && (
                 <Onboarding
                   hosts={allWorkers.length}
-                  domains={domainAllAuto ? domainView?.domains || 0 : 0}
                   onDismiss={dismissOnboarding}
                 />
               )}

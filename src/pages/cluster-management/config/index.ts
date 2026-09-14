@@ -3,7 +3,7 @@ import { GPUSTACK_API_BASE_URL } from '@/config/settings';
 import { StatusType } from '@/config/types';
 import { GPUsConfigs } from '@/pages/resources/config/gpu-driver';
 import { icons } from '@gpustack/core-ui';
-import { ACCELERATOR_DOMAIN, NODE_LAYER } from './types';
+import { NODE_LAYER } from './types';
 
 export const ClusterStatusValueMap = {
   Provisioning: 'provisioning',
@@ -258,9 +258,21 @@ export const sourceTypeOptions = [
   // }
 ];
 
-// Topology fields the server knows by id. Named here rather than from the
-// API's `name`, which is an untranslated fallback; custom layers have no entry
-// and display their own name verbatim.
+// Display names for layer ids we recognise. Named here rather than from the
+// API's `name`, which is an untranslated fallback; an id with no entry shows
+// its own name verbatim.
+//
+// 🔑 Only `room` · `row` · `rack` (+ the `host` leaf) are built in — that is
+// the whole vocabulary the server now ships. The rest are kept on purpose:
+// `topologyFieldLabel` looks up by **id**, so an operator who adds a layer and
+// names it `accelerator_domain`, `switch`, `zone` or `region` gets a
+// translated column header for free, in five languages, at no cost to us. An
+// entry here asserts nothing about whether the server knows the field; it only
+// says "if this id turns up, here is what to call it".
+//
+// Which is also why nothing was deleted when `region` / `zone` / `switch` /
+// `accelerator_domain` stopped being built in: deleting an entry can only
+// downgrade a custom layer's header from «接入交换机» to `switch`.
 export const TopologyFieldLabelMap: Record<string, string> = {
   region: 'clusters.topology.field.region',
   zone: 'clusters.topology.field.zone',
@@ -268,11 +280,12 @@ export const TopologyFieldLabelMap: Record<string, string> = {
   row: 'clusters.topology.field.row',
   rack: 'clusters.topology.field.rack',
   switch: 'clusters.topology.field.switch',
-  [ACCELERATOR_DOMAIN]: 'clusters.topology.field.acceleratorDomain',
+  accelerator_domain: 'clusters.topology.field.acceleratorDomain',
   [NODE_LAYER]: 'clusters.topology.field.host'
 };
 
-// One-line "what goes here" per vocabulary field, for the column picker.
+// One-line "what goes here" per known id, for the column picker. Same rule as
+// the label map above.
 export const TopologyFieldHintMap: Record<string, string> = {
   region: 'clusters.topology.field.region.tips',
   zone: 'clusters.topology.field.zone.tips',
@@ -280,7 +293,7 @@ export const TopologyFieldHintMap: Record<string, string> = {
   row: 'clusters.topology.field.row.tips',
   rack: 'clusters.topology.field.rack.tips',
   switch: 'clusters.topology.field.switch.tips',
-  [ACCELERATOR_DOMAIN]: 'clusters.topology.field.acceleratorDomain.tips'
+  accelerator_domain: 'clusters.topology.field.acceleratorDomain.tips'
 };
 
 export const topologyFieldLabel = (

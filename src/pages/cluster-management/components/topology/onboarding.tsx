@@ -22,8 +22,6 @@ const useStyles = createStyles(({ css }) => ({
 
 interface OnboardingProps {
   hosts: number;
-  /** Device-reported domains; changes the first sentence, not the steps. */
-  domains: number;
   onDismiss: () => void;
 }
 
@@ -31,12 +29,13 @@ interface OnboardingProps {
  * [S1c] Shown above the table while nothing has been filled in. It does not
  * block anything — "same host" works without it — and it never uses the words
  * layer, label key or declaration.
+ *
+ * 🔴 The «已识别 N 台主机、M 个加速器域（自动）» variant is gone. It was true only
+ * while the accelerator domain was a built-in dimension the server filled in by
+ * itself; a domain is now a layer someone adds, so nothing is discovered before
+ * anyone has declared anything — which is exactly when this card is on screen.
  */
-const Onboarding: React.FC<OnboardingProps> = ({
-  hosts,
-  domains,
-  onDismiss
-}) => {
+const Onboarding: React.FC<OnboardingProps> = ({ hosts, onDismiss }) => {
   const intl = useIntl();
   const { styles } = useStyles();
 
@@ -45,15 +44,10 @@ const Onboarding: React.FC<OnboardingProps> = ({
       <Flex align="center" gap={8}>
         <BulbOutlined style={{ color: 'var(--ant-color-primary)' }} />
         <span>
-          {domains
-            ? intl.formatMessage(
-                { id: 'clusters.topology.onboarding.withDomains' },
-                { hosts, domains }
-              )
-            : intl.formatMessage(
-                { id: 'clusters.topology.onboarding.hosts' },
-                { hosts }
-              )}{' '}
+          {intl.formatMessage(
+            { id: 'clusters.topology.onboarding.hosts' },
+            { hosts }
+          )}{' '}
           {intl.formatMessage({ id: 'clusters.topology.onboarding.goal' })}
         </span>
       </Flex>

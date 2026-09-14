@@ -602,13 +602,17 @@ export default {
   'models.form.groupSettings.tips':
     'These cannot differ between roles: one value is applied to Prefill and Decode alike.',
 
-  // Topology-aware gather tiers
-  'models.form.gather.sameDomain':
-    'Aynı hızlandırıcı etki alanı, yoksa dağıtma',
-  'models.form.gather.domain.tips':
-    'Etki alanı içinde eşler birbirinin belleğine doğrudan erişir; etki alanları arasında trafik ağ üzerinden gider',
+  // Topology-aware gather tiers. One chain, root to leaf: the option list is
+  // flat in chain order and the retreat line says what happens when a rung
+  // does not fit. The `chain.*` group headings are gone with the second chain.
   'models.form.gather.tree.tips':
-    'Aynı hızlandırıcı etki alanı içindeki aktarım aynı kabin içindekinden hızlıdır, bu nedenle bunu da karşılar',
+    'Bildirilen hiyerarşiye göre toplar: bir üst kademe bir adım daha geniştir',
+  'models.form.gather.retreat':
+    '“{tier}” seçildi. Yalnızca bu düzeyde değerlendirilir: sığmazsa dağıtım reddedilir, “{top}” düzeyine kendiliğinden genişletilmez. Otomatik genişletme için “Yakın yerleştir” seçeneğini kullanın.',
+  'models.form.gather.retreat.top':
+    '“{tier}” seçildi. Bu en geniş kademe olduğundan sığmaması dağıtımın reddedilmesi demektir. Otomatik genişletme için “Yakın yerleştir” seçeneğini kullanın.',
+  'models.form.gather.retreat.host':
+    '“{tier}” seçildi. Sunucu, daha aşağısı olmayan en dar kademedir; sığmaması dağıtımın reddedilmesi demektir. Otomatik genişletme için “Yakın yerleştir” seçeneğini kullanın.',
   'models.form.gather.goFill': 'Doldur',
   'models.form.gather.infeasible.warning':
     'Mevcut kapasiteyle bu grup yerleştirilemez; kaydedildikten sonra yer açılana kadar bekler. Seçenekler: “olabildiğince yakın” seçeneğine geçin (sunuculara yayılabilir, KV aktarımı yavaşlar) · kopya sayısını veya kopya başına GPU sayısını azaltın'

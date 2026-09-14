@@ -1,5 +1,10 @@
 import { topologyFieldLabel } from '../../../config';
-import { ClusterTopology, TopologyView } from '../../../config/types';
+import {
+  ClusterTopology,
+  TopologyLayer,
+  TopologyLayerView,
+  TopologyView
+} from '../../../config/types';
 import { fieldLayers } from '../location';
 
 /** One rung of the mapping being edited: a vocabulary field or a custom layer. */
@@ -18,25 +23,25 @@ export interface DraftLayer {
   customised: boolean;
 }
 
-export type SubDomain =
-  | { mode: 'none' }
-  | { mode: 'field'; field: string }
-  | { mode: 'keys'; keys: string[] };
-
+/**
+ * The mapping being edited: one chain, root to leaf, host excluded.
+ *
+ * 🔴 It briefly held a second `acceleratorChain` of the same type, plus a
+ * `chainOf` / `withChain` pair to say which one an edit was about. Review
+ * collapsed the two into one, so an accelerator domain is now just a rung of
+ * `chain` like any other — and a `Draft` is again a list, not a pair of lists
+ * every caller has to choose between.
+ */
 export interface Draft {
-  /** Root to leaf, host excluded. */
   chain: DraftLayer[];
-  domainKeys: string[];
-  subDomain: SubDomain;
 }
 
-export const draftFromView = (
-  intl: { formatMessage: (d: { id: string }) => string },
-  view: TopologyView,
-  saved: ClusterTopology | null | undefined
-): Draft => {
-  const savedNames = new Set((saved?.layers || []).map((layer) => layer.name));
-  const chain: DraftLayer[] = fieldLayers(view).map((layer) => ({
+const toDraftLayer =
+  (
+    intl: { formatMessage: (d: { id: string }) => string },
+    savedNames: Set<string>
+  ) =>
+  (layer: TopologyLayerView): DraftLayer => ({
     id: layer.id,
     name: layer.builtin
       ? topologyFieldLabel(intl, layer.id, layer.name)
@@ -46,46 +51,52 @@ export const draftFromView = (
     labelKeys: layer.label_keys || [],
     primaryKey: layer.primary_key,
     customised: savedNames.has(layer.id)
-  }));
-  const domain = view.accelerator_domain;
-  const subDomain: SubDomain = domain?.sub_domain_field
-    ? { mode: 'field', field: domain.sub_domain_field }
-    : domain?.sub_domain_keys?.length
-      ? { mode: 'keys', keys: domain.sub_domain_keys }
-      : { mode: 'none' };
-  return { chain, domainKeys: domain?.label_keys || [], subDomain };
+  });
+
+export const draftFromView = (
+  intl: { formatMessage: (d: { id: string }) => string },
+  view: TopologyView,
+  saved: ClusterTopology | null | undefined
+): Draft => {
+  const savedNames = new Set((saved?.layers || []).map((layer) => layer.name));
+  return { chain: fieldLayers(view).map(toDraftLayer(intl, savedNames)) };
 };
 
 /**
- * Draft → wire. `layers` lists only what departs from the vocabulary — custom
+ * One chain → wire. Lists only what departs from the vocabulary — custom
  * layers and builtins with edited keys — each pointing at its predecessor in
  * the *full* chain, vocabulary neighbours included. An empty list is the
  * vocabulary mode the backend treats as the default.
  */
-export const toWire = (
-  draft: Draft,
-  saved?: ClusterTopology | null
-): ClusterTopology => {
-  const entries = draft.chain
+const chainToWire = (rungs: DraftLayer[]): TopologyLayer[] =>
+  rungs
     .map((layer, index) => ({ layer, index }))
     .filter(({ layer }) => !layer.builtin || layer.customised)
     .map(({ layer, index }) => ({
       name: layer.id,
       labelKeys: layer.labelKeys,
-      parentLayer: index === 0 ? null : draft.chain[index - 1].id
+      parentLayer: index === 0 ? null : rungs[index - 1].id
     }));
-  const sub = draft.subDomain;
-  const subDomainKeys =
-    sub.mode === 'field'
-      ? draft.chain.find((layer) => layer.id === sub.field)?.labelKeys || []
-      : sub.mode === 'keys'
-        ? sub.keys
-        : [];
-  return {
-    ...(saved || {}),
-    layers: entries,
-    acceleratorDomain: { labelKeys: draft.domainKeys, subDomainKeys }
+
+/**
+ * Draft → wire. Any `acceleratorLayers` / `acceleratorDomain` a stored spec
+ * still carries is dropped rather than spread through: echoing a stale copy
+ * back would write it to the cluster again on every save, and the server has
+ * stopped reading it.
+ */
+export const toWire = (
+  draft: Draft,
+  saved?: ClusterTopology | null
+): ClusterTopology => {
+  const {
+    acceleratorLayers: _droppedLayers,
+    acceleratorDomain: _droppedDomain,
+    ...rest
+  } = (saved || {}) as ClusterTopology & {
+    acceleratorLayers?: unknown;
+    acceleratorDomain?: unknown;
   };
+  return { ...rest, layers: chainToWire(draft.chain) };
 };
 
 export const insertLayer = (
@@ -93,17 +104,12 @@ export const insertLayer = (
   layer: DraftLayer,
   index: number
 ): Draft => {
-  const chain = [...draft.chain];
-  chain.splice(index, 0, layer);
-  return { ...draft, chain };
+  const rungs = [...draft.chain];
+  rungs.splice(index, 0, layer);
+  return { ...draft, chain: rungs };
 };
 
-/** Also drops a sub-domain that pointed at the layer; nothing else refers to it. */
 export const removeLayer = (draft: Draft, id: string): Draft => ({
   ...draft,
-  chain: draft.chain.filter((layer) => layer.id !== id),
-  subDomain:
-    draft.subDomain.mode === 'field' && draft.subDomain.field === id
-      ? { mode: 'none' }
-      : draft.subDomain
+  chain: draft.chain.filter((layer) => layer.id !== id)
 });

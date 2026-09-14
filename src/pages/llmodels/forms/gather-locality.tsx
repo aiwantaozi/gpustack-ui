@@ -1,8 +1,8 @@
 import { queryClusterTopology } from '@/pages/cluster-management/apis';
 import { topologyFieldLabel } from '@/pages/cluster-management/config';
 import {
-  ACCELERATOR_DOMAIN,
   NODE_LAYER,
+  TopologyLayerView,
   TopologyView
 } from '@/pages/cluster-management/config/types';
 import { IconFont, Select as SealSelect } from '@gpustack/core-ui';
@@ -108,19 +108,25 @@ const GatherLocality: React.FC = () => {
   /**
    * Root-to-leaf, and only the layers that mean something here:
    *
-   * - the built-in host layer is offered as «至少同机», always;
-   * - the accelerator domain is its own option and does NOT sit in the layer
-   *   sequence — its containment direction differs by hardware generation
-   *   (see F5), so it is not comparable with racks or rooms;
+   * - the built-in host layer is offered as «至少同机», always, even for a
+   *   cluster that declared no topology at all;
    * - a declared layer is offered once at least one worker resolves a value
    *   there. An `active: false` layer is a name with nothing behind it, and
    *   refusing to deploy below a tier no machine belongs to would refuse
    *   everything.
+   *
+   * 🔴 There is no «至少同一加速器域» special tier any more, and no per-chain
+   * grouping around it. The domain used to be its own candidate set, offered
+   * beside the layers with a warning that the two could not be compared. It is
+   * now whatever rung the operator declared it as — if they named a layer
+   * `accelerator_domain`, it appears here as «至少同一加速器域» through the very
+   * same code path as «至少同一机柜», and it sorts into the chain where they put
+   * it. The unanswerable «同超节点 vs 同机柜，哪个更紧» is gone because the chain
+   * now answers it.
    */
   const treeLayers = (topology?.layers || []).filter(
     (item) => item.active && item.id !== NODE_LAYER
   );
-  const domainActive = !!topology?.accelerator_domain?.active;
 
   const value = strategy === 'MustGather' ? `must:${layer}` : 'prefer';
 
@@ -137,34 +143,64 @@ const GatherLocality: React.FC = () => {
     form.setFieldValue(['gather', 'layer'], next.slice('must:'.length));
   };
 
-  const options = [
+  const tierLabel = (item: TopologyLayerView) =>
+    intl.formatMessage(
+      { id: 'models.form.gather.sameLayer' },
+      { layer: topologyFieldLabel(intl, item.id, item.name) }
+    );
+
+  const options: any[] = [
+    // 🔴 Stays first and stays the default. The solver finds the tightest fit
+    // itself, which is where the overwhelming majority should stop.
     {
       value: 'prefer',
       label: intl.formatMessage({ id: 'models.form.gather.prefer' }),
       desc: intl.formatMessage({ id: 'models.form.gather.prefer.tips' })
     },
+    // The built-in leaf, below every declared layer.
     {
       value: `must:${NODE_LAYER}`,
       label: intl.formatMessage({ id: 'models.form.gather.sameHost' })
     },
-    ...(domainActive
-      ? [
-          {
-            value: `must:${ACCELERATOR_DOMAIN}`,
-            label: intl.formatMessage({ id: 'models.form.gather.sameDomain' }),
-            desc: intl.formatMessage({ id: 'models.form.gather.domain.tips' })
-          }
-        ]
-      : []),
+    // Flat, in chain order. The list was briefly grouped under «层级» /
+    // «加速器域» headings; with one chain a heading would name a distinction
+    // that no longer exists, and chain order already says which rung is wider.
     ...treeLayers.map((item) => ({
       value: `must:${item.id}`,
-      label: intl.formatMessage(
-        { id: 'models.form.gather.sameLayer' },
-        { layer: topologyFieldLabel(intl, item.id, item.name) }
-      ),
+      label: tierLabel(item),
       desc: intl.formatMessage({ id: 'models.form.gather.tree.tips' })
     }))
   ];
+
+  /**
+   * 🔴 Which way a tier gives way, said where the tier is chosen. It is judged
+   * at the chosen rung only: not fitting refuses the deployment rather than
+   * quietly widening. The top of the chain and the host leaf each get their
+   * own wording, because for them "widen" has no meaning at all.
+   */
+  const retreat = (() => {
+    if (strategy !== 'MustGather' || !layer) {
+      return null;
+    }
+    if (layer === NODE_LAYER) {
+      return intl.formatMessage(
+        { id: 'models.form.gather.retreat.host' },
+        { tier: intl.formatMessage({ id: 'models.form.gather.sameHost' }) }
+      );
+    }
+    const index = treeLayers.findIndex((item) => item.id === layer);
+    if (index < 0) {
+      return null;
+    }
+    const tier = tierLabel(treeLayers[index]);
+    // Root-to-leaf: index 0 is the widest rung the chain has.
+    return index === 0
+      ? intl.formatMessage({ id: 'models.form.gather.retreat.top' }, { tier })
+      : intl.formatMessage(
+          { id: 'models.form.gather.retreat' },
+          { tier, top: tierLabel(treeLayers[0]) }
+        );
+  })();
 
   // Assigned to consts rather than written inline: an inline arrow in JSX is a
   // new component type on every render, which antd's Select rebuilds the whole
@@ -210,6 +246,13 @@ const GatherLocality: React.FC = () => {
         optionRender={optionRender}
         labelRender={labelRender}
       ></SealSelect>
+
+      {retreat && (
+        <Flex align="flex-start" gap={6} className={styles.hint}>
+          <IconFont type="icon-bulb" />
+          <span>{retreat}</span>
+        </Flex>
+      )}
 
       {/* Where the coarser tiers come from, said once and pointing at the
           place that creates them. Without this the absence of «至少在同一机柜»

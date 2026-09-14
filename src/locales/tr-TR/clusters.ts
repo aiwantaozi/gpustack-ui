@@ -244,10 +244,6 @@ export default {
     'Cihaz bildirmiyorsa elle doldurun',
   'clusters.topology.overview.workers': '{count} worker',
   'clusters.topology.overview.domains': '{count} {field}',
-  'clusters.topology.overview.acceleratorDomains':
-    '{count} hızlandırıcı etki alanı',
-  'clusters.topology.overview.acceleratorDomains.auto':
-    '{count} hızlandırıcı etki alanı (otomatik)',
   'clusters.topology.overview.unfilled': '{count} tanesinde {field} yok',
   'clusters.topology.previewing': '● Önizleme',
   'clusters.topology.previewing.long':
@@ -257,7 +253,7 @@ export default {
   'clusters.topology.search.placeholder': 'Sunucu ara…',
   'clusters.topology.columns': 'Sütunlar',
   'clusters.topology.columns.fields': 'Konum alanları',
-  'clusters.topology.columns.custom': 'Katman ekle…',
+  'clusters.topology.columns.manage': 'Katmanları yönet',
   'clusters.topology.columns.mapping': 'Etiket anahtarı eşlemesi…',
   'clusters.topology.columns.deleteCustom': '“{name}” alanını sil',
   'clusters.topology.columns.deleteCustom.confirm':
@@ -314,24 +310,21 @@ export default {
   'clusters.topology.host.online': 'Çevrimiçi',
   'clusters.topology.host.offline': 'Çevrimdışı',
   'clusters.topology.tree.byLayer': 'Katmana göre',
-  'clusters.topology.tree.byDomain': 'Hızlandırıcı etki alanına göre',
   'clusters.topology.tree.byField': '{field} alanına göre',
   'clusters.topology.tree.expandAll': 'Tümünü genişlet',
   'clusters.topology.tree.collapseAll': 'Tümünü daralt',
-  'clusters.topology.tree.spansDomains': '{count} etki alanına yayılıyor',
   'clusters.topology.tree.unfilled': 'Henüz {field} yok',
-  'clusters.topology.tree.unknownDomain': 'Bilinmeyen etki alanı',
+  'clusters.topology.tree.unfilled.why':
+    '{key} etiketi (veya alternatiflerinden herhangi biri) eksik',
   'clusters.topology.tree.more': '{count} tane daha',
   'clusters.topology.tree.hostCapacity': '{gpus} GPU · {free} boş',
   'clusters.topology.onboarding.hosts': '{hosts} sunucu bulundu.',
-  'clusters.topology.onboarding.withDomains':
-    '{hosts} sunucu ve {domains} hızlandırıcı etki alanı bulundu (otomatik).',
   'clusters.topology.onboarding.goal':
     'Ayrıştırılmış bir grubun üyelerini bir arada tutmak için:',
   'clusters.topology.onboarding.steps':
     '① Aynı kabindeki makineleri seçin → ② “Konum ayarla” ile kabin adını girin → ③ Dağıtırken “aynı kabin” seçin',
   'clusters.topology.onboarding.domains':
-    'Çok düğümlü NVLink veya Ascend süper pod içeren makinelerin hızlandırıcı etki alanı burada otomatik görünür.',
+    'Cihazın bildirdiği hızlandırıcı etki alanı (çok düğümlü NVLink, Ascend süper pod) da bir katman olabilir: “Katman ekle” ile ilgili etiket anahtarını gösterin, katman değerlerini kendiliğinden alsın.',
   'clusters.topology.onboarding.dismiss': 'Anladım',
   'clusters.topology.mapping.title': 'Etiket anahtarı eşlemesi',
   'clusters.topology.mapping.intro':
@@ -341,30 +334,17 @@ export default {
     'İç içe: her seviye bir üsttekinin içinde yer alır',
   'clusters.topology.mapping.layers.status': '{count} alan kullanımda',
   'clusters.topology.mapping.layers.status.empty': 'Hiç alan dolu değil',
-  'clusters.topology.mapping.domain.status': '{count} etki alanı',
-  'clusters.topology.mapping.domain.status.inactive': 'Çözümlenmedi',
   'clusters.topology.mapping.showUnused': 'Kullanılmayan {count} alanı göster',
   'clusters.topology.mapping.hideUnused': 'Kullanılmayan alanları gizle',
   'clusters.topology.mapping.moreKeys': '+ {count} aday anahtar',
   'clusters.topology.mapping.classified': 'Çözümlenen {classified} / {total}',
   'clusters.topology.mapping.noKeys': 'Etiket anahtarı yok',
-  'clusters.topology.mapping.domain.tips':
-    'Katman değil, düz gruplar: NVLink / HCCS / UB üzerinden birbirinin belleğine doğrudan erişebilen makineler aynı çembere alınır. Bir etki alanı birkaç kabini kapsayabilir ya da tek bir makine kadar küçük olabilir',
-  'clusters.topology.mapping.domain.stats':
-    '{domains} etki alanı; en büyüğü {racks} kabini kapsıyor',
-  'clusters.topology.mapping.subDomain.tips':
-    'Aynı etki alanı ve kademedeki makineler önce bir araya yerleştirilir (ör. Atlas 950 hesaplama kabini); etki alanları oluştuğunda, etki alanı içindeki kademe olarak bir konum alanı seçilebilir',
-  'clusters.topology.mapping.subDomain.placeholder':
-    'Henüz hızlandırıcı etki alanı bildiren worker yok',
   'clusters.topology.layer.labelKeys': 'Etiket anahtarları',
   'clusters.topology.layer.addKey': 'Anahtar ekle',
   'clusters.topology.layer.name': 'Ad',
   'clusters.topology.advanced.hostKeys': 'Yerleşik, worker adına göre',
   'clusters.topology.advanced.locked':
     'GPUStack’in kendi anahtarı: elle girilen değerler buraya yazılır. Silinemez veya taşınamaz.',
-  'clusters.topology.advanced.subDomain': 'Alt etki alanı',
-  'clusters.topology.advanced.subDomain.none': 'Yok',
-  'clusters.topology.advanced.subDomain.keys': 'Kendi anahtarlarım…',
   'clusters.topology.advanced.suggestions': 'Keşfedilen etiket anahtarları',
   'clusters.topology.advanced.suggestion':
     '{workers} worker · {values} değer · {field} gibi görünüyor',

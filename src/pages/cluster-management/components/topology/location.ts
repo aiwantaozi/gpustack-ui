@@ -1,6 +1,5 @@
 import { topologyFieldLabel } from '../../config';
 import {
-  ACCELERATOR_DOMAIN,
   NODE_LAYER,
   TopologyLayerView,
   TopologyView,
@@ -8,7 +7,7 @@ import {
   WorkerLocation
 } from '../../config/types';
 
-/** A column of the location table: a layer or the accelerator domain. */
+/** A column of the location table: one rung of the chain. */
 export interface LocationField {
   id: string;
   /** Already translated; custom layers pass their name through. */
@@ -25,9 +24,17 @@ type Intl = { formatMessage: (d: { id: string }) => string };
 export const fieldLayers = (view: TopologyView) =>
   view.layers.filter((layer) => layer.id !== NODE_LAYER);
 
-/** Every field a cluster has, chain order then the accelerator domain. */
-export const allFields = (intl: Intl, view: TopologyView): LocationField[] => [
-  ...fieldLayers(view).map((layer) => ({
+// 🔴 `acceleratorLayers()` / `acceleratorFields()` are gone with the second
+// chain. They existed to fold a server's `accelerator_layers` — or, older
+// still, its single `accelerator_domain` — into a chain the rest of the UI
+// could read. There is one chain now, so a domain arrives as an ordinary
+// `layers[]` entry and needs no adapter. No fallback is kept: a server that
+// still sends the old fields is simply read for `layers`, and its accelerator
+// declaration is ignored (that is the agreed behaviour, not a gap).
+
+const toField =
+  (intl: Intl) =>
+  (layer: TopologyLayerView): LocationField => ({
     id: layer.id,
     label: layer.builtin
       ? topologyFieldLabel(intl, layer.id, layer.name)
@@ -35,17 +42,12 @@ export const allFields = (intl: Intl, view: TopologyView): LocationField[] => [
     builtin: layer.builtin,
     active: layer.active,
     primaryKey: layer.primary_key,
-    labelKeys: layer.label_keys
-  })),
-  {
-    id: ACCELERATOR_DOMAIN,
-    label: topologyFieldLabel(intl, ACCELERATOR_DOMAIN),
-    builtin: true,
-    active: !!view.accelerator_domain?.active,
-    primaryKey: view.accelerator_domain?.label_keys?.[0] || null,
-    labelKeys: view.accelerator_domain?.label_keys || []
-  }
-];
+    labelKeys: layer.label_keys || []
+  });
+
+/** Every field a cluster has, root to leaf, host excluded. */
+export const allFields = (intl: Intl, view: TopologyView): LocationField[] =>
+  fieldLayers(view).map(toField(intl));
 
 /**
  * The rack always, because it is what the onboarding tells people to fill
@@ -123,8 +125,7 @@ export const resolveLocation = (
   return null;
 };
 
+/** A field's any-of keys. */
 export const layerKeys = (view: TopologyView | undefined, field: string) =>
-  field === ACCELERATOR_DOMAIN
-    ? view?.accelerator_domain?.label_keys || []
-    : view?.layers.find((layer: TopologyLayerView) => layer.id === field)
-        ?.label_keys || [];
+  view?.layers.find((layer: TopologyLayerView) => layer.id === field)
+    ?.label_keys || [];

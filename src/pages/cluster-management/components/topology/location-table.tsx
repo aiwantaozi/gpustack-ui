@@ -148,6 +148,45 @@ const LocationTable: React.FC<LocationTableProps> = ({
     setEditing(fallback ? { id: fallback.id, field: from.field } : null);
   };
 
+  const fieldColumn = (field: LocationField) => ({
+    // 🔴 The per-column «⋮» menu was removed in review. It held
+    // «批量填未填的» and «按交换机填», both of which are still reachable —
+    // selecting rows and using the bulk action does the same thing, and
+    // does it with the rows in view. A menu on every column header put
+    // three affordances on a table whose job is to show one value per
+    // cell.
+    title: field.label,
+    dataIndex: ['location', field.id],
+    key: field.id,
+    width: FIELD_WIDTH,
+    render: (_: any, worker: TopologyWorker) => (
+      <LocationCell
+        worker={worker}
+        field={field}
+        options={optionsByField[field.id] || []}
+        editing={editing?.id === worker.id && editing.field === field.id}
+        onStartEdit={() => setEditing({ id: worker.id, field: field.id })}
+        onStopEdit={() =>
+          setEditing((cur) =>
+            cur?.id === worker.id && cur.field === field.id ? null : cur
+          )
+        }
+        onSave={(value) => onAssign(field, [worker], value)}
+        onTab={(shift) =>
+          moveEditing({ id: worker.id, field: field.id }, shift)
+        }
+        onBusy={onBusy}
+      />
+    )
+  });
+
+  // 🔴 The two-row header band is gone with the second chain. It grouped the
+  // columns under «层级» and «加速器域» so a «机柜» of the network hierarchy and
+  // an Atlas 950 «计算柜» could not be read as neighbours on one scale. One
+  // chain means they ARE neighbours on one scale — that is the point of the
+  // model — so the band would now assert a distinction that does not exist.
+  const fieldColumns: any[] = fields.map(fieldColumn);
+
   const columns: any[] = [
     {
       title: intl.formatMessage({ id: 'clusters.topology.field.host' }),
@@ -174,39 +213,7 @@ const LocationTable: React.FC<LocationTableProps> = ({
         </Tooltip>
       )
     },
-    ...fields.map((field) => {
-      return {
-        // 🔴 The per-column «⋮» menu was removed in review. It held
-        // «批量填未填的» and «按交换机填», both of which are still reachable —
-        // selecting rows and using the bulk action does the same thing, and
-        // does it with the rows in view. A menu on every column header put
-        // three affordances on a table whose job is to show one value per
-        // cell.
-        title: field.label,
-        dataIndex: ['location', field.id],
-        key: field.id,
-        width: FIELD_WIDTH,
-        render: (_: any, worker: TopologyWorker) => (
-          <LocationCell
-            worker={worker}
-            field={field}
-            options={optionsByField[field.id] || []}
-            editing={editing?.id === worker.id && editing.field === field.id}
-            onStartEdit={() => setEditing({ id: worker.id, field: field.id })}
-            onStopEdit={() =>
-              setEditing((cur) =>
-                cur?.id === worker.id && cur.field === field.id ? null : cur
-              )
-            }
-            onSave={(value) => onAssign(field, [worker], value)}
-            onTab={(shift) =>
-              moveEditing({ id: worker.id, field: field.id }, shift)
-            }
-            onBusy={onBusy}
-          />
-        )
-      };
-    })
+    ...fieldColumns
   ];
   // 🔴 «卡 / 空闲» was removed in review: this table answers «这台机器在拓扑
   // 的哪个位置», and card capacity is the worker list's question. Keeping it

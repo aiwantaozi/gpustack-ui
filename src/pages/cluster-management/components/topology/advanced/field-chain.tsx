@@ -399,6 +399,10 @@ interface FieldChainProps {
   classified: Record<string, number>;
   flashing: Set<string>;
   vocabulary: KeyVocabulary;
+  // `defaultShowUnused` was removed with the second chain: only the
+  // accelerator pane passed it, to keep its two still-unused rungs visible.
+  // The one chain's unused rungs stay folded, as they always did.
+  onAddLayer?: () => void;
   onKeysChange: (id: string, keys: string[]) => void;
 }
 
@@ -414,6 +418,7 @@ const FieldChain: React.FC<FieldChainProps> = ({
   classified,
   flashing,
   vocabulary,
+  onAddLayer,
   onKeysChange
 }) => {
   const intl = useIntl();
@@ -497,6 +502,19 @@ const FieldChain: React.FC<FieldChainProps> = ({
           </StaticRow>
         </div>
       </div>
+      {onAddLayer && (
+        <Flex>
+          <Button
+            type="link"
+            size="small"
+            style={{ padding: 0 }}
+            onClick={onAddLayer}
+          >
+            <PlusOutlined />
+            {intl.formatMessage({ id: 'clusters.topology.custom.title' })}
+          </Button>
+        </Flex>
+      )}
       <div className={styles.formula}>
         {rows.map((row) => (
           <span key={row.id}>

@@ -565,10 +565,16 @@ export default {
   'models.form.groupSettings.tips':
     '这些无法按角色区分：同一个值会同时作用于 Prefill 和 Decode。',
 
-  // Topology-aware gather tiers
-  'models.form.gather.sameDomain': '至少同一加速器域，否则不部署',
-  'models.form.gather.domain.tips': '域内可直接寻址对方显存；跨域必须走网络',
-  'models.form.gather.tree.tips': '同一加速器域的传输快于同机柜，因此也算满足',
+  // Topology-aware gather tiers. One chain, root to leaf: the option list is
+  // flat in chain order and the retreat line says what happens when a rung
+  // does not fit. The `chain.*` group headings are gone with the second chain.
+  'models.form.gather.tree.tips': '按声明的层级聚拢：往上一层就宽一档',
+  'models.form.gather.retreat':
+    '已选「{tier}」。只在这一层判定：放不下就直接拒绝部署，不会自动放宽到「{top}」。想自动放宽，请选「尽量靠近」。',
+  'models.form.gather.retreat.top':
+    '已选「{tier}」。它已是最上面一层，放不下就直接拒绝部署。想自动放宽，请选「尽量靠近」。',
+  'models.form.gather.retreat.host':
+    '已选「{tier}」。主机是最紧的一档，再往下没有了，放不下就直接拒绝部署。想自动放宽，请选「尽量靠近」。',
   'models.form.gather.goFill': '去填',
   'models.form.gather.infeasible.warning':
     '按当前容量此组将无法部署；保存后组会一直等待，直到有空位。可选：改成「尽量靠近」（会跨机，KV 传输变慢）· 降低副本或每副本卡数'

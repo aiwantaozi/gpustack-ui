@@ -1,20 +1,21 @@
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import { GSDrawer, ModalFooter } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Alert, Flex, Modal, Select, Spin, Tabs, Tooltip, message } from 'antd';
+import { Alert, Flex, Modal, Spin, Tooltip, message } from 'antd';
 import { createStyles } from 'antd-style';
 import { useEffect, useRef, useState } from 'react';
 import { topologyFieldLabel } from '../../../config';
 import {
-  ACCELERATOR_DOMAIN,
   ClusterListItem,
+  NODE_LAYER,
   TopologyView
 } from '../../../config/types';
 import { UsePreview } from '../hooks/use-preview';
 import { fieldLayers } from '../location';
 import { loadSpecContext, saveTopologySpec } from '../spec';
-import { Draft, draftFromView, toWire } from './draft';
-import FieldChain, { FieldRow, KeyList, StaticRow } from './field-chain';
+import CustomLayer, { CustomLayerValue } from './custom-layer';
+import { Draft, DraftLayer, draftFromView, insertLayer, toWire } from './draft';
+import FieldChain from './field-chain';
 
 /** How long the "count left zero" blink lasts. */
 const FLASH_MS = 1000;
@@ -28,22 +29,22 @@ const useStyles = createStyles(({ css }) => ({
       color: var(--ant-color-text-tertiary);
     }
   `,
-  tabs: css`
-    .ant-tabs-nav {
-      margin-bottom: 12px;
-    }
+  /* Nested literal class names are safe here: antd-style scopes the *rule*
+     (`.css-xxx .status`), it does not rewrite the name the way CSS Modules
+     would, so `className="status"` on the child still matches. */
+  heading: css`
+    font-weight: 500;
     .status {
       font-size: 12px;
       font-variant-numeric: tabular-nums;
     }
   `,
+  /* `.stats` lived here, indenting the domain pane's «共 N 个域» line to the
+     rows' name column. Both the line and the second pane are gone; the class
+     stays removed rather than kept "in case", since a rule with no element is
+     invisible breakage waiting for the next reader. */
   pane: css`
-    /* Same indent as a row's name column: chevron, gap and padding. */
-    .stats {
-      padding-left: 24px;
-      font-size: 12px;
-      font-variant-numeric: tabular-nums;
-    }
+    min-width: 0;
   `
 }));
 
@@ -85,7 +86,8 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [baseline, setBaseline] = useState<string>('');
   const [saving, setSaving] = useState(false);
-  const [domainExpanded, setDomainExpanded] = useState(false);
+  /** The "add layer" modal. It used to also carry which chain to add to. */
+  const [adding, setAdding] = useState(false);
   const [flashing, setFlashing] = useState<Set<string>>(new Set());
   const prevCountsRef = useRef<Record<string, number>>({});
 
@@ -93,7 +95,7 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
     if (!open) {
       setDraft(null);
       setCluster(null);
-      setDomainExpanded(false);
+      setAdding(false);
       return;
     }
     loadSpecContext(clusterId).then((ctx) => {
@@ -108,11 +110,9 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
 
   const total = displayed.workers?.length || 0;
   const classified: Record<string, number> = {};
-  displayed.layers?.forEach((layer) => {
+  (displayed.layers || []).forEach((layer) => {
     classified[layer.id] = layer.classified;
   });
-  classified[ACCELERATOR_DOMAIN] =
-    displayed.accelerator_domain?.classified || 0;
 
   useEffect(() => {
     const left = Object.keys(classified).filter(
@@ -142,21 +142,41 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
     if (!draft) {
       return;
     }
-    update({
-      ...draft,
-      chain: draft.chain.map((layer) =>
-        layer.id === id
-          ? {
-              ...layer,
-              labelKeys:
-                layer.primaryKey && !keys.includes(layer.primaryKey)
-                  ? [layer.primaryKey, ...keys]
-                  : keys,
-              customised: true
-            }
-          : layer
-      )
-    });
+    const edit = (layer: DraftLayer) =>
+      layer.id === id
+        ? {
+            ...layer,
+            labelKeys:
+              layer.primaryKey && !keys.includes(layer.primaryKey)
+                ? [layer.primaryKey, ...keys]
+                : keys,
+            customised: true
+          }
+        : layer;
+    update({ chain: draft.chain.map(edit) });
+  };
+
+  /**
+   * Staged like every other edit in this drawer. Writing the cluster straight
+   * away — the way the column picker's own "add layer" does — would be saved
+   * under a draft this drawer opened before it, and the next Save would drop
+   * the new layer again.
+   */
+  const handleAddLayer = (value: CustomLayerValue) => {
+    if (!draft) {
+      return;
+    }
+    const layer: DraftLayer = {
+      id: value.name,
+      name: value.name,
+      builtin: false,
+      active: false,
+      labelKeys: value.labelKeys,
+      primaryKey: null,
+      customised: true
+    };
+    update(insertLayer(draft, layer, value.index));
+    setAdding(false);
   };
 
   const handleClose = () => {
@@ -197,85 +217,31 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
     }
   };
 
-  const domainLabel = topologyFieldLabel(intl, ACCELERATOR_DOMAIN);
-  const domainActive = !!displayed.accelerator_domain?.active;
   const activeLayers = fieldLayers(displayed).filter(
     (layer) => layer.active
   ).length;
 
-  const subDomainValue =
-    draft?.subDomain.mode === 'field'
-      ? draft.subDomain.field
-      : draft?.subDomain.mode === 'keys'
-        ? '__keys__'
-        : '__none__';
-  const subDomainOptions: any[] = [
-    {
-      value: '__none__',
-      label: intl.formatMessage({
-        id: 'clusters.topology.advanced.subDomain.none'
-      })
-    },
-    ...(draft?.chain || []).map((layer) => ({
-      value: layer.id,
-      label: layer.name
-    })),
-    {
-      value: '__keys__',
-      label: intl.formatMessage({
-        id: 'clusters.topology.advanced.subDomain.keys'
-      })
-    }
-  ];
-
-  /** Of the workers with a domain, how many also resolve the sub-domain field. */
-  const subDomainCounts = (() => {
-    if (!draft || draft.subDomain.mode !== 'field') {
-      return null;
-    }
-    const field = draft.subDomain.field;
-    const withDomain = (displayed.workers || []).filter(
-      (worker) => worker.location?.[ACCELERATOR_DOMAIN]?.value
-    );
-    return {
-      total: withDomain.length,
-      classified: withDomain.filter((worker) => worker.location?.[field]?.value)
-        .length
-    };
-  })();
+  // 🔴 «共 N 个域，最大的跨 M 个机柜» is gone with the second chain. Its job was
+  // to justify the second chain — to show that a domain crosses rack
+  // boundaries and therefore could not be a rung of the first. Under the
+  // one-chain model a domain that spans racks simply sits *above* the rack, so
+  // the chain itself says it and the statistic argues for nothing.
 
   /**
-   * How many domains, and how many racks the widest one spans: the number that
-   * says why the domain is not a rung of the chain.
+   * Names a new custom layer may not take: a rung's name is its id, and
+   * `worker.location` is one flat map keyed by those ids, so two rungs sharing
+   * a name would share a column and a saved gather target.
    */
-  const domainStats = (() => {
-    const rackActive = displayed.layers?.some(
-      (layer) => layer.id === 'rack' && layer.active
-    );
-    if (!domainActive || !rackActive) {
-      return null;
-    }
-    const racksByDomain = new Map<string, Set<string>>();
-    (displayed.workers || []).forEach((worker) => {
-      const domain = worker.location?.[ACCELERATOR_DOMAIN]?.value;
-      if (!domain) {
-        return;
-      }
-      const racks = racksByDomain.get(domain) || new Set<string>();
-      const rack = worker.location?.rack?.value;
-      if (rack) {
-        racks.add(rack);
-      }
-      racksByDomain.set(domain, racks);
-    });
-    return {
-      domains: racksByDomain.size,
-      racks: Math.max(
-        0,
-        ...Array.from(racksByDomain.values()).map((racks) => racks.size)
-      )
-    };
-  })();
+  const reserved = [
+    ...(view.vocabulary?.fields || []).map((field) => field.id),
+    ...(view.layers || [])
+      .filter((layer) => layer.builtin)
+      .map((layer) => layer.id),
+    // Layers added to the draft but not yet saved are not in the view.
+    ...(draft?.chain || []).map((layer) => layer.id),
+    NODE_LAYER,
+    'host'
+  ];
 
   const vocabulary = {
     known: view.vocabulary?.known_keys || [],
@@ -291,107 +257,29 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
     </span>
   );
 
-  const tabLabel = (name: string, status: string, tipsId: string) =>
-    withTips(
-      <>
-        {name}
-        <span className="text-tertiary status"> · {status}</span>
-      </>,
-      tipsId
-    );
-
-  const renderLayers = (current: Draft) => (
-    <Flex orientation="vertical" gap={8} className={styles.pane}>
-      <FieldChain
-        rows={current.chain}
-        total={total}
-        classified={classified}
-        flashing={flashing}
-        vocabulary={vocabulary}
-        onKeysChange={handleKeysChange}
-      />
-    </Flex>
-  );
-
-  const renderDomain = (current: Draft) => (
-    <Flex orientation="vertical" gap={8} className={styles.pane}>
-      <FieldRow
-        fieldId={ACCELERATOR_DOMAIN}
-        name={domainLabel}
-        keys={current.domainKeys}
-        lockedKey={current.domainKeys[0] || null}
-        vocabulary={vocabulary}
-        classified={classified[ACCELERATOR_DOMAIN]}
-        total={total}
-        flashing={flashing.has(ACCELERATOR_DOMAIN)}
-        dim={!domainActive}
-        expanded={domainExpanded}
-        onToggle={() => setDomainExpanded(!domainExpanded)}
-        onChange={(keys) => update({ ...current, domainKeys: keys })}
-      />
-      {domainStats && (
-        <span className="text-secondary stats">
-          {intl.formatMessage(
-            { id: 'clusters.topology.mapping.domain.stats' },
-            domainStats
-          )}
-        </span>
-      )}
-      <StaticRow
-        name={withTips(
-          intl.formatMessage({ id: 'clusters.topology.advanced.subDomain' }),
-          'clusters.topology.mapping.subDomain.tips'
-        )}
-        dim={!domainActive}
-        count={
-          domainActive
-            ? subDomainCounts
-              ? intl.formatMessage(
-                  { id: 'clusters.topology.mapping.classified' },
-                  subDomainCounts
-                )
-              : '—'
-            : undefined
-        }
-        detail={
-          domainActive &&
-          current.subDomain.mode === 'keys' && (
-            <KeyList
-              keys={current.subDomain.keys}
-              fieldId={ACCELERATOR_DOMAIN}
-              vocabulary={vocabulary}
-              defaultEditing={!current.subDomain.keys.length}
-              onChange={(keys) =>
-                update({ ...current, subDomain: { mode: 'keys', keys } })
-              }
-            />
-          )
-        }
-      >
-        <Select
-          size="small"
-          style={{ flex: 1, minWidth: 0, maxWidth: 280 }}
-          disabled={!domainActive}
-          value={domainActive ? subDomainValue : undefined}
-          placeholder={intl.formatMessage({
-            id: 'clusters.topology.mapping.subDomain.placeholder'
-          })}
-          options={subDomainOptions}
-          onChange={(value) => {
-            if (value === '__none__') {
-              update({ ...current, subDomain: { mode: 'none' } });
-            } else if (value === '__keys__') {
-              update({ ...current, subDomain: { mode: 'keys', keys: [] } });
-            } else {
-              update({
-                ...current,
-                subDomain: { mode: 'field', field: value }
-              });
-            }
-          }}
-        />
-      </StaticRow>
-    </Flex>
+  /**
+   * 🔴 One pane, not a `Tabs` of «层级» and «加速器域». The second tab is gone
+   * with the second chain, and a one-tab `Tabs` is a control that looks like a
+   * choice while offering none — so the heading the tab carried (name, count,
+   * tooltip) moved onto the pane itself.
+   */
+  const heading = withTips(
+    <>
+      {intl.formatMessage({ id: 'clusters.topology.mapping.layers' })}
+      <span className="text-tertiary status">
+        {' '}
+        ·{' '}
+        {activeLayers
+          ? intl.formatMessage(
+              { id: 'clusters.topology.mapping.layers.status' },
+              { count: activeLayers }
+            )
+          : intl.formatMessage({
+              id: 'clusters.topology.mapping.layers.status.empty'
+            })}
+      </span>
+    </>,
+    'clusters.topology.mapping.layers.tips'
   );
 
   return (
@@ -440,48 +328,18 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
             <Alert type="warning" showIcon message={preview.error} />
           )}
 
-          {/* Inactive panes stay mounted: the draft is shared, and a fold or
-              an open key list must survive a tab switch. */}
-          <Tabs
-            className={styles.tabs}
-            defaultActiveKey="layers"
-            items={[
-              {
-                key: 'layers',
-                label: tabLabel(
-                  intl.formatMessage({
-                    id: 'clusters.topology.mapping.layers'
-                  }),
-                  activeLayers
-                    ? intl.formatMessage(
-                        { id: 'clusters.topology.mapping.layers.status' },
-                        { count: activeLayers }
-                      )
-                    : intl.formatMessage({
-                        id: 'clusters.topology.mapping.layers.status.empty'
-                      }),
-                  'clusters.topology.mapping.layers.tips'
-                ),
-                children: renderLayers(draft)
-              },
-              {
-                key: 'domain',
-                label: tabLabel(
-                  domainLabel,
-                  domainActive
-                    ? intl.formatMessage(
-                        { id: 'clusters.topology.mapping.domain.status' },
-                        { count: displayed.accelerator_domain?.domains || 0 }
-                      )
-                    : intl.formatMessage({
-                        id: 'clusters.topology.mapping.domain.status.inactive'
-                      }),
-                  'clusters.topology.mapping.domain.tips'
-                ),
-                children: renderDomain(draft)
-              }
-            ]}
-          />
+          <Flex orientation="vertical" gap={8} className={styles.pane}>
+            <span className={styles.heading}>{heading}</span>
+            <FieldChain
+              rows={draft.chain}
+              total={total}
+              classified={classified}
+              flashing={flashing}
+              vocabulary={vocabulary}
+              onAddLayer={() => setAdding(true)}
+              onKeysChange={handleKeysChange}
+            />
+          </Flex>
 
           {displayed.suggestions?.length > 0 && (
             <Flex orientation="vertical" gap={8}>
@@ -510,6 +368,21 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
             </Flex>
           )}
         </Flex>
+      )}
+
+      {/* The picker draws the one chain and asks only where in it the new
+          layer goes — which is now the whole question, including for an
+          accelerator domain. */}
+      {draft && adding && (
+        <CustomLayer
+          open
+          chain={draft.chain}
+          reserved={reserved}
+          knownKeys={view.vocabulary?.known_keys || []}
+          workerLabels={workerLabels}
+          onOk={handleAddLayer}
+          onCancel={() => setAdding(false)}
+        />
       )}
     </GSDrawer>
   );

@@ -243,10 +243,6 @@ export default {
     'Fill by hand when the device does not report one',
   'clusters.topology.overview.workers': '{count} workers',
   'clusters.topology.overview.domains': '{count} {field}(s)',
-  'clusters.topology.overview.acceleratorDomains':
-    '{count} accelerator domain(s)',
-  'clusters.topology.overview.acceleratorDomains.auto':
-    '{count} accelerator domain(s) (auto)',
   'clusters.topology.overview.unfilled': '{count} without a {field}',
   'clusters.topology.previewing': '● Previewing',
   'clusters.topology.previewing.long':
@@ -256,7 +252,7 @@ export default {
   'clusters.topology.search.placeholder': 'Search hosts…',
   'clusters.topology.columns': 'Columns',
   'clusters.topology.columns.fields': 'Location fields',
-  'clusters.topology.columns.custom': 'Add layer…',
+  'clusters.topology.columns.manage': 'Manage layers',
   'clusters.topology.columns.mapping': 'Label key mapping…',
   'clusters.topology.columns.deleteCustom': 'Delete field “{name}”',
   'clusters.topology.columns.deleteCustom.confirm':
@@ -310,24 +306,21 @@ export default {
   'clusters.topology.host.online': 'Online',
   'clusters.topology.host.offline': 'Offline',
   'clusters.topology.tree.byLayer': 'By layer',
-  'clusters.topology.tree.byDomain': 'By accelerator domain',
   'clusters.topology.tree.byField': 'By {field}',
   'clusters.topology.tree.expandAll': 'Expand all',
   'clusters.topology.tree.collapseAll': 'Collapse all',
-  'clusters.topology.tree.spansDomains': 'spans {count} domains',
   'clusters.topology.tree.unfilled': 'No {field} yet',
-  'clusters.topology.tree.unknownDomain': 'Unknown domain',
+  'clusters.topology.tree.unfilled.why':
+    'Missing the label {key} (or any of its alternatives)',
   'clusters.topology.tree.more': '{count} more',
   'clusters.topology.tree.hostCapacity': '{gpus} GPUs · {free} free',
   'clusters.topology.onboarding.hosts': '{hosts} hosts found.',
-  'clusters.topology.onboarding.withDomains':
-    '{hosts} hosts and {domains} accelerator domain(s) found (auto).',
   'clusters.topology.onboarding.goal':
     'To keep the members of a disaggregated group together:',
   'clusters.topology.onboarding.steps':
     '① Select the machines in one rack → ② “Set location” with the rack name → ③ Choose “same rack” when deploying',
   'clusters.topology.onboarding.domains':
-    'Machines with multi-node NVLink or an Ascend super pod get their accelerator domain here automatically.',
+    'A device-reported accelerator domain (multi-node NVLink, an Ascend super pod) can be a layer too: add one under “Add layer”, point it at the matching label key, and it fills itself in.',
   'clusters.topology.onboarding.dismiss': 'Got it',
   'clusters.topology.mapping.title': 'Label key mapping',
   'clusters.topology.mapping.intro':
@@ -337,30 +330,17 @@ export default {
     'Nested: each level sits inside the one above',
   'clusters.topology.mapping.layers.status': '{count} field(s) in use',
   'clusters.topology.mapping.layers.status.empty': 'No field filled',
-  'clusters.topology.mapping.domain.status': '{count} domain(s)',
-  'clusters.topology.mapping.domain.status.inactive': 'Not resolved',
   'clusters.topology.mapping.showUnused': 'Show the {count} unused field(s)',
   'clusters.topology.mapping.hideUnused': 'Hide unused fields',
   'clusters.topology.mapping.moreKeys': '+ {count} more key(s)',
   'clusters.topology.mapping.classified': 'Resolved {classified} / {total}',
   'clusters.topology.mapping.noKeys': 'No label keys',
-  'clusters.topology.mapping.domain.tips':
-    'Flat groups, not a level: machines that can reach each other’s memory directly over NVLink / HCCS / UB are circled together. A domain may span several racks, or be as small as a single machine',
-  'clusters.topology.mapping.domain.stats':
-    '{domains} domains; the largest spans {racks} racks',
-  'clusters.topology.mapping.subDomain.tips':
-    'Machines in the same domain and tier are placed together first (e.g. an Atlas 950 compute cabinet); once there are domains, pick a location field as the tier inside a domain',
-  'clusters.topology.mapping.subDomain.placeholder':
-    'No worker reports an accelerator domain yet',
   'clusters.topology.layer.labelKeys': 'Label keys',
   'clusters.topology.layer.addKey': 'Add key',
   'clusters.topology.layer.name': 'Name',
   'clusters.topology.advanced.hostKeys': 'Built in, by worker name',
   'clusters.topology.advanced.locked':
     'GPUStack’s own key: hand-filled values are written here. Cannot be removed or moved.',
-  'clusters.topology.advanced.subDomain': 'Sub-domain',
-  'clusters.topology.advanced.subDomain.none': 'None',
-  'clusters.topology.advanced.subDomain.keys': 'Own keys…',
   'clusters.topology.advanced.suggestions': 'Discovered label keys',
   'clusters.topology.advanced.suggestion':
     '{workers} workers · {values} values · looks like {field}',

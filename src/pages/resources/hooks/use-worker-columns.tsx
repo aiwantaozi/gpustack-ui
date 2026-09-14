@@ -7,7 +7,7 @@ import {
   shownValue
 } from '@/pages/cluster-management/components/topology/location';
 import {
-  ACCELERATOR_DOMAIN,
+  NODE_LAYER,
   TopologyView
 } from '@/pages/cluster-management/config/types';
 import { usePluginListColumns } from '@/plugins/list-extra-columns';
@@ -476,16 +476,25 @@ const useWorkerColumns = ({
         )
       },
       {
-        // "rack · domain", whichever are set; a dash when neither is. Clicking
-        // goes to the cluster's topology drawer with this row pointed at.
+        // The declared rungs this worker resolves, root to leaf; a dash when
+        // it resolves none. Clicking goes to the cluster's topology drawer
+        // with this row pointed at.
+        //
+        // 🔴 It used to be exactly two values, «rack · accelerator domain»,
+        // because those were the two dimensions the model had. One chain means
+        // there is no privileged pair to pick — an operator who declared a
+        // domain layer wants to see it here on the same footing as the rack,
+        // and one who declared a `room` wants that. So the cell follows the
+        // cluster's own chain instead of naming rungs.
         title: intl.formatMessage({ id: 'resources.table.location' }),
         dataIndex: 'location',
         minWidth: 140,
         render: (_text: any, record: ListItem) => {
           const view = topologies?.[record.cluster_id];
-          const parts = ['rack', ACCELERATOR_DOMAIN]
-            .map((field) =>
-              shownValue(resolveLocation(record, layerKeys(view, field)))
+          const parts = (view?.layers || [])
+            .filter((entry) => entry.active && entry.id !== NODE_LAYER)
+            .map((entry) =>
+              shownValue(resolveLocation(record, layerKeys(view, entry.id)))
             )
             .filter(Boolean);
           return (

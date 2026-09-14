@@ -334,7 +334,7 @@ const RouterForm: React.FC<RouterFormProps> = ({
                 the truth of it — the server derives "takes no accelerator"
                 from the absence of an image and a command, so a managed router
                 never claims a GPU whatever the stored flag says. */}
-            <Form.Item style={{ marginBottom: 0 }}>
+            <Form.Item style={{ marginBottom: 12 }}>
               <CheckboxField
                 checked
                 disabled
@@ -348,53 +348,57 @@ const RouterForm: React.FC<RouterFormProps> = ({
         )}
       </RoleSection>
 
-      {/* Only meaningful under a managed router: the custom branch's whole
-          command is the user's already, so there is no platform half to append
-          to. */}
-      {managed !== false && (
-        <OverrideSection
-          group={OverrideGroupMap.Parameters}
-          index={index}
-          // Both branches show the platform's arguments: collapsed they *are*
-          // the summary, and expanded they are what the user's own get
-          // appended to. The default summary would name the Model's parameters
-          // instead, which is the one thing this role does not run.
-          inheritContent={frozenArgs}
-          seedFromModel={false}
-        >
-          {connectionArgsBlock}
-          {/* The declared knobs, as controls rather than as text: the flag
+      {/* Shown on BOTH branches. The platform half — the connection arguments
+          and the catalog's tunables — only exists under a managed router, but
+          the user half does not: a hand-written router still takes arguments,
+          and it still needs environment variables. Ascend's is the standing
+          example, where the router cannot start without
+          `TORCH_DEVICE_BACKEND_AUTOLOAD=0` (V11). Hiding the whole section on
+          the custom branch left no way to set one. */}
+      <OverrideSection
+        group={OverrideGroupMap.Parameters}
+        index={index}
+        // Under a managed router both branches show the platform's arguments:
+        // collapsed they *are* the summary, and expanded they are what the
+        // user's own get appended to. A custom router has no platform half, so
+        // it falls back to the generic summary.
+        inheritContent={managed !== false ? frozenArgs : undefined}
+        seedFromModel={false}
+      >
+        {managed !== false && connectionArgsBlock}
+        {/* The declared knobs, as controls rather than as text: the flag
               names are the platform's vocabulary, and making the user retype
               one to change a routing policy is the part that reads as a
               missing feature. */}
-          {tunableArgs.length > 0 && (
-            <div className="frozen-title" style={{ marginBottom: 4 }}>
-              {intl.formatMessage({
-                id: 'models.form.roles.router.tunableArgs'
-              })}
-            </div>
-          )}
+        {managed !== false && tunableArgs.length > 0 && (
+          <div className="frozen-title" style={{ marginBottom: 4 }}>
+            {intl.formatMessage({
+              id: 'models.form.roles.router.tunableArgs'
+            })}
+          </div>
+        )}
+        {managed !== false && (
           <RouterTunables
             args={tunableArgs}
             namePrefix={['roles', index]}
           ></RouterTunables>
-          {/* Appended after the catalog's, which is what makes "append" and
+        )}
+        {/* Appended after the catalog's, which is what makes "append" and
               "override" the same gesture: repeated flags are last-wins in both
               shipped routers, verified against the wheels. The connection
               arguments above are refused at admission instead — `--prefill`
               and `--decode` are `action="append"` there, so a second one adds
               a peer the router cannot reach rather than replacing ours. */}
-          <BackendParametersList
-            namePrefix={['roles', index]}
-          ></BackendParametersList>
-          <Form.Item name={['roles', index, 'env']}>
-            <LabelSelector
-              label={intl.formatMessage({ id: 'models.form.env' })}
-              btnText={intl.formatMessage({ id: 'common.button.vars' })}
-            ></LabelSelector>
-          </Form.Item>
-        </OverrideSection>
-      )}
+        <BackendParametersList
+          namePrefix={['roles', index]}
+        ></BackendParametersList>
+        <Form.Item name={['roles', index, 'env']}>
+          <LabelSelector
+            label={intl.formatMessage({ id: 'models.form.env' })}
+            btnText={intl.formatMessage({ id: 'common.button.vars' })}
+          ></LabelSelector>
+        </Form.Item>
+      </OverrideSection>
 
       {/* A managed router still runs somewhere, so its placement is the one
           thing left to override even in the managed branch. Its CPU and memory
@@ -411,7 +415,10 @@ const RouterForm: React.FC<RouterFormProps> = ({
           id: 'models.form.roles.resources.tips'
         })}
       >
-        <Flex gap={12}>
+        {/* The card is `padding: 12px 12px 0`, so its bottom gap comes from
+            the last child. These two sit side by side with no margin of
+            their own, which left the inputs flush against the border. */}
+        <Flex gap={12} style={{ marginBottom: 12 }}>
           <Form.Item
             name={['roles', index, 'resources', 'cpu']}
             style={{ flex: 1, marginBottom: 0 }}
@@ -420,7 +427,6 @@ const RouterForm: React.FC<RouterFormProps> = ({
               min={0.1}
               step={1}
               style={{ width: '100%' }}
-              placeholder="2"
               label={intl.formatMessage({
                 id: 'models.form.roles.resources.cpu'
               })}
@@ -443,7 +449,6 @@ const RouterForm: React.FC<RouterFormProps> = ({
               min={0.5}
               step={1}
               style={{ width: '100%' }}
-              placeholder="2"
               label={intl.formatMessage({
                 id: 'models.form.roles.resources.memory'
               })}

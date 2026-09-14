@@ -22,6 +22,7 @@ import {
   DO_NOT_TRIGGER_CHECK_COMPATIBILITY,
   ManualGPUModeMap,
   modelSourceMap,
+  PD_MODE_CUSTOM,
   ScheduleValueMap
 } from '../config';
 import { FormContext } from '../config/form-context';
@@ -681,7 +682,21 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
                           // read as one group-wide topic instead of two
                           // sections a scroll apart.
                           pdBody={
-                            <PDDisaggregation variant="body"></PDDisaggregation>
+                            <PDDisaggregation
+                              variant="body"
+                              // The transport picker is in here, so the choice
+                              // is made here — but the switch is two sections
+                              // up and owns `enabled`. Only the choice comes
+                              // back, patched onto what the switch published.
+                              onModeChange={(mode, data) =>
+                                setPDEffects((prev) => ({
+                                  ...prev,
+                                  mode,
+                                  modeData: data,
+                                  isCustomMode: mode === PD_MODE_CUSTOM
+                                }))
+                              }
+                            ></PDDisaggregation>
                           }
                         ></Roles>
                       )

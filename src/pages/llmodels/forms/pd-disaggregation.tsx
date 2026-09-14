@@ -137,10 +137,22 @@ interface PDDisaggregationProps {
    */
   disabledReason?: string;
   onEffectsChange?: (effects: PDEffects) => void;
+  /**
+   * The transport choice alone, for the `body` mount point.
+   *
+   * Deliberately not `onEffectsChange`: see `handleModeChange`. The body knows
+   * which recipe was picked and nothing else about the form's PD state.
+   */
+  onModeChange?: (mode: string | null, data?: PDMode) => void;
 }
 
 const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
-  const { disabledReason, onEffectsChange, variant = 'toggle' } = props;
+  const {
+    disabledReason,
+    onEffectsChange,
+    onModeChange,
+    variant = 'toggle'
+  } = props;
   const intl = useIntl();
   const { styles } = useStyles();
   const form = Form.useFormInstance<FormData>();
@@ -364,7 +376,24 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     });
   };
 
-  const runResolve = async (overrides?: { vendor?: string }) => {
+  /**
+   * @param modes The catalog the caller has just fetched, when it has.
+   *
+   * 🔴 Load-bearing, and its absence was a silent defect. `applyResolution`
+   * resolves the recipe name it publishes into the catalog ENTRY, and without
+   * this it falls back to `findMode`, which closes over the `pdModes` state of
+   * the render it was created in. `resolveWithCatalog` awaits `getPDModes()`
+   * and then calls this — but awaiting does not re-render inside the same
+   * tick, so that closure still saw the empty list it started with. Result:
+   * `modeData` published as `undefined` on every path, and every consumer of
+   * it rendered nothing — the roles' system-managed rows most visibly, which
+   * showed an empty «引擎参数与环境变量» card for a mode that injects six
+   * things.
+   */
+  const runResolve = async (
+    overrides?: { vendor?: string },
+    modes?: PDMode[]
+  ) => {
     const session = ++resolveSession.current;
     try {
       const resolution = await resolvePDMode({
@@ -376,7 +405,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       if (resolveSession.current !== session) {
         return;
       }
-      applyResolution(resolution);
+      applyResolution(resolution, modes);
     } catch (error) {
       // An older server has no /resolve. Fall back to the full picker rather
       // than to a field that renders nothing: the catalog is already loaded,
@@ -413,10 +442,10 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
      * belongs on this effect rather than on a fetch-function dependency.
      */
     const resolveWithCatalog = async () => {
-      if (!pdModes.length) {
-        await getPDModes();
-      }
-      await runResolve();
+      // Held in a local, not read back off state: the fetch below does not
+      // re-render before the next line runs.
+      const modes = pdModes.length ? pdModes : await getPDModes();
+      await runResolve(undefined, modes);
     };
     resolveWithCatalog();
   }, [active, backend, clusterId]);
@@ -455,10 +484,13 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     // Only on the way in. Turning PD off leaves the roles behind too, so
     // re-clearing would wipe values the user is about to see again.
     const clearModelScheduling = next;
+    let modes: PDMode[] | undefined;
     if (next) {
       // Opening the branch IS the action, so this is where the catalog request
-      // belongs — the drawer's open is not this component's to hook.
-      getPDModes();
+      // belongs — the drawer's open is not this component's to hook. Awaited
+      // and carried, for the same reason `runResolve` carries it: the
+      // notification below resolves a recipe name against it.
+      modes = await getPDModes();
       // Seed the role set here, not in the roles section's mount effect: that
       // section only mounts when its panel is expanded, so a user who turns PD
       // on and submits without opening it would send `disaggregation` with no
@@ -482,7 +514,8 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       enabled: next,
       mode: form.getFieldValue(['disaggregation', 'mode']) ?? null,
       clearModelKVCache,
-      clearModelScheduling
+      clearModelScheduling,
+      modes
     });
     // Let the conditional fields register/unregister first: what the form hands
     // out is what is mounted at that moment.
@@ -500,6 +533,19 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       mode: value ?? null,
       clearModelKVCache: false
     });
+    /**
+     * 🔴 The picker lives in the BODY, and the body is mounted without
+     * `onEffectsChange` — so the line above reaches nobody and choosing a
+     * transport published nothing at all.
+     *
+     * Wiring the full callback here is what one reaches for and it is wrong:
+     * the body's mount effect publishes `enabled` too, and on its first render
+     * `Form.useWatch('roles')` has not subscribed yet, so it would publish
+     * `enabled: false` — unmounting the panel it lives in. This narrow one
+     * carries only the choice that was just made, which is the only thing this
+     * mount point knows better than the switch does.
+     */
+    onModeChange?.(value ?? null, findMode(value));
   };
 
   // ---- role-derived reflections -----------------------------------------

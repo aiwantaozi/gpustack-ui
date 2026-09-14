@@ -436,14 +436,35 @@ export default {
   'models.form.roles.group.backend': 'Движок и образ',
   'models.form.roles.group.parameters': 'Параметры и переменные среды',
   'models.form.roles.group.scheduling': 'Ресурсы и планирование',
+  'models.form.roles.group.backend.tips':
+    'Если не менять, роль использует движок и образ самой модели.',
+  'models.form.roles.group.scheduling.tips':
+    'Если не менять, планировщик сам выберет карты, опираясь на заданную выше топологическую близость.',
   'models.form.roles.group.cache': 'Общий кэш KV',
   'models.form.roles.group.settings': 'Настройки группы',
   'models.form.roles.group.settings.tips': 'Применяются ко всем ролям',
   'models.form.roles.group.wide': 'На всю группу',
   'models.form.roles.replicas': 'Реплики',
-  'models.form.roles.router.managed': 'Управляется системой',
   'models.form.roles.router.replicas.tips':
     'В этом выпуске Router работает в одной реплике.',
+  'models.form.roles.router.routeArgs': 'Аргументы маршрутизации',
+  'models.form.roles.router.routeArgs.tips':
+    'Аргументы командной строки, с которыми запускается процесс router. Строки с замком формирует GPUStack по месту размещения группы; редактировать их нельзя.',
+  'models.form.roles.router.band.connection': 'Подключение',
+  'models.form.roles.router.band.extra': 'Ваши собственные',
+  'models.form.roles.router.tunable.managed':
+    'Значения по умолчанию; переключитесь на «Своё», чтобы изменить',
+  'models.form.roles.router.tunable.custom':
+    'Оставьте пустым — сохранится значение по умолчанию',
+  'models.form.roles.router.tunable.default': 'по умолчанию {value}',
+  'models.form.roles.router.locality':
+    'Только CPU; размещается автоматически, по возможности рядом с prefill и decode этой группы',
+  'models.form.roles.router.workerAllocation': 'Назначение Worker',
+  'models.form.roles.router.workerSelect': 'Worker',
+  'models.form.roles.router.scheduletype.tips':
+    'Автоматически: среди узлов, прошедших селектор, предпочитается тот, где уже работает prefill или decode этой группы. Вручную: указать Worker напрямую.',
+  'models.form.roles.router.workerSelector.tips':
+    'Сужает список кандидатов по меткам. Среди подходящих по-прежнему предпочитается ближайший к prefill и decode этой группы.',
   'models.form.roles.router.order.tips':
     'Router создаётся после готовности Prefill и Decode.',
   'models.form.roles.router.custom.forced':
@@ -568,9 +589,18 @@ export default {
   'models.form.roles.managed': 'Управляется системой',
   'models.form.roles.managed.tips':
     'Заполняется GPUStack на основе режима PD и места размещения группы. Только для чтения, повторять эти значения не нужно. Значения в двойных фигурных скобках — это заполнители, которые при развёртывании заменяются реальными адресами, портами и сетевым интерфейсом.',
-  'models.form.roles.managed.connector': 'KV-коннектор',
-  'models.form.roles.managed.args': 'Аргументы движка',
   'models.form.roles.managed.mounts': 'Монтирования хоста',
+  'models.form.roles.managed.locked':
+    'Строки с замком внедряются системой и недоступны для редактирования',
+  'models.form.roles.engine': 'Движок',
+  'models.form.roles.scheduling.managed':
+    'Размещается планировщиком по заданной выше топологической близости, без собственных ограничений на узлы',
+  'models.form.roles.managed.params.tips':
+    'Аргументы, с которыми запускается движок этой роли. Строки с замком внедряет GPUStack на основе режима PD; ваши собственные добавляются после них.',
+  'models.form.roles.managed.env.tips':
+    'Переменные окружения контейнера этой роли. Строки с замком внедряет GPUStack — это в основном адреса управляющего плана и сетевой интерфейс.',
+  'models.form.roles.managed.mounts.tips':
+    'Пути с хоста, монтируемые в контейнер. Добавлять их может только GPUStack: это файлы хоста, нужные транспорту, которые среда выполнения ускорителя сама не подключает.',
   'models.form.roles.resources': 'Ресурсы',
   'models.form.roles.resources.cpu': 'CPU (ядра)',
   'models.form.roles.resources.memory': 'Память (ГиБ)',
@@ -581,8 +611,6 @@ export default {
   'models.form.roles.router.image.tips':
     'Оставьте пустым, чтобы использовать образ, выведенный из выбранного режима PD. Указывайте только если в этом образе нет исполняемого файла router — команда запуска всё равно выводится автоматически.',
   'models.form.roles.cpuonly': 'Только CPU',
-  'models.form.roles.cpuonly.tips':
-    'Router только пересылает запросы и не хранит веса модели, поэтому GPU не занимает.',
 
   'models.form.gather.title': 'Топологическая аффинность',
   'models.form.gather.title.tips':

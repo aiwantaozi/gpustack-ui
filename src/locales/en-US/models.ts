@@ -432,14 +432,34 @@ export default {
   'models.form.roles.group.backend': 'Engine and image',
   'models.form.roles.group.parameters': 'Parameters and environment',
   'models.form.roles.group.scheduling': 'Resources and scheduling',
+  'models.form.roles.group.backend.tips':
+    "Left alone, the role runs the model's own engine and image.",
+  'models.form.roles.group.scheduling.tips':
+    'Left alone, the scheduler decides which cards this role lands on, using the affinity set above.',
   'models.form.roles.group.cache': 'Shared KV cache',
   'models.form.roles.group.settings': 'Group settings',
   'models.form.roles.group.settings.tips': 'Apply to every role',
   'models.form.roles.group.wide': 'Group-wide',
   'models.form.roles.replicas': 'Replicas',
-  'models.form.roles.router.managed': 'Managed by the system',
   'models.form.roles.router.replicas.tips':
     'The Router runs a single replica in this release.',
+  'models.form.roles.router.routeArgs': 'Route arguments',
+  'models.form.roles.router.routeArgs.tips':
+    'The command line the router process starts with. Locked rows are rendered by GPUStack from where the group landed and cannot be edited.',
+  'models.form.roles.router.band.connection': 'Connection',
+  'models.form.roles.router.band.extra': 'Your own',
+  'models.form.roles.router.tunable.managed':
+    'System defaults; switch to Custom to override',
+  'models.form.roles.router.tunable.custom': 'Left empty, the default is saved',
+  'models.form.roles.router.tunable.default': 'default {value}',
+  'models.form.roles.router.locality':
+    'CPU only; placed automatically, as near this group’s prefill and decode as it fits',
+  'models.form.roles.router.workerAllocation': 'Worker allocation',
+  'models.form.roles.router.workerSelect': 'Worker',
+  'models.form.roles.router.scheduletype.tips':
+    'Auto: among the workers the selector allows, prefer one already running this group’s prefill or decode. Manual: name one worker outright.',
+  'models.form.roles.router.workerSelector.tips':
+    'Narrows the candidates by label. Among those that match, the one nearest this group’s prefill and decode is still preferred.',
   'models.form.roles.router.order.tips':
     'The Router is created after Prefill and Decode are ready.',
   'models.form.roles.router.custom.forced':
@@ -566,9 +586,18 @@ export default {
   'models.form.roles.managed': 'Managed by the system',
   'models.form.roles.managed.tips':
     'Filled in by GPUStack from the PD mode and where the group is scheduled. Read-only, and there is no need to repeat any of it. Values in double braces are placeholders, replaced with the real addresses, ports and NIC at deployment.',
-  'models.form.roles.managed.connector': 'KV connector',
-  'models.form.roles.managed.args': 'Engine arguments',
   'models.form.roles.managed.mounts': 'Host mounts',
+  'models.form.roles.managed.locked':
+    'Locked rows are injected by the system and cannot be edited',
+  'models.form.roles.engine': 'Engine',
+  'models.form.roles.scheduling.managed':
+    'Placed by the scheduler using the affinity set above, with no node constraint of its own',
+  'models.form.roles.managed.params.tips':
+    "The arguments this role's engine starts with. Locked ones are injected by GPUStack from the PD mode; yours are appended after them.",
+  'models.form.roles.managed.env.tips':
+    "Environment variables set on this role's container. Locked ones are injected by GPUStack, mostly control-plane addresses and the NIC to use.",
+  'models.form.roles.managed.mounts.tips':
+    'Host paths bind-mounted into the container. Only GPUStack can add one: these are host files the transport has to read that the accelerator runtime does not bring in by itself.',
   'models.form.roles.resources': 'Resources',
   'models.form.roles.resources.cpu': 'CPU (cores)',
   'models.form.roles.resources.memory': 'Memory (GiB)',
@@ -579,8 +608,6 @@ export default {
   'models.form.roles.router.image.tips':
     'Leave empty to use the image derived from the selected PD mode. Set it only when that image does not contain the router binary — the command is still derived, so naming an image that carries it is the whole change.',
   'models.form.roles.cpuonly': 'CPU only',
-  'models.form.roles.cpuonly.tips':
-    'The router forwards requests and holds no model weights, so it takes no GPU.',
 
   'models.form.gather.title': 'Topology Affinity',
   'models.form.gather.title.tips':

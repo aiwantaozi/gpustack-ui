@@ -1,12 +1,6 @@
-import {
-  AutoTooltip,
-  CheckboxField,
-  InputNumber,
-  LabelSelector
-} from '@gpustack/core-ui';
+import { InputNumber, LabelSelector } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Flex, Form, Input, Segmented, Tooltip } from 'antd';
-import { createStyles } from 'antd-style';
+import { Form, Input, Segmented, Tooltip } from 'antd';
 import React from 'react';
 import { OverrideGroupMap } from '../../config';
 import { PDMode } from '../../config/types';
@@ -14,31 +8,11 @@ import BackendFields from '../backend';
 import BackendParametersList from '../backend-parameters-list';
 import CustomBackend from '../custom-backend';
 import OverrideSection, { RoleSection } from './override-section';
+import RouterScheduling, { RouterResources } from './router-scheduling';
 import RouterTunables from './router-tunables';
-import SystemManaged, { flagLines } from './system-managed';
+import SystemManaged, { flagPairs, useEngineRows } from './system-managed';
 
 const GIB = 1024 ** 3;
-
-const useStyles = createStyles(({ css }) => ({
-  derived: css`
-    font-size: 12px;
-    color: var(--ant-color-text-tertiary);
-    .derived-row {
-      padding-bottom: 8px;
-    }
-    .derived-label {
-      display: inline-block;
-      min-width: 72px;
-      flex-shrink: 0;
-      color: var(--ant-color-text-quaternary);
-    }
-  `,
-  groupTitle: css`
-    font-size: 12px;
-    color: var(--ant-color-text-quaternary);
-    margin-bottom: 4px;
-  `
-}));
 
 const RouterModeMap = {
   Managed: 'managed',
@@ -81,7 +55,6 @@ const RouterForm: React.FC<RouterFormProps> = ({
   managedDisabledReason
 }) => {
   const intl = useIntl();
-  const { styles } = useStyles();
   const form = Form.useFormInstance();
   const managed = Form.useWatch(['roles', index, 'managed'], form);
   const roleImage = Form.useWatch(['roles', index, 'image_name'], form);
@@ -106,27 +79,26 @@ const RouterForm: React.FC<RouterFormProps> = ({
   const entrypoint = (router?.entrypoint || []).join(' ');
   const hasManagedArgs = connectionArgs.length > 0 || tunableArgs.length > 0;
 
-  // What the catalog derives, shown read-only. The peers row has no value yet
-  // by definition — the addresses are injected once the prefill and decode
-  // members exist, which is also why the router is created last.
-  const derived: { label: string; value?: string | null }[] = [
-    {
-      label: intl.formatMessage({ id: 'backend.imageName' }),
-      value: intl.formatMessage({ id: 'models.form.roles.inherit' })
-    },
-    {
-      label: intl.formatMessage({ id: 'models.form.roles.router.entrypoint' }),
-      value: entrypoint
-    },
-    {
-      label: intl.formatMessage({ id: 'models.form.roles.router.peerslabel' }),
-      value: intl.formatMessage({ id: 'models.form.roles.router.peers' })
-    },
-    {
-      label: intl.formatMessage({ id: 'models.form.roles.router.health' }),
-      value: router?.health_path
-    }
-  ];
+  /**
+   * What the managed branch shows for «引擎与镜像»: one row, and the SAME row
+   * prefill and decode show — see `useEngineRows`.
+   *
+   * 🔴 It used to show four — image, entrypoint, peers, health path — on the
+   * theory that a branch whose job is "say what the system decided" should say
+   * all of it. Three of those earned nothing. The peers row had no value *by
+   * definition* (the addresses are injected once the members exist, which is
+   * why the router is created last), so it printed a sentence where a value
+   * goes; the health path is an implementation detail nobody tunes; and the
+   * entrypoint's real content — what makes this container a router rather than
+   * an engine — is now visible as the actual flags under «路由参数 › 连接»,
+   * which is both concrete and the thing a reader would otherwise go looking
+   * for.
+   *
+   * The fourth, the image, then said «与模型相同» where prefill said
+   * «vLLM · 0.23.0-…»: one tab deferring the answer the next tab gave. Both
+   * read the same helper now.
+   */
+  const engineRows = useEngineRows();
 
   // Taking the router over by hand should start from what the system was
   // already going to run, the way every other role's "custom" does — an
@@ -172,9 +144,8 @@ const RouterForm: React.FC<RouterFormProps> = ({
         onChange={handleModeChange}
         options={[
           {
-            label: intl.formatMessage({
-              id: 'models.form.roles.router.managed'
-            }),
+            // Same control, same word as every other role's switch.
+            label: intl.formatMessage({ id: 'models.form.roles.managed' }),
             value: RouterModeMap.Managed,
             disabled: !!managedDisabledReason
           },
@@ -187,45 +158,59 @@ const RouterForm: React.FC<RouterFormProps> = ({
     </Form.Item>
   );
 
-  // The platform's own arguments. Read-only in both branches, but for two
-  // different reasons: collapsed they are the summary of what the system
-  // decided, and expanded they are what the user's own get appended to.
-  const connectionArgsBlock = systemAssembled && (
-    <SystemManaged
-      groups={[
-        {
-          title: intl.formatMessage({
-            id: 'models.form.roles.router.connectionArgs'
-          }),
-          lines: flagLines(connectionArgs)
-        }
-      ]}
-    ></SystemManaged>
+  const lockHint = (
+    <span className="managed-hint">
+      {intl.formatMessage({ id: 'models.form.roles.managed.locked' })}
+    </span>
   );
 
-  // The collapsed view: both halves as text, because "same as the system"
-  // still has to say what the system chose. No header here — the section is
-  // already reading as "what the system decided", and the tunables below are
-  // the half that is NOT read-only, so one "system-managed" label spanning
-  // both would be wrong about the second.
+  const connectionBand = {
+    label: intl.formatMessage({
+      id: 'models.form.roles.router.band.connection'
+    }),
+    rows: flagPairs(connectionArgs)
+  };
+
+  /**
+   * One card, three bands, and the bands are the point.
+   *
+   * Every row here ends up on the same command line, so one list is the honest
+   * shape — but they differ in exactly the way a reader cares about: the
+   * connection flags are rendered from where the group landed and cannot be
+   * argued with, the policy knobs are defaults the user may take over, and the
+   * last band is theirs outright. Three cards would have said they were three
+   * settings; one undivided list would have said the padlocks were arbitrary.
+   */
+  const routeArgsGroup = (bands: any[]) => ({
+    title: intl.formatMessage({ id: 'models.form.roles.router.routeArgs' }),
+    description: intl.formatMessage({
+      id: 'models.form.roles.router.routeArgs.tips'
+    }),
+    titleExtra: lockHint,
+    bands
+  });
+
+  // Collapsed: both halves as read-only rows, because "managed by the system"
+  // still has to say what the system chose.
   const managedArgs = (
     <SystemManaged
-      header={false}
       groups={[
-        {
-          title: intl.formatMessage({
-            id: 'models.form.roles.router.connectionArgs'
-          }),
-          lines: flagLines(connectionArgs)
-        },
-        {
-          title: intl.formatMessage({
-            id: 'models.form.roles.router.tunableArgs'
-          }),
-          lines: tunableArgs.map((arg) =>
-            [arg.flag, arg.default].filter(Boolean).join('=')
-          )
-        }
+        routeArgsGroup([
+          connectionBand,
+          {
+            label: intl.formatMessage({
+              id: 'models.form.roles.router.tunableArgs'
+            }),
+            hint: intl.formatMessage({
+              id: 'models.form.roles.router.tunable.managed'
+            }),
+            rows: tunableArgs.map((arg) => ({
+              kind: 'pair' as const,
+              label: arg.flag,
+              value: arg.default == null ? '' : String(arg.default)
+            }))
+          }
+        ])
       ]}
     ></SystemManaged>
   );
@@ -240,24 +225,26 @@ const RouterForm: React.FC<RouterFormProps> = ({
       <Form.Item name={['roles', index, 'name']} hidden>
         <Input />
       </Form.Item>
-      <RoleSection
-        label={intl.formatMessage({ id: 'models.form.roles.replicas' })}
-        description={intl.formatMessage({
-          id: 'models.form.roles.router.replicas.tips'
-        })}
-      >
-        {/* Fixed at one and disabled: a second router would split the prefix
-            cache and give the group two addresses. */}
-        <Form.Item name={['roles', index, 'replicas']} initialValue={1}>
-          <InputNumber
-            disabled
-            min={1}
-            max={1}
-            style={{ width: '100%' }}
-            label={intl.formatMessage({ id: 'models.form.roles.replicas' })}
-          ></InputNumber>
-        </Form.Item>
-      </RoleSection>
+      {/* 🔴 No `RoleSection` wrapper, the same correction prefill and decode
+          already carry. The card's title sat above a field whose own floating
+          label says the same word, so «副本数» rendered twice, one above the
+          other — and the router's was the last copy still doing it.
+
+          Still fixed at one and disabled: a second router would split the
+          prefix cache and give the group two addresses. The reason rides on
+          the field's own «?» now instead of on the card's. */}
+      <Form.Item name={['roles', index, 'replicas']} initialValue={1}>
+        <InputNumber
+          disabled
+          min={1}
+          max={1}
+          style={{ width: '100%' }}
+          label={intl.formatMessage({ id: 'models.form.roles.replicas' })}
+          description={intl.formatMessage({
+            id: 'models.form.roles.router.replicas.tips'
+          })}
+        ></InputNumber>
+      </Form.Item>
 
       <RoleSection
         label={intl.formatMessage({ id: 'models.form.roles.group.backend' })}
@@ -276,52 +263,16 @@ const RouterForm: React.FC<RouterFormProps> = ({
           <>
             <BackendFields namePrefix={['roles', index]}></BackendFields>
             <CustomBackend namePrefix={['roles', index]}></CustomBackend>
-            {/* Only a hand-written router has a container to place, and it
-                takes no GPU. */}
-            <Form.Item
-              name={['roles', index, 'cpu_only']}
-              valuePropName="checked"
-              style={{ marginBottom: 8 }}
-            >
-              <CheckboxField
-                label={intl.formatMessage({ id: 'models.form.roles.cpuonly' })}
-                description={intl.formatMessage({
-                  id: 'models.form.roles.cpuonly.tips'
-                })}
-              ></CheckboxField>
-            </Form.Item>
+            {/* 🔴 No «CPU only» checkbox. A router takes no accelerator in
+                every branch — the server derives it from the role's name now,
+                not from a flag — so the box had nothing left to decide. It
+                never really did: its unticked state meant "size this proxy
+                from the model's weights", the only sizing that path could
+                reach, which is 164 GiB for a 72B model. The «资源» section
+                below is where a router is sized, in CPU and RAM. */}
           </>
         ) : (
-          <>
-            <div className={styles.derived}>
-              {derived.map((item) => (
-                <Flex key={item.label} className="derived-row" gap={8}>
-                  <span className="derived-label">{item.label}</span>
-                  <AutoTooltip ghost maxWidth="100%">
-                    {item.value || '-'}
-                  </AutoTooltip>
-                </Flex>
-              ))}
-            </div>
-            {/* Shown here rather than hidden, for the same reason the
-                entrypoint and the health path are: this branch's job is to say
-                what the system decided, and a setting that exists on the
-                custom branch and simply disappears on this one reads as a
-                setting that was lost. Disabled and forced on because that is
-                the truth of it — the server derives "takes no accelerator"
-                from the absence of an image and a command, so a managed router
-                never claims a GPU whatever the stored flag says. */}
-            <Form.Item style={{ marginBottom: 12 }}>
-              <CheckboxField
-                checked
-                disabled
-                label={intl.formatMessage({ id: 'models.form.roles.cpuonly' })}
-                description={intl.formatMessage({
-                  id: 'models.form.roles.cpuonly.tips'
-                })}
-              ></CheckboxField>
-            </Form.Item>
-          </>
+          <SystemManaged groups={[{ rows: engineRows }]}></SystemManaged>
         )}
       </RoleSection>
 
@@ -343,101 +294,98 @@ const RouterForm: React.FC<RouterFormProps> = ({
         }
         seedFromModel={false}
       >
-        {connectionArgsBlock}
-        {/* The declared knobs, as controls rather than as text: the flag
-              names are the platform's vocabulary, and making the user retype
-              one to change a routing policy is the part that reads as a
-              missing feature. */}
-        {systemAssembled && tunableArgs.length > 0 && (
-          <div className={styles.groupTitle}>
-            {intl.formatMessage({
-              id: 'models.form.roles.router.tunableArgs'
-            })}
-          </div>
-        )}
-        {systemAssembled && (
-          <RouterTunables
-            args={tunableArgs}
-            namePrefix={['roles', index]}
-          ></RouterTunables>
-        )}
-        {/* Appended after the catalog's, which is what makes "append" and
-              "override" the same gesture: repeated flags are last-wins in both
-              shipped routers, verified against the wheels. The connection
-              arguments above are refused at admission instead — `--prefill`
-              and `--decode` are `action="append"` there, so a second one adds
-              a peer the router cannot reach rather than replacing ours. */}
-        <BackendParametersList
-          namePrefix={['roles', index]}
-        ></BackendParametersList>
-        <Form.Item name={['roles', index, 'env']}>
-          <LabelSelector
-            label={intl.formatMessage({ id: 'models.form.env' })}
-            btnText={intl.formatMessage({ id: 'common.button.vars' })}
-          ></LabelSelector>
-        </Form.Item>
+        <SystemManaged
+          groups={[
+            routeArgsGroup([
+              ...(systemAssembled ? [connectionBand] : []),
+              ...(systemAssembled && tunableArgs.length
+                ? [
+                    {
+                      label: intl.formatMessage({
+                        id: 'models.form.roles.router.tunableArgs'
+                      }),
+                      // 🔴 Says what empty MEANS, which the field cannot. Each
+                      // control's placeholder is the catalog's default, so an
+                      // untouched knob already shows what will run — but a
+                      // reader who wants the default back has to be told that
+                      // clearing the box is how, rather than guessing that it
+                      // saves a zero.
+                      hint: intl.formatMessage({
+                        id: 'models.form.roles.router.tunable.custom'
+                      }),
+                      content: (
+                        <RouterTunables
+                          args={tunableArgs}
+                          namePrefix={['roles', index]}
+                        ></RouterTunables>
+                      )
+                    }
+                  ]
+                : []),
+              {
+                // Appended after the catalog's, which is what makes "append"
+                // and "override" the same gesture: repeated flags are
+                // last-wins in both shipped routers, verified against the
+                // wheels. The connection band above is refused at admission
+                // instead — `--prefill` and `--decode` are `action="append"`
+                // there, so a second one adds a peer the router cannot reach
+                // rather than replacing ours.
+                label: intl.formatMessage({
+                  id: 'models.form.roles.router.band.extra'
+                }),
+                content: (
+                  <BackendParametersList
+                    namePrefix={['roles', index]}
+                  ></BackendParametersList>
+                )
+              }
+            ]),
+            {
+              title: intl.formatMessage({ id: 'models.form.env' }),
+              description: intl.formatMessage({
+                id: 'models.form.roles.managed.env.tips'
+              }),
+              footer: (
+                <Form.Item name={['roles', index, 'env']}>
+                  <LabelSelector
+                    label={intl.formatMessage({ id: 'models.form.env' })}
+                    btnText={intl.formatMessage({ id: 'common.button.vars' })}
+                  ></LabelSelector>
+                </Form.Item>
+              )
+            }
+          ]}
+        ></SystemManaged>
       </OverrideSection>
 
-      {/* A managed router still runs somewhere, so its placement is the one
-          thing left to override even in the managed branch. Its CPU and memory
-          live here too: they are what this container asks for, and the
-          question "how much" belongs next to "placed where". */}
+      {/* 🔴 Sizing and placement in ONE section, and the switch is over the
+          placement half alone.
+          
+          They used to be two cards: «资源» always visible, and a «资源与调度»
+          whose «自定义» branch rendered no children at all — a switch the user
+          could click that had nothing behind it. Merging them is what makes
+          the switch mean something: «系统托管» is «anywhere that fits, as near
+          the group as possible», «自定义» is «and here is my constraint».
+
+          `resources` is not one of the scheduling group's fields, so the
+          switch does not touch CPU and memory — which is why they render in
+          both branches, as a `prefix`. */}
       <OverrideSection
         group={OverrideGroupMap.Scheduling}
         index={index}
-      ></OverrideSection>
-
-      <RoleSection
-        label={intl.formatMessage({ id: 'models.form.roles.resources' })}
-        description={intl.formatMessage({
-          id: 'models.form.roles.resources.tips'
-        })}
+        // Nothing to seed. The three scheduling fields are model-level ones a
+        // PD deployment already cleared, and copying a GPU selector onto a
+        // role that takes no GPU is the one thing this section must not do.
+        seedFromModel={false}
+        prefix={<RouterResources index={index}></RouterResources>}
+        inheritContent={
+          <div className="section-summary">
+            {intl.formatMessage({ id: 'models.form.roles.router.locality' })}
+          </div>
+        }
       >
-        {/* The card is `padding: 12px 12px 0`, so its bottom gap comes from
-            the last child. These two sit side by side with no margin of
-            their own, which left the inputs flush against the border. */}
-        <Flex gap={12} style={{ marginBottom: 12 }}>
-          <Form.Item
-            name={['roles', index, 'resources', 'cpu']}
-            style={{ flex: 1, marginBottom: 0 }}
-          >
-            <InputNumber
-              min={0.1}
-              step={1}
-              style={{ width: '100%' }}
-              // The server's default when left empty, shown the way every
-              // other optional field in this form shows one.
-              placeholder="2"
-              label={intl.formatMessage({
-                id: 'models.form.roles.resources.cpu'
-              })}
-            ></InputNumber>
-          </Form.Item>
-          <Form.Item
-            name={['roles', index, 'resources', 'memory']}
-            style={{ flex: 1, marginBottom: 0 }}
-            // Bytes on the wire, GiB in the field. The API keeps bytes so it
-            // matches every other memory figure in the schema; a user typing
-            // "2147483648" would be the alternative.
-            getValueProps={(value) => ({
-              value: typeof value === 'number' ? value / GIB : value
-            })}
-            normalize={(value) =>
-              typeof value === 'number' ? Math.round(value * GIB) : value
-            }
-          >
-            <InputNumber
-              min={0.5}
-              step={1}
-              style={{ width: '100%' }}
-              placeholder="2"
-              label={intl.formatMessage({
-                id: 'models.form.roles.resources.memory'
-              })}
-            ></InputNumber>
-          </Form.Item>
-        </Flex>
-      </RoleSection>
+        <RouterScheduling index={index}></RouterScheduling>
+      </OverrideSection>
     </>
   );
 };

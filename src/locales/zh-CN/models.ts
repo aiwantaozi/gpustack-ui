@@ -411,13 +411,31 @@ export default {
   'models.form.roles.group.backend': '引擎与镜像',
   'models.form.roles.group.parameters': '引擎参数与环境变量',
   'models.form.roles.group.scheduling': '资源与调度',
+  'models.form.roles.group.backend.tips': '不改就跟随模型的引擎与镜像。',
+  'models.form.roles.group.scheduling.tips':
+    '不改就由调度器按上面的拓扑亲和性决定落在哪些卡上。',
   'models.form.roles.group.cache': '共享 KV 缓存',
   'models.form.roles.group.settings': '组级设置',
   'models.form.roles.group.settings.tips': '对所有角色生效',
   'models.form.roles.group.wide': '组级',
   'models.form.roles.replicas': '副本数',
-  'models.form.roles.router.managed': '由系统托管',
   'models.form.roles.router.replicas.tips': '一期 Router 为单副本。',
+  'models.form.roles.router.routeArgs': '路由参数',
+  'models.form.roles.router.routeArgs.tips':
+    'Router 进程启动时的命令行参数。带锁的由 GPUStack 按组的落点渲染，不可编辑。',
+  'models.form.roles.router.band.connection': '连接',
+  'models.form.roles.router.band.extra': '自定义追加',
+  'models.form.roles.router.tunable.managed': '系统默认值，切到自定义可覆盖',
+  'models.form.roles.router.tunable.custom': '留空按默认值保存',
+  'models.form.roles.router.tunable.default': '默认 {value}',
+  'models.form.roles.router.locality':
+    '仅 CPU，由系统就近 Prefill / Decode 自动选择 Worker',
+  'models.form.roles.router.workerAllocation': 'Worker 分配',
+  'models.form.roles.router.workerSelect': 'Worker 选择器',
+  'models.form.roles.router.scheduletype.tips':
+    '自动：在满足节点选择器的机器里，优先选已经跑着本组 Prefill / Decode 的那台。手动：直接指定一台 Worker。',
+  'models.form.roles.router.workerSelector.tips':
+    '按标签缩小候选范围。仍会在匹配到的机器里优先选离本组 Prefill / Decode 最近的。',
   'models.form.roles.router.order.tips':
     'Router 在 Prefill 与 Decode 就绪后才创建。',
   'models.form.roles.router.custom.forced':
@@ -529,9 +547,17 @@ export default {
   'models.form.roles.managed': '系统托管',
   'models.form.roles.managed.tips':
     '由 GPUStack 按 PD 模式和调度结果自动填入，不可修改，也无需重复填写。双花括号包起来的是占位符，在部署时替换为实际的地址、端口和网卡。',
-  'models.form.roles.managed.connector': 'KV 连接器',
-  'models.form.roles.managed.args': '引擎参数',
   'models.form.roles.managed.mounts': '宿主机挂载',
+  'models.form.roles.managed.locked': '带锁为系统注入，不可编辑',
+  'models.form.roles.engine': '引擎',
+  'models.form.roles.scheduling.managed':
+    '由系统按拓扑亲和性自动调度，不附加节点约束',
+  'models.form.roles.managed.params.tips':
+    '这个角色启动时传给引擎的参数。带锁的由 GPUStack 按 PD 模式注入，你自己加的追加在后面。',
+  'models.form.roles.managed.env.tips':
+    '这个角色容器里的环境变量。带锁的由 GPUStack 注入，多为控制面地址与网卡。',
+  'models.form.roles.managed.mounts.tips':
+    '从宿主机挂进容器的路径。只能由 GPUStack 添加：传输方案需要读的宿主机文件，加速器运行时不会自动带进来。',
   'models.form.roles.resources': '资源',
   'models.form.roles.resources.cpu': 'CPU（核）',
   'models.form.roles.resources.memory': '内存（GiB）',
@@ -542,8 +568,6 @@ export default {
   'models.form.roles.router.image.tips':
     '留空则使用所选 PD 模式推导出的镜像。仅当该镜像不含 router 可执行文件时才需要填写——此时只需换镜像，启动命令仍由系统推导。',
   'models.form.roles.cpuonly': '仅使用 CPU',
-  'models.form.roles.cpuonly.tips':
-    'Router 只转发请求、不持有模型权重，因此不占用 GPU。',
 
   'models.form.gather.title': '拓扑亲和性',
   'models.form.gather.title.tips':

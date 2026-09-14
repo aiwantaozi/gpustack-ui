@@ -4,7 +4,11 @@ import { Flex, Form, Segmented, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import _ from 'lodash';
 import React from 'react';
-import { OverrideGroupFields, OverrideGroupLabelMap } from '../../config';
+import {
+  OverrideGroupFields,
+  OverrideGroupLabelMap,
+  OverrideGroupTipsMap
+} from '../../config';
 
 // A role's sections reuse the bordered card the Scheduled Scaling and GPU
 // Allocation sections already use, with the switch in the title row.
@@ -41,7 +45,11 @@ const OverrideModeMap = {
 // copying them a role switched to custom would open on "Auto" while holding
 // the GPUs it just inherited. The roles transform strips them before submit.
 const GroupUIFields: Record<string, string[]> = {
-  scheduling: ['scheduleType', 'manualGpuMode']
+  // `scheduleWorker` is the router's: a display shim for the one worker its
+  // manual branch pins to, whose real home is `worker_selector`. Listed here
+  // for the same reason the other two are — left behind, it reopens the
+  // section showing a machine the section no longer constrains.
+  scheduling: ['scheduleType', 'manualGpuMode', 'scheduleWorker']
 };
 
 // Flatten a value to the strings worth showing in a one-line summary. Objects
@@ -219,7 +227,14 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
         onChange={handleModeChange}
         options={[
           {
-            label: intl.formatMessage({ id: 'models.form.roles.inherit' }),
+            // 🔴 «系统托管», not «与模型相同». The label was describing where
+            // the value comes from, and for two of the four groups that was
+            // not even true: a role's parameters carry the platform's own
+            // injection on top of the model's, and its placement is decided by
+            // the scheduler rather than copied from anywhere. What the two
+            // options actually differ on is who owns the group — which is also
+            // the question the padlocks below answer.
+            label: intl.formatMessage({ id: 'models.form.roles.managed' }),
             value: OverrideModeMap.Inherit
           },
           {
@@ -252,6 +267,16 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
   return (
     <RoleSection
       label={intl.formatMessage({ id: OverrideGroupLabelMap[group] })}
+      // What «系统托管» means for THIS group. The word is the same on all four
+      // switches but the referent is not — one inherits the model's engine, one
+      // adds the platform's own injection on top of it, one hands the choice to
+      // the scheduler — and a label that reads identically everywhere has to
+      // say somewhere which of those it is.
+      description={
+        OverrideGroupTipsMap[group]
+          ? intl.formatMessage({ id: OverrideGroupTipsMap[group] })
+          : undefined
+      }
       extra={
         disabledReason ? (
           <Tooltip title={disabledReason}>{segmented}</Tooltip>

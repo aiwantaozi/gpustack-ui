@@ -432,14 +432,35 @@ export default {
   'models.form.roles.group.backend': 'Motor ve imaj',
   'models.form.roles.group.parameters': 'Parametreler ve ortam değişkenleri',
   'models.form.roles.group.scheduling': 'Kaynaklar ve zamanlama',
+  'models.form.roles.group.backend.tips':
+    'Değiştirilmezse rol, modelin kendi motorunu ve imajını kullanır.',
+  'models.form.roles.group.scheduling.tips':
+    'Değiştirilmezse zamanlayıcı, yukarıda ayarlanan topoloji yakınlığına göre hangi kartlara yerleşeceğine karar verir.',
   'models.form.roles.group.cache': 'Paylaşılan KV önbelleği',
   'models.form.roles.group.settings': 'Grup ayarları',
   'models.form.roles.group.settings.tips': 'Tüm rollere uygulanır',
   'models.form.roles.group.wide': 'Grup genelinde',
   'models.form.roles.replicas': 'Replikalar',
-  'models.form.roles.router.managed': 'Sistem tarafından yönetilir',
   'models.form.roles.router.replicas.tips':
     'Bu sürümde Router tek replika çalışır.',
+  'models.form.roles.router.routeArgs': 'Yönlendirme argümanları',
+  'models.form.roles.router.routeArgs.tips':
+    'Router sürecinin başlatıldığı komut satırı argümanları. Kilitli satırları GPUStack, grubun yerleştiği yere göre üretir ve düzenlenemez.',
+  'models.form.roles.router.band.connection': 'Bağlantı',
+  'models.form.roles.router.band.extra': 'Kendi eklediğiniz',
+  'models.form.roles.router.tunable.managed':
+    'Sistem varsayılanları; değiştirmek için Özel’e geçin',
+  'models.form.roles.router.tunable.custom':
+    'Boş bırakılırsa varsayılan değer kaydedilir',
+  'models.form.roles.router.tunable.default': 'varsayılan {value}',
+  'models.form.roles.router.locality':
+    'Yalnızca CPU; bu grubun prefill ve decode üyelerine olabildiğince yakın bir Worker’a otomatik yerleştirilir',
+  'models.form.roles.router.workerAllocation': 'Worker ataması',
+  'models.form.roles.router.workerSelect': 'Worker',
+  'models.form.roles.router.scheduletype.tips':
+    'Otomatik: seçicinin izin verdiği makineler arasında, bu grubun prefill veya decode’unu zaten çalıştıran biri tercih edilir. Elle: doğrudan bir Worker belirtin.',
+  'models.form.roles.router.workerSelector.tips':
+    'Adayları etikete göre daraltır. Eşleşenler arasında yine bu grubun prefill ve decode’una en yakın olan tercih edilir.',
   'models.form.roles.router.order.tips':
     'Router, Prefill ve Decode hazır olduktan sonra oluşturulur.',
   'models.form.roles.router.custom.forced':
@@ -564,9 +585,18 @@ export default {
   'models.form.roles.managed': 'Sistem tarafından yönetilir',
   'models.form.roles.managed.tips':
     'GPUStack tarafından PD moduna ve grubun zamanlandığı yere göre doldurulur. Salt okunurdur ve bunların hiçbirini yeniden belirtmeniz gerekmez. Çift süslü parantez içindeki değerler yer tutucudur; dağıtım sırasında gerçek adresler, portlar ve ağ arayüzü ile değiştirilir.',
-  'models.form.roles.managed.connector': 'KV bağlayıcı',
-  'models.form.roles.managed.args': 'Motor argümanları',
   'models.form.roles.managed.mounts': 'Ana makine bağlamaları',
+  'models.form.roles.managed.locked':
+    'Kilitli satırlar sistem tarafından eklenir ve düzenlenemez',
+  'models.form.roles.engine': 'Motor',
+  'models.form.roles.scheduling.managed':
+    'Yukarıda ayarlanan topoloji yakınlığına göre sistem tarafından yerleştirilir; ayrıca düğüm kısıtı uygulanmaz',
+  'models.form.roles.managed.params.tips':
+    'Bu rolün motorunun başlatıldığı argümanlar. Kilitli olanları GPUStack, PD moduna göre ekler; sizinkiler bunların ardına eklenir.',
+  'models.form.roles.managed.env.tips':
+    'Bu rolün kapsayıcısına ayarlanan ortam değişkenleri. Kilitli olanları GPUStack ekler; çoğu denetim düzlemi adresleri ve kullanılacak ağ arayüzüdür.',
+  'models.form.roles.managed.mounts.tips':
+    'Ana makineden kapsayıcıya bağlanan yollar. Yalnızca GPUStack ekleyebilir: bunlar aktarımın okuması gereken, hızlandırıcı çalışma zamanının kendiliğinden getirmediği ana makine dosyalarıdır.',
   'models.form.roles.resources': 'Kaynaklar',
   'models.form.roles.resources.cpu': 'CPU (çekirdek)',
   'models.form.roles.resources.memory': 'Bellek (GiB)',
@@ -577,8 +607,6 @@ export default {
   'models.form.roles.router.image.tips':
     'Seçilen PD modundan türetilen görüntüyü kullanmak için boş bırakın. Yalnızca o görüntüde router çalıştırılabiliri yoksa doldurun — başlatma komutu yine türetilir.',
   'models.form.roles.cpuonly': 'Yalnızca CPU',
-  'models.form.roles.cpuonly.tips':
-    'Router yalnızca istekleri iletir ve model ağırlığı tutmaz, bu yüzden GPU kullanmaz.',
 
   'models.form.gather.title': 'Topoloji Yakınlığı',
   'models.form.gather.title.tips':

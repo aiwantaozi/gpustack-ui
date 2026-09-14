@@ -178,14 +178,13 @@ const roleFormToPayload = (role: RoleFormItem): RoleSpec => {
     });
   });
 
-  // Carried for every router, not only the hand-written one. The checkbox is
-  // rendered on the custom branch alone, and emitting the field only where it
-  // is rendered meant a managed router's stored value vanished the first time
-  // anyone opened the drawer and pressed Save -- a value the form could
-  // neither show nor keep. What the user configured has to survive an edit
-  // that never touched it, so the stored flag rides through untouched.
+  // 🔴 No `cpu_only` here any more, and nothing replaces it: the server reads
+  // "this role takes no accelerator" off the role's NAME. There used to be a
+  // careful dance keeping the stored flag alive across an edit that never
+  // touched it, because the checkbox rendered on one branch only — all of it
+  // in service of a value whose one non-default setting had no correct
+  // implementation.
   if (isRouter) {
-    payload.cpu_only = !!role.cpu_only;
     // Role-own, so it is not in any override group and the loop above never
     // reaches it — and this transform is total by construction, which means a
     // field nobody adds here is a field that silently never leaves the form.

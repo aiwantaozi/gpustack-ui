@@ -433,14 +433,35 @@ export default {
   'models.form.roles.group.backend': 'エンジンとイメージ',
   'models.form.roles.group.parameters': 'エンジンパラメータと環境変数',
   'models.form.roles.group.scheduling': 'リソースとスケジューリング',
+  'models.form.roles.group.backend.tips':
+    '変更しなければモデルのエンジンとイメージに従います。',
+  'models.form.roles.group.scheduling.tips':
+    '変更しなければ、上で設定したトポロジ親和性に従ってスケジューラが配置先のカードを決めます。',
   'models.form.roles.group.cache': '共有 KV キャッシュ',
   'models.form.roles.group.settings': 'グループ設定',
   'models.form.roles.group.settings.tips': 'すべてのロールに適用',
   'models.form.roles.group.wide': 'グループ全体',
   'models.form.roles.replicas': 'レプリカ数',
-  'models.form.roles.router.managed': 'システム管理',
   'models.form.roles.router.replicas.tips':
     '本リリースの Router はシングルレプリカです。',
+  'models.form.roles.router.routeArgs': 'ルーティング引数',
+  'models.form.roles.router.routeArgs.tips':
+    'Router プロセスの起動コマンドライン引数です。鍵付きはグループの配置先から GPUStack が生成するもので、編集できません。',
+  'models.form.roles.router.band.connection': '接続',
+  'models.form.roles.router.band.extra': 'ユーザー追加',
+  'models.form.roles.router.tunable.managed':
+    'システム既定値。カスタムに切り替えると上書きできます',
+  'models.form.roles.router.tunable.custom':
+    '空のままにすると既定値で保存されます',
+  'models.form.roles.router.tunable.default': '既定 {value}',
+  'models.form.roles.router.locality':
+    'CPU のみ。このグループの Prefill / Decode になるべく近い Worker にシステムが自動配置します',
+  'models.form.roles.router.workerAllocation': 'Worker 割り当て',
+  'models.form.roles.router.workerSelect': 'Worker セレクター',
+  'models.form.roles.router.scheduletype.tips':
+    '自動：セレクターを満たすマシンのうち、このグループの Prefill / Decode が動いているものを優先します。手動：Worker を直接指定します。',
+  'models.form.roles.router.workerSelector.tips':
+    'ラベルで候補を絞り込みます。一致したマシンの中では、引き続きこのグループの Prefill / Decode に最も近いものが優先されます。',
   'models.form.roles.router.order.tips':
     'Router は Prefill と Decode が準備できた後に作成されます。',
   'models.form.roles.router.custom.forced':
@@ -564,9 +585,18 @@ export default {
   'models.form.roles.managed': 'システム管理',
   'models.form.roles.managed.tips':
     'PD モードとグループのスケジュール先から GPUStack が自動生成します。読み取り専用で、同じ内容を再度指定する必要はありません。二重波括弧の値はプレースホルダーで、デプロイ時に実際のアドレス・ポート・NIC に置き換わります。',
-  'models.form.roles.managed.connector': 'KV コネクタ',
-  'models.form.roles.managed.args': 'エンジン引数',
   'models.form.roles.managed.mounts': 'ホストマウント',
+  'models.form.roles.managed.locked':
+    '鍵付きはシステムが注入する項目で、編集できません',
+  'models.form.roles.engine': 'エンジン',
+  'models.form.roles.scheduling.managed':
+    '上で設定したトポロジ親和性に従ってシステムが自動的に配置します。ノード制約は追加されません',
+  'models.form.roles.managed.params.tips':
+    'このロールのエンジンに渡される引数です。鍵付きは PD モードに基づいて GPUStack が注入し、自分で追加したものはその後ろに続きます。',
+  'models.form.roles.managed.env.tips':
+    'このロールのコンテナに設定される環境変数です。鍵付きは GPUStack が注入するもので、多くは制御プレーンのアドレスと NIC です。',
+  'models.form.roles.managed.mounts.tips':
+    'ホストからコンテナにバインドマウントされるパスです。追加できるのは GPUStack だけです。転送方式が読む必要のあるホストファイルで、アクセラレータランタイムは自動では取り込みません。',
   'models.form.roles.resources': 'リソース',
   'models.form.roles.resources.cpu': 'CPU（コア）',
   'models.form.roles.resources.memory': 'メモリ（GiB）',
@@ -577,8 +607,6 @@ export default {
   'models.form.roles.router.image.tips':
     '空欄の場合は選択した PD モードから導出されたイメージを使用します。そのイメージに router の実行ファイルが含まれていない場合にのみ指定してください。起動コマンドは引き続き自動導出されます。',
   'models.form.roles.cpuonly': 'CPU のみ',
-  'models.form.roles.cpuonly.tips':
-    'Router はリクエストを転送するだけでモデルの重みを保持しないため、GPU を使用しません。',
 
   'models.form.gather.title': 'トポロジー親和性',
   'models.form.gather.title.tips':

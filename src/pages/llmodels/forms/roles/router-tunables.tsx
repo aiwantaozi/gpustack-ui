@@ -24,6 +24,15 @@ const useStyles = createStyles(({ css }) => ({
       flex: 1;
       min-width: 0;
     }
+    /* What the catalog ships, beside the control rather than inside it. The
+       placeholder already shows the default, but a placeholder disappears the
+       moment anything is typed — and "what was it before I touched this" is
+       exactly the question someone reverting a knob is asking. */
+    .tunable-default {
+      flex: 0 0 auto;
+      font-size: 12px;
+      color: var(--ant-color-text-quaternary);
+    }
   `
 }));
 
@@ -114,6 +123,14 @@ const RouterTunables: React.FC<RouterTunablesProps> = ({
                 />
               )}
             </div>
+            {arg.default != null && arg.default !== '' && (
+              <span className="tunable-default">
+                {intl.formatMessage(
+                  { id: 'models.form.roles.router.tunable.default' },
+                  { value: arg.default }
+                )}
+              </span>
+            )}
           </Flex>
         );
       })}

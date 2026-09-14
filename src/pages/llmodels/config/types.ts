@@ -261,7 +261,6 @@ export interface RoleSpec {
   gpu_type_selector?: GPUTypeSelector | null;
   extended_kv_cache?: Record<string, any> | null;
   dependencies?: string[] | null;
-  cpu_only?: boolean;
   // Router only, and role-own rather than an override: there is no
   // Model-level counterpart to inherit from, because prefill and decode get
   // their footprint from sizing. Left empty the router still gets a floor.

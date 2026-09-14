@@ -664,6 +664,15 @@ export const OverrideGroupLabelMap = {
 // Which RoleSpec fields each override group owns. Nulling a group means
 // nulling exactly these, so the mapping lives in one place rather than being
 // spelled out at each submit path.
+// What «系统托管» means for each group. Separate from the label map because
+// only three of the four have anything to explain — the cache group's switch is
+// a plain on/off and a tooltip there would be padding.
+export const OverrideGroupTipsMap: Record<string, string> = {
+  [OverrideGroupMap.Backend]: 'models.form.roles.group.backend.tips',
+  [OverrideGroupMap.Parameters]: 'models.form.roles.managed.tips',
+  [OverrideGroupMap.Scheduling]: 'models.form.roles.group.scheduling.tips'
+};
+
 export const OverrideGroupFields: Record<string, string[]> = {
   [OverrideGroupMap.Backend]: [
     'backend',

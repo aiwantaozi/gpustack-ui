@@ -11,7 +11,11 @@ import ScheduleTypeForm from '../schedule-type';
 import SpeculativeDecode from '../speculative-decode';
 import OverrideSection from './override-section';
 import RoleKVCache from './role-kv-cache';
-import SystemManaged, { flagLines, kvLines } from './system-managed';
+import SystemManaged, {
+  LockedRow,
+  flagLines,
+  useEngineRows
+} from './system-managed';
 
 interface RoleFormProps {
   /** The role's index in `roles`. */
@@ -38,13 +42,24 @@ const RoleForm: React.FC<RoleFormProps> = ({
   injection
 }) => {
   const intl = useIntl();
+  const form = Form.useFormInstance();
   const { getRuleMessage } = useAppUtils();
 
-  // What the mode writes into this role, as the engine will see it. Grouped by
-  // the route each one arrives by, because a reader debugging one needs to know
-  // which: the connector descriptor becomes a single `--kv-transfer-config`
-  // blob, the args are appended to the command line, the env is set on the
-  // container, and the host mounts are bind-mounts only the platform can add.
+  // What the mode writes into this role, grouped by the field of the form the
+  // user would otherwise have typed it into — NOT by the route it arrives by.
+  //
+  // 🔴 That is the change. These used to be four blocks named after the
+  // mechanism («KV 连接器», «引擎参数», «环境变量», «宿主机挂载») sitting above
+  // an unrelated pair of inputs, so the same concept appeared twice under two
+  // different names and nothing said the two lists were one list. Now the
+  // injected backend parameters sit under «后端参数» and the injected env under
+  // «环境变量», directly above the user's own — which is how the engine
+  // receives them.
+  //
+  // The connector is one row, not a flattened key tree: it reaches the engine
+  // as a single `--kv-transfer-config` JSON blob, and showing it as
+  // `kv_connector=…` plus six dotted siblings invited the reader to look for
+  // six flags that do not exist.
   //
   // Port bands are deliberately not a group of their own. Every band is
   // referenced by an arg or an env entry as `{{ports.<name>}}`, which is where
@@ -54,26 +69,92 @@ const RoleForm: React.FC<RoleFormProps> = ({
   // either way — `_pd_injection()` keys off the role alone — so a block that
   // disappeared on "custom" would say the user had taken these over, and the
   // first thing they would do is re-add flags the engine already has.
+  const connector = injection?.connector || {};
+  const paramRows: LockedRow[] = [
+    ...(Object.keys(connector).length
+      ? [
+          {
+            kind: 'flag' as const,
+            text: '--kv-transfer-config',
+            detail: JSON.stringify(connector)
+          }
+        ]
+      : []),
+    ...flagLines(injection?.args || []).map((text) => ({
+      kind: 'flag' as const,
+      text
+    }))
+  ];
+
+  const lockHint = (
+    <span className="managed-hint">
+      {intl.formatMessage({ id: 'models.form.roles.managed.locked' })}
+    </span>
+  );
+
+  // Which half of the group the user owns. Watched here as well as inside
+  // `OverrideSection` because the editable lists no longer live in that
+  // section's children — they are footers of the cards below, so this is where
+  // "does the user get one" has to be answered.
+  const overridden = Form.useWatch(
+    ['roles', index, 'overrides', OverrideGroupMap.Parameters],
+    form
+  );
+
   const managedGroups = [
     {
-      title: intl.formatMessage({ id: 'models.form.roles.managed.connector' }),
-      lines: kvLines(injection?.connector || {})
-    },
-    {
-      title: intl.formatMessage({ id: 'models.form.roles.managed.args' }),
-      lines: flagLines(injection?.args || [])
+      title: intl.formatMessage({ id: 'models.form.backend_parameters' }),
+      description: intl.formatMessage({
+        id: 'models.form.roles.managed.params.tips'
+      }),
+      titleExtra: lockHint,
+      rows: paramRows,
+      footer: overridden ? (
+        /* Measured on Ascend 910B2: prefill and decode differ in nearly every
+           performance-related parameter, down to HCCL_CONNECT_TIMEOUT and
+           HCCL_BUFFSIZE — which is why the override surface is the whole of
+           both lists rather than a PD-specific subset. */
+        <BackendParametersList
+          namePrefix={['roles', index]}
+        ></BackendParametersList>
+      ) : null
     },
     {
       title: intl.formatMessage({ id: 'models.form.env' }),
-      lines: Object.entries(injection?.env || {}).map(
-        ([key, value]) => `${key}=${value}`
-      )
+      description: intl.formatMessage({
+        id: 'models.form.roles.managed.env.tips'
+      }),
+      rows: Object.entries(injection?.env || {}).map(([key, value]) => ({
+        kind: 'pair' as const,
+        label: key,
+        value: String(value)
+      })),
+      footer: overridden ? (
+        <Form.Item name={['roles', index, 'env']}>
+          <LabelSelector
+            label={intl.formatMessage({ id: 'models.form.env' })}
+            btnText={intl.formatMessage({ id: 'common.button.vars' })}
+          ></LabelSelector>
+        </Form.Item>
+      ) : null
     },
     {
+      // A group like the other two, and with no footer in either branch: a
+      // bind-mount is the one thing here the platform cannot let the user add.
+      // The rows carry the path alone — a «宿主机挂载» label on a row inside a
+      // «宿主机挂载» card is the word twice.
       title: intl.formatMessage({ id: 'models.form.roles.managed.mounts' }),
-      lines: injection?.host_mounts || []
+      description: intl.formatMessage({
+        id: 'models.form.roles.managed.mounts.tips'
+      }),
+      rows: (injection?.host_mounts || []).map((path) => ({
+        kind: 'flag' as const,
+        text: path
+      }))
     }
   ];
+
+  const engineRows = useEngineRows();
 
   return (
     <>
@@ -113,35 +194,53 @@ const RoleForm: React.FC<RoleFormProps> = ({
         ></InputNumber>
       </Form.Item>
 
-      <OverrideSection group={OverrideGroupMap.Backend} index={index}>
+      {/* 🔴 Named, not summarized. This used to collapse to «继承: vLLM 0.23.0
+          <image> <command>» — a run-on of four fields where only the first two
+          answer the question the section asks, and the engine's own name was
+          buried in the middle of it. One labelled row instead. */}
+      <OverrideSection
+        group={OverrideGroupMap.Backend}
+        index={index}
+        inheritContent={
+          <SystemManaged groups={[{ rows: engineRows }]}></SystemManaged>
+        }
+      >
         <BackendFields namePrefix={['roles', index]}></BackendFields>
         <CustomBackend namePrefix={['roles', index]}></CustomBackend>
       </OverrideSection>
 
+      {/* `inheritContent={null}` rather than the derived summary: the prefix
+          above already lists what runs, row by row and in the engine's own
+          vocabulary. A second line reading «继承: …» under it would be the same
+          facts a third time, in the shape the rows were built to replace. */}
       <OverrideSection
         group={OverrideGroupMap.Parameters}
         index={index}
+        inheritContent={null}
         prefix={<SystemManaged groups={managedGroups}></SystemManaged>}
       >
-        {/* Measured on Ascend 910B2: prefill and decode differ in nearly every
-            performance-related parameter, down to HCCL_CONNECT_TIMEOUT and
-            HCCL_BUFFSIZE — which is why the override surface is the whole of
-            both lists rather than a PD-specific subset. */}
-        <BackendParametersList
-          namePrefix={['roles', index]}
-        ></BackendParametersList>
-        <Form.Item name={['roles', index, 'env']}>
-          <LabelSelector
-            label={intl.formatMessage({ id: 'models.form.env' })}
-            btnText={intl.formatMessage({ id: 'common.button.vars' })}
-          ></LabelSelector>
-        </Form.Item>
+        {/* Nothing. Both editable lists are footers of the group cards in
+            `prefix` above — they have to be, because each one belongs under
+            the heading its locked rows already sit under. */}
       </OverrideSection>
 
       {/* `gpu_type_selector` lives in here, and it is the only way to express a
           heterogeneous group — which is also the precondition for gang
-          admission, so this group is load-bearing rather than a convenience. */}
-      <OverrideSection group={OverrideGroupMap.Scheduling} index={index}>
+          admission, so this group is load-bearing rather than a convenience.
+
+          Managed says what the system will do, not what it inherited: with no
+          selectors set there is nothing to inherit, and the old summary printed
+          «继承: -» — a dash where the answer «the scheduler picks, using the
+          affinity you set above» belonged. */}
+      <OverrideSection
+        group={OverrideGroupMap.Scheduling}
+        index={index}
+        inheritContent={
+          <div className="section-summary">
+            {intl.formatMessage({ id: 'models.form.roles.scheduling.managed' })}
+          </div>
+        }
+      >
         <ScheduleTypeForm namePrefix={['roles', index]}></ScheduleTypeForm>
       </OverrideSection>
 

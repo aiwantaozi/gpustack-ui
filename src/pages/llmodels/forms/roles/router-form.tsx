@@ -164,6 +164,34 @@ const RouterForm: React.FC<RouterFormProps> = ({
     }
   ];
 
+  // Taking the router over by hand should start from what the system was
+  // already going to run, the way every other role's "custom" does — an
+  // OverrideSection seeds the group from the Model on the same gesture. This
+  // switch is hand-rolled (managed/custom is not an inherit/override pair), so
+  // the seeding has to be too, and without it the required Backend field
+  // opened blank on a form whose Model already answers that question.
+  //
+  // `run_command` is deliberately NOT seeded, unlike the other roles': the
+  // Model's command starts an ENGINE, and copying it here would produce a
+  // router that runs one. What a managed router derives is the runner image
+  // plus its own entrypoint, so the image and the two fields that resolve it
+  // are the ones worth carrying over.
+  const handleModeChange = (value: string | number) => {
+    const custom = value === RouterModeMap.Custom;
+    ['backend', 'backend_version', 'image_name'].forEach((field) => {
+      form.setFieldValue(
+        ['roles', index, field],
+        custom ? form.getFieldValue(field) : null
+      );
+    });
+    if (!custom) {
+      // Null rather than left behind: `managed` is derived back from the
+      // absence of an image and a command when the form reloads, so a
+      // leftover command would reopen the role on the custom branch.
+      form.setFieldValue(['roles', index, 'run_command'], null);
+    }
+  };
+
   const modeSwitch = (
     <Form.Item
       noStyle
@@ -177,6 +205,7 @@ const RouterForm: React.FC<RouterFormProps> = ({
         size="middle"
         type="rounded"
         style={{ fontSize: 12 }}
+        onChange={handleModeChange}
         options={[
           {
             label: intl.formatMessage({
@@ -427,6 +456,9 @@ const RouterForm: React.FC<RouterFormProps> = ({
               min={0.1}
               step={1}
               style={{ width: '100%' }}
+              // The server's default when left empty, shown the way every
+              // other optional field in this form shows one.
+              placeholder="2"
               label={intl.formatMessage({
                 id: 'models.form.roles.resources.cpu'
               })}
@@ -449,6 +481,7 @@ const RouterForm: React.FC<RouterFormProps> = ({
               min={0.5}
               step={1}
               style={{ width: '100%' }}
+              placeholder="2"
               label={intl.formatMessage({
                 id: 'models.form.roles.resources.memory'
               })}

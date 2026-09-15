@@ -452,7 +452,6 @@ export default {
   'models.form.speculativeDecoding': '推测解码',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': '各角色状态',
-  'models.pd.role.waiting': '等待中',
   'models.pd.degraded.cache': '共享 KV 缓存未接上，组在无缓存的情况下服务。',
   'models.pd.degraded.ratio': '就绪成员少于请求数量，当前以降低的容量服务。',
   'models.form.roles.override.empty':

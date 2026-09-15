@@ -1,4 +1,10 @@
-import { RoleLabelMap, RoleOrder, RoleValueMap } from '../../config';
+import {
+  InstanceStatusMap,
+  InstanceStatusMapValue,
+  RoleLabelMap,
+  RoleOrder,
+  RoleValueMap
+} from '../../config';
 import { RoleSpec, RoleStatus } from '../../config/types';
 
 // Only what these helpers actually call, so they stay pure and testable and do
@@ -53,6 +59,88 @@ export const orderedRoleStatus = (
 /** A role short of the members it was asked for. */
 export const isRoleWaiting = (item: RoleStatusItem) =>
   item.ready < item.desired;
+
+/**
+ * How far along the lifecycle a member is, lowest first.
+ *
+ * Used to pick which of a role's unready members speaks for the role: the
+ * least advanced one does, because the role is ready only once all of them
+ * are, so the slowest member is what the role is actually waiting on.
+ */
+const LIFECYCLE_ORDER = [
+  InstanceStatusMap.Pending,
+  InstanceStatusMap.Analyzing,
+  InstanceStatusMap.Scheduled,
+  InstanceStatusMap.Initializing,
+  InstanceStatusMap.Downloading,
+  InstanceStatusMap.Starting
+];
+
+/** States that will not advance on their own, so they outrank the order above. */
+const STUCK = [InstanceStatusMap.Error, InstanceStatusMap.Unreachable];
+
+interface RoleInstanceLike {
+  role?: string | null;
+  state?: string | null;
+}
+
+/**
+ * What a role short of its members is doing, in the exact words the expanded
+ * row uses for the members themselves.
+ *
+ * 🔴 **Why this exists.** `role_status` carries `{desired, ready}` and nothing
+ * else, so `ready < desired` was the only thing the tooltip could say — and it
+ * said «Waiting» for a member that was busy starting. Two rows apart, the same
+ * member read «Waiting» above and «Starting» below, which reads as a bug and
+ * points at the wrong problem: «Waiting» suggests it is stuck in scheduling.
+ *
+ * Falls back to `Pending` in the two cases where the members cannot answer,
+ * and that is the honest word for both rather than a third vocabulary:
+ *
+ * - **The role has no members yet.** Its rows have not been created — a
+ *   router waits for prefill and decode to be ready before it exists at all —
+ *   and `pending` is the state those rows will be created in.
+ * - **No instances loaded.** The list response carries none, so a collapsed
+ *   row genuinely does not know. See the caller for the consequence.
+ *
+ * Reuses `InstanceStatusMapValue`, the same map `instance-status-cell` renders
+ * from. Sharing the map rather than the wording is the point: the two cannot
+ * drift into different spellings of one state.
+ */
+export const roleInstanceState = (
+  name: string,
+  instances?: RoleInstanceLike[] | null
+): string => {
+  const pending = InstanceStatusMapValue[InstanceStatusMap.Pending];
+  if (!instances?.length) {
+    return pending;
+  }
+  const unready = instances.filter(
+    (item) => item.role === name && item.state !== InstanceStatusMap.Running
+  );
+  if (!unready.length) {
+    return pending;
+  }
+
+  const stuck = unready.find(
+    (item) => item.state && STUCK.includes(item.state)
+  );
+  const speaker =
+    stuck ??
+    unready.reduce((slowest, item) => {
+      const rank = (entry: RoleInstanceLike) => {
+        const index = LIFECYCLE_ORDER.indexOf(entry.state || '');
+        // An unknown state sorts last rather than first: it is not evidence
+        // that the role is further behind than a member we can place.
+        return index === -1 ? LIFECYCLE_ORDER.length : index;
+      };
+      return rank(item) < rank(slowest) ? item : slowest;
+    });
+
+  return speaker.state
+    ? (InstanceStatusMapValue[speaker.state] ?? speaker.state)
+    : pending;
+};
 
 export interface RoleRatio {
   configured: string;

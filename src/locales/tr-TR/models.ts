@@ -477,7 +477,6 @@ export default {
   'models.form.speculativeDecoding': 'Speculative Decoding',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'Rol başına durum',
-  'models.pd.role.waiting': 'Bekliyor',
   'models.pd.degraded.cache':
     'Paylaşılan KV önbelleği bağlanmadı; grup onsuz hizmet veriyor.',
   'models.pd.degraded.ratio':

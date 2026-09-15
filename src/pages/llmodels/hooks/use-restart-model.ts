@@ -6,15 +6,20 @@ import { modelReplicaCounts } from '../config';
 import { ListItem } from '../config/types';
 
 /**
- * "Make the current configuration take effect", as an action on a model row.
+ * "Restart this deployment", as an action on a model row.
  *
  * Three outcomes and three different sentences, only one of which is a failure.
- * The endpoint is idempotent on the target spec, so a model already running it
- * answers 200 with `restarted: false` — reporting that in red would teach
- * people the button is broken when in fact there was nothing to do. A 409 is
- * the other non-failure: a restart is mid-flight and a second teardown would
- * delete the replacements the first one just created, so it is a "wait", not a
- * fault.
+ *
+ * 🔴 `restarted: false` used to mean "already on the current spec, nothing to
+ * do" — the endpoint short-circuited on a converged group. It no longer does,
+ * because only a group's members carry a `spec_digest`, so that check made the
+ * same menu entry rebuild a role-less deployment while doing nothing to a PD
+ * group. Now the only way back with `restarted: false` is a deployment with no
+ * instances at all, which is why the fallback wording says exactly that.
+ *
+ * A 409 is the other non-failure: a restart is mid-flight and a second
+ * teardown would delete the replacements the first one just created, so it is
+ * a "wait", not a fault.
  */
 const useRestartModel = (options?: { onSuccess?: (row: ListItem) => void }) => {
   const intl = useIntl();

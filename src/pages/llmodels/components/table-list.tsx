@@ -214,6 +214,16 @@ const Models: React.FC<ModelsProps> = ({
     }
   });
 
+  // Per-role scaling from the replica cell. Same PUT as every other edit on
+  // this page — the server converges role by role rather than restarting the
+  // group, because `replicas` is excluded from the spec digest.
+  const handleUpdateRoles = useMemoizedFn(
+    async (record: ListItem, roles: any[]) => {
+      await updateModel(getFormattedData(record, { roles }));
+      message.success(intl.formatMessage({ id: 'common.message.success' }));
+    }
+  );
+
   const handleStartModel = async (row: ListItem) => {
     await updateModel(getFormattedData(row, { replicas: row.replicas || 1 }));
   };
@@ -450,10 +460,49 @@ const Models: React.FC<ModelsProps> = ({
     }
   );
 
+  // Members of the rows the user has expanded, so the replica tooltip in the
+  // collapsed row above can say what a short role is doing rather than a flat
+  // «Waiting». `SealTable` owns this data and exposes it only to
+  // `renderChildren`, so `Instances` reports it back up (see its
+  // `onInstancesChange`).
+  //
+  // ⚠️ Keyed by model and never pruned on collapse. Keeping a closed row's
+  // last known members is the lesser evil: dropping them would make the
+  // tooltip flip back to «Waiting» the moment the row closes, and they are a
+  // few rows per expanded model.
+  const [instancesByModel, setInstancesByModel] = useState<
+    Record<number, any[]>
+  >({});
+
+  const handleInstancesChange = useMemoizedFn(
+    (modelId: number, list: any[]) => {
+      setInstancesByModel((prev) => {
+        // 🔴 Compared by content, not by reference. The reporting effect is
+        // keyed on `list`, and the table is free to hand `renderChildren` a
+        // fresh array on every render — with a reference check that is
+        // set-state -> render -> new array -> set-state, a loop. Returning
+        // `prev` unchanged makes React bail out instead.
+        //
+        // Only the two fields the tooltip reads: a progress percentage
+        // ticking on a downloading member would otherwise re-render the
+        // whole table for a number no tooltip shows.
+        const previous = prev[modelId];
+        const same =
+          previous?.length === list.length &&
+          previous.every(
+            (item, index) =>
+              item.id === list[index]?.id && item.state === list[index]?.state
+          );
+        return same ? prev : { ...prev, [modelId]: list };
+      });
+    }
+  );
+
   const renderChildren = useCallback(
     (list: any, options: { parent?: any; [key: string]: any }) => {
       return (
         <Instances
+          onInstancesChange={handleInstancesChange}
           list={list}
           currentExpanded={options.currentExpanded}
           modelData={options.parent}
@@ -534,9 +583,18 @@ const Models: React.FC<ModelsProps> = ({
       handleSelect,
       clusterList,
       sortOrder,
-      targetList: targetList
+      targetList: targetList,
+      onUpdateRoles: handleUpdateRoles,
+      instancesByModel
     };
-  }, [handleSelect, clusterList, sortOrder, targetList]);
+  }, [
+    handleSelect,
+    clusterList,
+    sortOrder,
+    targetList,
+    handleUpdateRoles,
+    instancesByModel
+  ]);
 
   const columns = useModelsColumns(options);
 

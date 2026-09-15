@@ -476,7 +476,6 @@ export default {
   'models.form.speculativeDecoding': 'Speculative Decoding',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'Per-role status',
-  'models.pd.role.waiting': 'Waiting',
   'models.pd.degraded.cache':
     'The shared KV cache was not attached; the group is serving without it.',
   'models.pd.degraded.ratio':

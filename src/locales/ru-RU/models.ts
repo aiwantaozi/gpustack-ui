@@ -481,7 +481,6 @@ export default {
   'models.form.speculativeDecoding': 'Speculative Decoding',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'Состояние по ролям',
-  'models.pd.role.waiting': 'Ожидание',
   'models.pd.degraded.cache':
     'Общий кэш KV не подключён; группа работает без него.',
   'models.pd.degraded.ratio':

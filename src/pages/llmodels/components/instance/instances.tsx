@@ -4,7 +4,6 @@ import React, { useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { ModelInstanceListItem } from '../../config/types';
 import '../../style/instance-item.less';
-import GroupSummary from '../pd/group-summary';
 import RoleGroupHeader from '../pd/role-group-header';
 import { orderedRoleStatus } from '../pd/role-status';
 import InstanceItem from './instance-item';
@@ -24,6 +23,16 @@ interface InstanceItemProps {
   prefixWidth?: number;
   columns?: any[];
   handleChildSelect: (val: string, item: ModelInstanceListItem) => void;
+  /**
+   * Hands the loaded members back up so the collapsed row above can use them.
+   *
+   * The table owns this data and does not expose it — `renderChildren` is the
+   * only place it surfaces, and it has no change callback. The replica cell
+   * lives in a column, two levels away, and would otherwise have nothing but
+   * `role_status` to render a state from. Reporting it from here is the only
+   * seam that exists.
+   */
+  onInstancesChange?: (modelId: number, list: ModelInstanceListItem[]) => void;
 }
 
 const Instances: React.FC<InstanceItemProps> = ({
@@ -34,9 +43,24 @@ const Instances: React.FC<InstanceItemProps> = ({
   gridTemplate,
   prefixWidth,
   columns,
-  handleChildSelect
+  handleChildSelect,
+  onInstancesChange
 }) => {
   const [firstLoad, setFirstLoad] = React.useState(true);
+  // Which role groups the user has folded away. Every group starts open: the
+  // expanded row was opened to see the members, so opening it onto a column of
+  // headings would answer nothing.
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set());
+
+  const toggleRole = (name: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(name)) {
+        next.add(name);
+      }
+      return next;
+    });
+  };
 
   const defaultOpenId = useMemo(() => {
     if (!currentExpanded) {
@@ -52,6 +76,22 @@ const Instances: React.FC<InstanceItemProps> = ({
   useEffect(() => {
     setFirstLoad(false);
   }, []);
+
+  // 🔑 An effect, and one of the few places that is the right tool: this is
+  // not an effect *triggering* work, it is data that arrived by way of the
+  // table's own loader being reported onward. There is no user action to hang
+  // it off — the table fetches and re-fetches the children itself — and
+  // calling the parent during render would be a write in someone else's
+  // render pass.
+  //
+  // Keyed on `list`, so a member going starting -> running reaches the
+  // tooltip too, rather than freezing at whatever the row said when it was
+  // first opened.
+  useEffect(() => {
+    if (modelData?.id) {
+      onInstancesChange?.(modelData.id, list);
+    }
+  }, [list, modelData?.id, onInstancesChange]);
 
   const renderInstance = (item: ModelInstanceListItem) => (
     <InstanceItem
@@ -94,13 +134,12 @@ const Instances: React.FC<InstanceItemProps> = ({
 
   return (
     <Wrapper>
-      <GroupSummary
-        modelData={modelData}
-        instances={list}
-        gridTemplate={gridTemplate}
-        prefixWidth={prefixWidth}
-        columnCount={columnCount}
-      ></GroupSummary>
+      {/* 🔴 `GroupSummary` — the PD effectiveness / KV transfer / per-member
+          request bar — is deliberately not rendered here for now. The
+          component and the two hooks behind it (`use-pd-metrics`,
+          `use-kv-transfer-budget`) are left in place rather than deleted,
+          because this is a hold, not a removal. `pd-markers` stays in use
+          regardless: `use-models-columns` imports `markerTexts` from it. */}
       {groups.map((group) => (
         <React.Fragment key={group.item.name}>
           <RoleGroupHeader
@@ -108,8 +147,17 @@ const Instances: React.FC<InstanceItemProps> = ({
             gridTemplate={gridTemplate}
             prefixWidth={prefixWidth}
             columnCount={columnCount}
+            collapsed={collapsed.has(group.item.name)}
+            // No handler when there is nothing to hide, which is what turns
+            // the caret off in the heading.
+            onToggle={
+              group.instances.length
+                ? () => toggleRole(group.item.name)
+                : undefined
+            }
           ></RoleGroupHeader>
-          {group.instances.map(renderInstance)}
+          {!collapsed.has(group.item.name) &&
+            group.instances.map(renderInstance)}
         </React.Fragment>
       ))}
       {/* Members the role list does not account for. Rendered without a

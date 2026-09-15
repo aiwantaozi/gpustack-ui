@@ -4,18 +4,13 @@ import { StatusColorMap, StatusMaps } from '@/config';
 import { OPENAI_COMPATIBLE, tableSorter } from '@/config/settings';
 import { TargetStatusValueMap } from '@/pages/model-routes/config';
 import { usePluginListColumns } from '@/plugins/list-extra-columns';
-import {
-  InfoCircleOutlined,
-  QuestionCircleOutlined,
-  WarningOutlined
-} from '@ant-design/icons';
+import { QuestionCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import {
   AutoTooltip,
   DropdownButtons,
   GrafanaIcon,
   IconFont,
   icons,
-  ThemeTag,
   type TableColumnProps
 } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
@@ -28,7 +23,7 @@ import _ from 'lodash';
 import { cloneElement, useMemo } from 'react';
 import ModelTag from '../../_components/model-tag';
 import { MarkerReasons, markerTexts } from '../components/pd/pd-markers';
-import RoleStatusDetail from '../components/pd/role-status-detail';
+import PDReplicasCell from '../components/pd/pd-replicas-cell';
 import {
   isModelServable,
   isPDModel,
@@ -42,7 +37,7 @@ import {
   RoleValueMap
 } from '../config';
 import { generateSource } from '../config/button-actions';
-import { ListItem } from '../config/types';
+import { ListItem, ModelInstanceListItem, RoleSpec } from '../config/types';
 interface ActionItem {
   label: string;
   key: string;
@@ -53,16 +48,16 @@ interface ActionItem {
 }
 
 const useStyles = createStyles(({ css }) => ({
-  // Suppressing the inline editor on one row only.
+  // Suppressing the column's own inline editor on one row only.
   //
   // core-ui's editable cell renders its pencil as the *next sibling* of
   // whatever the column's `render` returned, and `editable` is a column-level
   // prop with no per-row form — so `render` is the only per-row hook there is.
-  // A PD row uses it to take the pencil away, since its replica counts live on
-  // the roles and are edited in the drawer. Every other row is untouched,
-  // which is what keeps a role-less model's replica cell exactly what it is
-  // today.
-  readonlyReplicas: css`
+  // A PD row takes the pencil away because that editor is a single number and
+  // a group's size is a shape: `PDReplicasCell` puts its own editor, one input
+  // per role, behind a click on the cell. Every other row is untouched, which
+  // is what keeps a role-less model's replica cell exactly what it is today.
+  pdReplicas: css`
     & + span {
       display: none;
     }
@@ -184,13 +179,22 @@ interface ModelsColumnsHookProps {
     number,
     { provider: string; state: string | number }
   >[];
+  // Per-role scaling from the replica cell. Separate from the column's
+  // `editable` hook, which is a single number and cannot express a shape.
+  onUpdateRoles: (record: ListItem, roles: RoleSpec[]) => Promise<void>;
+  // Loaded members by model id, for the rows the user has expanded. Only
+  // those: the list response carries no instances, so this is empty for every
+  // collapsed row and the replica tooltip falls back to `role_status` alone.
+  instancesByModel?: Record<number, ModelInstanceListItem[]>;
 }
 
 const useModelsColumns = ({
   handleSelect,
   clusterList,
   sortOrder,
-  targetList
+  targetList,
+  onUpdateRoles,
+  instancesByModel
 }: ModelsColumnsHookProps & { targetList: any[] }): TableColumnProps[] => {
   const intl = useIntl();
   const systemConfig = useAtomValue(systemConfigAtom);
@@ -344,20 +348,12 @@ const useModelsColumns = ({
               <span className="text-primary font-400">{text}</span>
             </AutoTooltip>
             <ModelTag categoryKey={record.categories?.[0] || ''} />
-            {/* Gated on the mode, not on `roles`: roles alone are plain
-                multi-role orchestration, and only a mode makes it PD. The
-                mode itself goes in the tooltip — the catalog's display names
-                come from an endpoint the list does not call, and the column
-                has no room for a slug beside the category tag. */}
-            {!!record.disaggregation?.mode && (
-              <Tooltip
-                title={`${intl.formatMessage({
-                  id: 'models.form.pd.mode'
-                })}: ${record.disaggregation.mode}`}
-              >
-                <ThemeTag>{pdRatioTag(record, intl)}</ThemeTag>
-              </Tooltip>
-            )}
+            {/* 🔴 The «xPyD» tag lived here, with the transport mode on its
+                tooltip. Both moved into the replica cell: the shape is now
+                printed beside the ready count it is the shape *of* («2P2D ·
+                5 / 5»), which is the comparison a reader was making anyway,
+                and keeping a second copy here would have said it twice on one
+                row. The mode went with it, onto that cell's tooltip. */}
           </Flex>
         )
       },
@@ -420,71 +416,56 @@ const useModelsColumns = ({
           const { ready, total } = modelReplicaCounts(record);
           const isPD = isPDModel(record);
           const markers = markerTexts(intl, record.stale, record.degradations);
+
+          // The colour still comes from `replicaStatus` — i.e. from
+          // `Model.state` and `state_message`, not from the numbers. Only the
+          // WORD is gone. Driving it off the counts instead (which is what
+          // this cell did before PD) would have collapsed «starting» and
+          // «failed» into one orange, and dropped the message entirely; a
+          // status nobody can read the reason of is the silent-failure mode
+          // this feature exists to beat.
+          const dotStatus = replicaStatus(record, ready);
+          const plainDot = (
+            <Dot
+              color={
+                StatusColorMap[dotStatus.status]?.text ||
+                'var(--ant-color-fill-secondary)'
+              }
+            />
+          );
+          const dotNode = dotStatus.message ? (
+            <Tooltip title={dotStatus.message}>{plainDot}</Tooltip>
+          ) : (
+            plainDot
+          );
+
+          // Only when something is wrong. `stale` is computed for every model,
+          // not only groups — an edited plain model is just as silently
+          // un-applied — so this is outside any PD guard.
+          //
+          // 🔴 There used to be a neutral ⓘ here whenever the row had a
+          // tooltip at all, which under PD meant every single row. An icon
+          // that is always present signals nothing; the tooltip now hangs off
+          // the value itself (see `PDReplicasCell`), leaving this glyph to
+          // mean what its colour says.
+          const glyphNode = markers.length ? (
+            <WarningOutlined
+              style={{ flexShrink: 0, color: 'var(--ant-color-warning)' }}
+            />
+          ) : null;
+
           const cell = (
             <Flex
               component="span"
               align="center"
               gap={8}
-              className={isPD ? styles.readonlyReplicas : undefined}
-              style={{
-                minWidth: 23,
-                color: 'var(--ant-color-text)',
-                cursor: isPD ? 'default' : undefined
-              }}
+              style={{ minWidth: 23, color: 'var(--ant-color-text)' }}
             >
-              {/* The colour still comes from `replicaStatus` — i.e. from
-                  `Model.state` and `state_message`, not from the numbers. Only
-                  the WORD is gone. Driving it off the counts instead (which is
-                  what this cell did before PD) would have collapsed «starting»
-                  and «failed» into one orange, and dropped the message
-                  entirely; a status nobody can read the reason of is the
-                  silent-failure mode this feature exists to beat. */}
-              {(() => {
-                const dotStatus = replicaStatus(record, ready);
-                const dot = (
-                  <Dot
-                    color={
-                      StatusColorMap[dotStatus.status]?.text ||
-                      'var(--ant-color-fill-secondary)'
-                    }
-                  />
-                );
-                return dotStatus.message ? (
-                  <Tooltip title={dotStatus.message}>{dot}</Tooltip>
-                ) : (
-                  dot
-                );
-              })()}
+              {dotNode}
               <span style={{ flexShrink: 0 }}>
                 {ready} / {total}
               </span>
-              {/* One icon, because there is one tooltip. The markers and the
-                  PD breakdown were separate glyphs with separate hover
-                  surfaces sitting against the same number, and the markers'
-                  tooltip was nested inside the cell's. Which one a reader got
-                  depended on which pixel they landed on.
-
-                  Warning wins the colour when there is something wrong;
-                  otherwise it is the neutral affordance for the breakdown.
-                  Outside the `isPD` guard because `stale` is computed for
-                  every model, not only groups — an edited plain model is just
-                  as silently un-applied. */}
-              {(isPD || !!markers.length) &&
-                (markers.length ? (
-                  <WarningOutlined
-                    style={{
-                      flexShrink: 0,
-                      color: 'var(--ant-color-warning)'
-                    }}
-                  />
-                ) : (
-                  <InfoCircleOutlined
-                    style={{
-                      flexShrink: 0,
-                      color: 'var(--ant-color-text-tertiary)'
-                    }}
-                  />
-                ))}
+              {glyphNode}
             </Flex>
           );
           if (!isPD) {
@@ -497,39 +478,26 @@ const useModelsColumns = ({
               cell
             );
           }
-          // The per-role breakdown has to work on the list response, which
-          // carries no instances — hence `role_status` rather than a count of
-          // the expanded row's children. The footer is where the missing
-          // pencil is accounted for.
+          // Same `ready / total` a role-less row shows — `modelReplicaCounts`
+          // sums the roles, so the column means one thing on every row. What
+          // differs is the editor behind it and the per-role split on hover,
+          // and that split has to work on the list response, which carries no
+          // instances — hence `role_status` rather than a count of the
+          // expanded row's children.
           return (
-            <Tooltip
-              title={
-                <RoleStatusDetail
-                  roleStatus={record.role_status}
-                  roles={record.roles}
-                  footer={
-                    <>
-                      {/* Above the edit hint: why the group is unwell outranks
-                          where its replica counts are edited. */}
-                      <MarkerReasons texts={markers} />
-                      <span
-                        style={{
-                          marginTop: 4,
-                          color: 'var(--ant-color-text-light-solid)',
-                          opacity: 0.75
-                        }}
-                      >
-                        {intl.formatMessage({
-                          id: 'models.pd.replicas.readonly'
-                        })}
-                      </span>
-                    </>
-                  }
-                ></RoleStatusDetail>
-              }
-            >
-              {cell}
-            </Tooltip>
+            <PDReplicasCell
+              record={record}
+              markers={markers}
+              instances={instancesByModel?.[record.id]}
+              // «2P2D · 5 / 5» — the declared shape and how much of it is
+              // actually up, in the order you read them: what was asked for,
+              // then what arrived.
+              value={`${pdRatioTag(record, intl)} · ${ready} / ${total}`}
+              mode={record.disaggregation?.mode}
+              className={styles.pdReplicas}
+              dot={dotNode}
+              onSave={(roles) => onUpdateRoles(record, roles)}
+            ></PDReplicasCell>
           );
         }
       },
@@ -566,7 +534,7 @@ const useModelsColumns = ({
     setModelActionList,
     replicaStatus,
     pluginCols,
-    styles.readonlyReplicas
+    styles.pdReplicas
   ]);
 };
 

@@ -598,9 +598,18 @@ export const ModelStateValueMap = {
   Error: 'error'
 };
 
+// 🔴 Not-yet-serving is amber, not blue. Blue (`transitioning`) was the more
+// literal reading of "pending" — nothing is wrong, it is on its way — but the
+// replica cell is a fleet-health column, and there the question a reader is
+// asking is "is this deployment carrying traffic yet", to which "no" is the
+// same answer whatever the reason. Amber is what that column has always used
+// for it, and the distinction blue was buying is still carried by `error`
+// having a colour of its own: the objection to deriving the colour from the
+// counts was that it collapsed «starting» into «failed», and that does not
+// apply here — `state` keeps them apart.
 export const ModelStateMap = {
-  [ModelStateValueMap.Pending]: StatusMaps.transitioning,
-  [ModelStateValueMap.Partial]: StatusMaps.transitioning,
+  [ModelStateValueMap.Pending]: StatusMaps.warning,
+  [ModelStateValueMap.Partial]: StatusMaps.warning,
   [ModelStateValueMap.Running]: StatusMaps.success,
   [ModelStateValueMap.Error]: StatusMaps.error
 };
@@ -631,7 +640,12 @@ export const DegradationValueMap = {
   // No prefill and decode member share a host, so every KV transfer crosses
   // the network. Placement-only, so unlike the bandwidth markers it is known
   // before any traffic has happened — which is the point of having it.
-  PairingRemote: 'pairing_remote'
+  PairingRemote: 'pairing_remote',
+  // The group is serving, but looser than the layer it asked for. Only ever
+  // set under the lenient posture — the strict one refused instead, so there
+  // is nothing running to mark. Without it, "I wanted same-rack" is in the
+  // spec and "I got same-room" is nowhere.
+  GatherUnmet: 'gather_unmet'
 };
 
 export const DegradationLabelMap = {
@@ -640,7 +654,8 @@ export const DegradationLabelMap = {
   [DegradationValueMap.NoAtomicAdmission]: 'models.pd.heterogeneous.warning',
   [DegradationValueMap.PDIneffective]: 'models.pd.degraded.ineffective',
   [DegradationValueMap.PlacementDrifted]: 'models.pd.degraded.placement',
-  [DegradationValueMap.PairingRemote]: 'models.pd.degraded.pairing'
+  [DegradationValueMap.PairingRemote]: 'models.pd.degraded.pairing',
+  [DegradationValueMap.GatherUnmet]: 'models.pd.degraded.gather'
 };
 
 // The four override groups of a role tab. A group left on "same as model"

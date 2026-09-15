@@ -478,7 +478,6 @@ export default {
   'models.form.speculativeDecoding': 'Speculative Decoding',
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'ロール別の状態',
-  'models.pd.role.waiting': '待機中',
   'models.pd.degraded.cache':
     '共有 KV キャッシュが接続されていません。キャッシュなしで稼働中です。',
   'models.pd.degraded.ratio':

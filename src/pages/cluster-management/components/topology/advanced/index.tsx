@@ -1,7 +1,6 @@
-import { QuestionCircleOutlined } from '@ant-design/icons';
 import { GSDrawer, ModalFooter } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Alert, Flex, Modal, Spin, Tooltip, message } from 'antd';
+import { Alert, Flex, Modal, Spin, message } from 'antd';
 import { createStyles } from 'antd-style';
 import { useEffect, useRef, useState } from 'react';
 import { topologyFieldLabel } from '../../../config';
@@ -40,19 +39,9 @@ const useStyles = createStyles(({ css }) => ({
       color: var(--ant-color-text-tertiary);
     }
   `,
-  /* Nested literal class names are safe here: antd-style scopes the *rule*
-     (`.css-xxx .status`), it does not rewrite the name the way CSS Modules
-     would, so `className="status"` on the child still matches. */
-  heading: css`
-    font-weight: 500;
-    .status {
-      font-size: 12px;
-      font-variant-numeric: tabular-nums;
-    }
-  `,
-  /* `.stats` lived here, indenting the domain pane's «共 N 个域» line to the
-     rows' name column. Both the line and the second pane are gone; the class
-     stays removed rather than kept "in case", since a rule with no element is
+  /* `.stats` and `.heading` lived here, for the domain pane's «共 N 个域» line
+     and the «层级» heading above the chain. All three are gone; the classes
+     stay removed rather than kept "in case", since a rule with no element is
      invisible breakage waiting for the next reader. */
   pane: css`
     min-width: 0;
@@ -265,10 +254,6 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
     }
   };
 
-  const activeLayers = fieldLayers(displayed).filter(
-    (layer) => layer.active
-  ).length;
-
   // 🔴 «共 N 个域，最大的跨 M 个机柜» is gone with the second chain. Its job was
   // to justify the second chain — to show that a domain crosses rack
   // boundaries and therefore could not be a rung of the first. Under the
@@ -297,39 +282,11 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
     workerLabels
   };
 
-  const withTips = (label: React.ReactNode, tipsId: string) => (
-    <span>
-      {label}{' '}
-      <Tooltip title={intl.formatMessage({ id: tipsId })}>
-        <QuestionCircleOutlined style={{ opacity: 0.6 }} />
-      </Tooltip>
-    </span>
-  );
-
-  /**
-   * 🔴 One pane, not a `Tabs` of «层级» and «加速器域». The second tab is gone
-   * with the second chain, and a one-tab `Tabs` is a control that looks like a
-   * choice while offering none — so the heading the tab carried (name, count,
-   * tooltip) moved onto the pane itself.
-   */
-  const heading = withTips(
-    <>
-      {intl.formatMessage({ id: 'clusters.topology.mapping.layers' })}
-      <span className="text-tertiary status">
-        {' '}
-        ·{' '}
-        {activeLayers
-          ? intl.formatMessage(
-              { id: 'clusters.topology.mapping.layers.status' },
-              { count: activeLayers }
-            )
-          : intl.formatMessage({
-              id: 'clusters.topology.mapping.layers.status.empty'
-            })}
-      </span>
-    </>,
-    'clusters.topology.mapping.layers.tips'
-  );
+  // 🔴 One pane, and no heading over it. The «层级» heading was a leftover from
+  // the `Tabs` this replaced — it carried the tab's name, active-field count
+  // and tooltip. With a single pane the drawer title already says what this is,
+  // and the chain below states its own shape, so the heading restated both and
+  // the count answered a question nobody was asking.
 
   return (
     <GSDrawer
@@ -377,8 +334,7 @@ const AdvancedDrawer: React.FC<AdvancedDrawerProps> = ({
             <Alert type="warning" showIcon message={preview.error} />
           )}
 
-          <Flex orientation="vertical" gap={8} className={styles.pane}>
-            <span className={styles.heading}>{heading}</span>
+          <Flex orientation="vertical" className={styles.pane}>
             <FieldChain
               rows={draft.chain}
               total={total}

@@ -213,7 +213,8 @@ const roleFormToPayload = (role: RoleFormItem): RoleSpec => {
  * returns the same payload.
  */
 export const rolesFormToPayload = (
-  roles?: RoleFormItem[] | null
+  roles?: RoleFormItem[] | null,
+  modelValues?: Record<string, any> | null
 ): RoleSpec[] | null => {
   if (!roles?.length) {
     return null;
@@ -221,8 +222,103 @@ export const rolesFormToPayload = (
   return _.sortBy(roles, (role: RoleFormItem) => {
     const index = RoleOrder.indexOf(role.name);
     return index === -1 ? RoleOrder.length : index;
-  }).map(roleFormToPayload);
+  })
+    .map(stripUntouchedInjection)
+    .map((role: RoleFormItem) => demoteUntouchedGroups(role, modelValues))
+    .map(roleFormToPayload);
 };
+
+/**
+ * Give the platform's own rows back to the platform, unless the user edited
+ * them.
+ *
+ * The role's parameter and env lists are seeded with what the PD recipe
+ * injects, so they can be edited like any other row (see `role-form`). A row
+ * that comes back byte-identical was never touched, and sending it would
+ * freeze a value that has to stay live: `{{ports.kv_port}}` and
+ * `{{net_device}}` resolve on the worker at launch, and
+ * `{{roles.*.tensor_parallel_size}}` follows a field the user can still
+ * change. Stripping them restores "the server renders this", which is the
+ * only state in which those placeholders mean anything.
+ *
+ * An edited row survives and wins — the launch puts PD's arguments in front of
+ * the user's, and argparse keeps the last spelling. A deleted row does NOT
+ * stay deleted: the server injects it again, because nothing distinguishes
+ * "removed on purpose" from "never seeded" once the list is submitted.
+ */
+const stripUntouchedInjection = (role: RoleFormItem): RoleFormItem => {
+  const injected = (role as Record<string, any>).__injected as
+    | { params?: string[]; env?: Record<string, string> }
+    | undefined;
+  if (!injected) {
+    return role;
+  }
+  const params = (role.backend_parameters || []).filter(
+    (line: string) => !(injected.params || []).includes(line)
+  );
+  const env = Object.fromEntries(
+    Object.entries(role.env || {}).filter(
+      ([key, value]) => (injected.env || {})[key] !== value
+    )
+  );
+  return { ...role, backend_parameters: params, env } as RoleFormItem;
+};
+
+/**
+ * A group whose every field still equals the model's is inheritance, however
+ * it got that way.
+ *
+ * 🔴 Needed once the engine / parameter groups lost their managed-custom
+ * switch: they now open seeded from the model and flagged custom, so without
+ * this every role would submit a frozen copy of the model's values and stop
+ * following later edits to them. The switch used to carry that meaning; the
+ * comparison carries it now.
+ *
+ * Applies to every group rather than only the two, on purpose. Flipping the
+ * old switch to custom and changing nothing produced the same frozen copy and
+ * nobody wanted that either — it is the same bug, reachable two ways, and the
+ * narrower fix would have left one of them.
+ *
+ * `null` from `modelValues` is "no model-level form to compare against"
+ * (`rolesSpecToForm` round-trips, tests call the transform directly), and then
+ * nothing is demoted — the role is taken at its word.
+ */
+const demoteUntouchedGroups = (
+  role: RoleFormItem,
+  modelValues?: Record<string, any> | null
+): RoleFormItem => {
+  if (!modelValues) {
+    return role;
+  }
+  const overrides = { ...(role.overrides || {}) };
+  let changed = false;
+  Object.values(OverrideGroupMap).forEach((group) => {
+    // The cache group never inherits, so there is nothing to demote it to.
+    if (group === OverrideGroupMap.Cache || !overrides[group]) {
+      return;
+    }
+    const identical = OverrideGroupFields[group].every((field) =>
+      _.isEqual(
+        normalizeForCompare((role as Record<string, any>)[field]),
+        normalizeForCompare(modelValues[field])
+      )
+    );
+    if (identical) {
+      overrides[group] = false;
+      changed = true;
+    }
+  });
+  return changed ? { ...role, overrides } : role;
+};
+
+/**
+ * `null`, `undefined`, `[]` and `{}` all mean "nothing set" here, and a role
+ * seeded from a model that had nothing must compare equal to it. Without this
+ * an untouched role whose model has no parameters holds `[]` against the
+ * model's `undefined` and reads as an override of it.
+ */
+const normalizeForCompare = (value: any) =>
+  value == null || (_.isObject(value) && _.isEmpty(value)) ? null : value;
 
 /**
  * The role set PD starts from: a homogeneous 1P1D plus its router, every

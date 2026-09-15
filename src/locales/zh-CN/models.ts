@@ -119,8 +119,6 @@ export default {
     '指向包含 .safetensors, config.json 文件的模型目录，例如 /data/models/model。',
   'models.localpath.chunks.tips':
     '指向模型第一个分片文件，例如 /data/models/model-00001-of-00004.gguf。',
-  'models.form.replicas.moved.roles':
-    '各角色副本数、引擎与参数在「角色配置」中设置',
   'models.form.replicas.tips': '多副本数实现 { api } 接口推理请求的负载均衡。',
   'models.table.list.empty': '暂无已部署模型',
   'models.table.list.getStart':
@@ -366,7 +364,7 @@ export default {
     '在随本版本打包的内置模型库之上，跟随 GPUStack 发布的官方模型库。',
 
   // --- Prefill/decode disaggregation ---
-  'models.form.pd.enable': 'PD 分离',
+  'models.form.pd.section': 'PD 分离配置',
   'models.form.pd.enable.off': '不开启',
   'models.form.pd.enable.on': 'PD 分离',
   'models.form.pd.enable.tips':
@@ -419,7 +417,6 @@ export default {
   'models.form.roles.group.settings.tips': '对所有角色生效',
   'models.form.roles.group.wide': '组级',
   'models.form.roles.replicas': '副本数',
-  'models.form.roles.router.replicas.tips': '一期 Router 为单副本。',
   'models.form.roles.router.routeArgs': '路由参数',
   'models.form.roles.router.routeArgs.tips':
     'Router 进程启动时的命令行参数。带锁的由 GPUStack 按组的落点渲染，不可编辑。',
@@ -456,7 +453,6 @@ export default {
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': '各角色状态',
   'models.pd.role.waiting': '等待中',
-  'models.pd.replicas.readonly': 'PD 部署请在「编辑」中调整各角色副本数。',
   'models.pd.degraded.cache': '共享 KV 缓存未接上，组在无缓存的情况下服务。',
   'models.pd.degraded.ratio': '就绪成员少于请求数量，当前以降低的容量服务。',
   'models.form.roles.override.empty':
@@ -464,6 +460,7 @@ export default {
   'models.form.pd.mode.cleared': '关闭 PD 分离时已清空 PD 模式，请重新选择。',
   'models.pd.degraded.pairing':
     '没有任何 prefill 与 decode 成员在同一台机器上，因此每次 KV 传输都要走网络。在没有 RDMA 的链路上，这通常比不做分离更慢。请至少让一对同机，或为两个角色选择同一台机器上的 GPU。',
+  'models.pd.degraded.gather': '未达拓扑目标：成员实际分布比要求的更松',
   'models.pd.degraded.placement':
     '部分成员仍部署在升级前的命名空间。服务不受影响，但这些成员占用的加速卡未计入租户配额账本，组级原子准入因此偏乐观。重启该模型即可迁移。',
   'models.pd.degraded.ineffective':
@@ -533,7 +530,7 @@ export default {
   'models.restart.confirm':
     '将停止 {name} 的全部实例，并以当前配置重建，期间该模型不可用。',
   'models.restart.done': '正在重启：实例已停止，将以当前配置重建。',
-  'models.restart.uptodate': '实例已在运行当前配置，无需重启。',
+  'models.restart.uptodate': '没有可重启的实例：该部署当前没有实例在运行。',
   'models.restart.inprogress': '重启进行中，请等待完成后重试。',
   'models.restart.failed': '重启模型失败。',
   'models.stale.tag': '待重启',
@@ -561,6 +558,7 @@ export default {
   'models.form.roles.resources': '资源',
   'models.form.roles.resources.cpu': 'CPU（核）',
   'models.form.roles.resources.memory': '内存（GiB）',
+  'models.form.roles.resources.default': '留空则使用默认的 2 核 2 GiB',
   'models.form.roles.resources.tips':
     'Router 容器申请的资源，默认为 2 核 2 GiB。',
   'models.form.roles.router.health': '健康检查',
@@ -570,12 +568,19 @@ export default {
   'models.form.roles.cpuonly': '仅使用 CPU',
 
   'models.form.gather.title': '拓扑亲和性',
-  'models.form.gather.title.tips':
-    '这一组必须放在多紧的范围内。调度器本来就会往放得下的最紧域里塞，这里决定的是放不下时「拒绝」还是「摊开」。',
-  'models.form.gather.prefer': '尽量靠近',
-  'models.form.gather.prefer.tips': '放不下就摊开，仍然部署。默认。',
-  'models.form.gather.sameHost': '至少同机，否则不部署',
-  'models.form.gather.sameLayer': '至少同{layer}，否则不部署',
+  'models.form.gather.target.auto': '自动',
+  'models.form.gather.target.auto.tips': '选传输最快的可行位置',
+  'models.form.gather.target.host': '同机',
+  'models.form.gather.target.host.tips': 'Prefill / Decode 同一台机器',
+  'models.form.gather.target.layer': '同{layer}',
+  'models.form.gather.target.tips':
+    '希望这组成员之间的传输链路不低于哪一档。同一加速器域的传输快于同机柜，因此跨机柜的域也算满足。Router 不占卡，不参与此约束。',
+  'models.form.gather.unmet': '放不下时',
+  'models.form.gather.unmet.prefer': '仍然部署',
+  'models.form.gather.unmet.prefer.tips':
+    '退到次优位置，并在模型上标记「未达拓扑目标」',
+  'models.form.gather.unmet.must': '拒绝部署',
+  'models.form.gather.unmet.must.tips': '不给出一个更慢的部署',
   'models.form.gather.fits': '放得下',
   'models.form.gather.fits.domain': '{domain} 放得下',
   'models.form.gather.short':
@@ -598,13 +603,6 @@ export default {
   // Topology-aware gather tiers. One chain, root to leaf: the option list is
   // flat in chain order and the retreat line says what happens when a rung
   // does not fit. The `chain.*` group headings are gone with the second chain.
-  'models.form.gather.tree.tips': '按声明的层级聚拢：往上一层就宽一档',
-  'models.form.gather.retreat':
-    '已选「{tier}」。只在这一层判定：放不下就直接拒绝部署，不会自动放宽到「{top}」。想自动放宽，请选「尽量靠近」。',
-  'models.form.gather.retreat.top':
-    '已选「{tier}」。它已是最上面一层，放不下就直接拒绝部署。想自动放宽，请选「尽量靠近」。',
-  'models.form.gather.retreat.host':
-    '已选「{tier}」。主机是最紧的一档，再往下没有了，放不下就直接拒绝部署。想自动放宽，请选「尽量靠近」。',
   'models.form.gather.goFill': '去填',
   'models.form.gather.infeasible.warning':
     '按当前容量此组将无法部署；保存后组会一直等待，直到有空位。可选：改成「尽量靠近」（会跨机，KV 传输变慢）· 降低副本或每副本卡数'

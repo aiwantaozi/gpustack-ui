@@ -328,11 +328,6 @@ export default {
   'clusters.topology.mapping.title': 'Сопоставление ключей меток',
   'clusters.topology.mapping.intro':
     'Из какой метки worker каждое поле читает значение',
-  'clusters.topology.mapping.layers': 'Уровни',
-  'clusters.topology.mapping.layers.tips':
-    'Вложенность: каждый уровень лежит внутри уровня выше',
-  'clusters.topology.mapping.layers.status': 'Используется полей: {count}',
-  'clusters.topology.mapping.layers.status.empty': 'Поля не заполнены',
   'clusters.topology.mapping.showUnused':
     'Показать неиспользуемые поля ({count})',
   'clusters.topology.mapping.hideUnused': 'Скрыть неиспользуемые поля',

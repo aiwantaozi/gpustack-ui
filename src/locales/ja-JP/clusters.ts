@@ -328,11 +328,6 @@ export default {
   'clusters.topology.mapping.title': 'ラベルキーのマッピング',
   'clusters.topology.mapping.intro':
     '各フィールドが worker のどのラベルから値を読むか',
-  'clusters.topology.mapping.layers': 'レイヤー',
-  'clusters.topology.mapping.layers.tips':
-    '入れ子構造：下の階層は必ず上の階層の中にあります',
-  'clusters.topology.mapping.layers.status': '{count} 個のフィールドを使用中',
-  'clusters.topology.mapping.layers.status.empty': 'フィールド未入力',
   'clusters.topology.mapping.showUnused':
     '未使用の {count} 個のフィールドを表示',
   'clusters.topology.mapping.hideUnused': '未使用のフィールドを隠す',

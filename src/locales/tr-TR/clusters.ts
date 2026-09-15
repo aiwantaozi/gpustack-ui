@@ -329,11 +329,6 @@ export default {
   'clusters.topology.mapping.title': 'Etiket anahtarı eşlemesi',
   'clusters.topology.mapping.intro':
     'Her alanın değerini hangi worker etiketinden okuduğu',
-  'clusters.topology.mapping.layers': 'Katmanlar',
-  'clusters.topology.mapping.layers.tips':
-    'İç içe: her seviye bir üsttekinin içinde yer alır',
-  'clusters.topology.mapping.layers.status': '{count} alan kullanımda',
-  'clusters.topology.mapping.layers.status.empty': 'Hiç alan dolu değil',
   'clusters.topology.mapping.showUnused': 'Kullanılmayan {count} alanı göster',
   'clusters.topology.mapping.hideUnused': 'Kullanılmayan alanları gizle',
   'clusters.topology.mapping.moreKeys': '+ {count} aday anahtar',

@@ -27,6 +27,14 @@ const GIB = 1024 ** 3;
 const WORKER_NAME_LABEL = 'worker-name';
 
 const useStyles = createStyles(({ css }) => ({
+  resources: css`
+    margin-bottom: 12px;
+    .resources-hint {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--ant-color-text-tertiary);
+    }
+  `,
   nested: css`
     border: 1px solid var(--ant-color-border);
     border-radius: 6px;
@@ -52,51 +60,74 @@ interface RouterSchedulingProps {
  * not anyone constrains where it goes, and `resources` is not one of the
  * scheduling group's fields, so flipping the switch does not touch it.
  *
- * Placeholders, not values. Left empty the server applies
- * `ROUTER_DEFAULT_CPU` / `ROUTER_DEFAULT_MEMORY` — the same two numbers shown
- * here — and submitting them explicitly would freeze today's defaults into
- * every deployment, so a later change to the floor would not reach them.
+ * Empty, not seeded. Left empty the server applies `ROUTER_DEFAULT_CPU` /
+ * `ROUTER_DEFAULT_MEMORY`; submitting those numbers explicitly would freeze
+ * today's defaults into every deployment, so a later change to the floor
+ * would not reach them. An `initialValue` is therefore wrong however much
+ * nicer the filled-in field looks.
+ *
+ * 🔴 **And the defaults cannot be shown as `placeholder` either** — that is a
+ * bug in core-ui, not a style choice. Its text `Input` gates the placeholder
+ * on the floating label (`placeholder: focused || !label ? ph : ''`), so the
+ * two never share a line; `InputNumber` passes it straight through, so with a
+ * label the placeholder renders *underneath* the un-floated label and the two
+ * overlap. These were the only two fields in the repo combining `label` with
+ * `placeholder` on an `InputNumber`, which is why nothing else shows it.
+ *
+ * So the defaults are stated in the section's own footnote instead, where
+ * they are visible without being values.
  */
 export const RouterResources: React.FC<RouterSchedulingProps> = ({ index }) => {
   const intl = useIntl();
+  const { styles } = useStyles();
   return (
-    <Flex gap={12} style={{ marginBottom: 12 }}>
-      <Form.Item
-        name={['roles', index, 'resources', 'cpu']}
-        style={{ flex: 1, marginBottom: 0 }}
-      >
-        <InputNumber
-          min={0.1}
-          step={1}
-          style={{ width: '100%' }}
-          placeholder="2"
-          label={intl.formatMessage({ id: 'models.form.roles.resources.cpu' })}
-        ></InputNumber>
-      </Form.Item>
-      <Form.Item
-        name={['roles', index, 'resources', 'memory']}
-        style={{ flex: 1, marginBottom: 0 }}
-        // Bytes on the wire, GiB in the field. The API keeps bytes so it
-        // matches every other memory figure in the schema; a user typing
-        // "2147483648" would be the alternative.
-        getValueProps={(value) => ({
-          value: typeof value === 'number' ? value / GIB : value
-        })}
-        normalize={(value) =>
-          typeof value === 'number' ? Math.round(value * GIB) : value
-        }
-      >
-        <InputNumber
-          min={0.5}
-          step={1}
-          style={{ width: '100%' }}
-          placeholder="2"
-          label={intl.formatMessage({
-            id: 'models.form.roles.resources.memory'
+    <div className={styles.resources}>
+      <Flex gap={12}>
+        <Form.Item
+          name={['roles', index, 'resources', 'cpu']}
+          style={{ flex: 1, marginBottom: 0 }}
+        >
+          <InputNumber
+            min={0.1}
+            step={1}
+            style={{ width: '100%' }}
+            label={intl.formatMessage({
+              id: 'models.form.roles.resources.cpu'
+            })}
+          ></InputNumber>
+        </Form.Item>
+        <Form.Item
+          name={['roles', index, 'resources', 'memory']}
+          style={{ flex: 1, marginBottom: 0 }}
+          // Bytes on the wire, GiB in the field. The API keeps bytes so it
+          // matches every other memory figure in the schema; a user typing
+          // "2147483648" would be the alternative.
+          getValueProps={(value) => ({
+            value: typeof value === 'number' ? value / GIB : value
           })}
-        ></InputNumber>
-      </Form.Item>
-    </Flex>
+          normalize={(value) =>
+            typeof value === 'number' ? Math.round(value * GIB) : value
+          }
+        >
+          <InputNumber
+            min={0.5}
+            step={1}
+            style={{ width: '100%' }}
+            label={intl.formatMessage({
+              id: 'models.form.roles.resources.memory'
+            })}
+          ></InputNumber>
+        </Form.Item>
+      </Flex>
+      {/* The defaults, as text. They cannot be the fields' `placeholder` (see
+          the note above) and must not be their value, so this line is the
+          only place left that can state them — and it has to sit here rather
+          than in the section's own footnote, which renders in the inherit
+          branch only while these two inputs render in both. */}
+      <div className="resources-hint">
+        {intl.formatMessage({ id: 'models.form.roles.resources.default' })}
+      </div>
+    </div>
   );
 };
 

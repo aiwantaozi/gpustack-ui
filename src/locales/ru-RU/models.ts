@@ -123,8 +123,6 @@ export default {
     'Укажите директорию модели с файлами .safetensors и config.json.',
   'models.localpath.chunks.tips':
     'Укажите первый шард модели, например: /data/models/model-00001-of-00004.gguf.',
-  'models.form.replicas.moved.roles':
-    'Реплики, движок и параметры каждой роли задаются в разделе «Роли»',
   'models.form.replicas.tips':
     'Несколько реплик обеспечивают балансировку нагрузки для { api } запросов.',
   'models.table.list.empty': 'Модели отсутствуют!',
@@ -389,7 +387,7 @@ export default {
     'Follows the catalog GPUStack publishes, on top of the one packaged with this release.',
 
   // --- Prefill/decode disaggregation ---
-  'models.form.pd.enable': 'Разделение PD',
+  'models.form.pd.section': 'Настройки разделения PD',
   'models.form.pd.enable.off': 'Выключено',
   'models.form.pd.enable.on': 'Разделение PD',
   'models.form.pd.enable.tips':
@@ -445,8 +443,6 @@ export default {
   'models.form.roles.group.settings.tips': 'Применяются ко всем ролям',
   'models.form.roles.group.wide': 'На всю группу',
   'models.form.roles.replicas': 'Реплики',
-  'models.form.roles.router.replicas.tips':
-    'В этом выпуске Router работает в одной реплике.',
   'models.form.roles.router.routeArgs': 'Аргументы маршрутизации',
   'models.form.roles.router.routeArgs.tips':
     'Аргументы командной строки, с которыми запускается процесс router. Строки с замком формирует GPUStack по месту размещения группы; редактировать их нельзя.',
@@ -486,8 +482,6 @@ export default {
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'Состояние по ролям',
   'models.pd.role.waiting': 'Ожидание',
-  'models.pd.replicas.readonly':
-    'Для развёртывания PD меняйте число реплик по ролям в разделе «Изменить».',
   'models.pd.degraded.cache':
     'Общий кэш KV не подключён; группа работает без него.',
   'models.pd.degraded.ratio':
@@ -498,6 +492,8 @@ export default {
     'The PD mode was cleared when disaggregation was turned off. Please select it again.',
   'models.pd.degraded.pairing':
     'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
+  'models.pd.degraded.gather':
+    'Ниже цели по топологии: участники расположены дальше друг от друга, чем требовалось',
   'models.pd.degraded.placement':
     'Часть участников по-прежнему развёрнута в пространстве имён, которое использовалось до обновления. На обслуживание это не влияет, но занятые ими ускорители отсутствуют в учёте квот арендатора, поэтому атомарный приём группы настолько же оптимистичен. Перезапустите модель, чтобы переместить их.',
   'models.pd.degraded.ineffective':
@@ -572,7 +568,7 @@ export default {
   'models.restart.done':
     'Перезапуск: экземпляры остановлены и будут пересозданы с текущей конфигурацией.',
   'models.restart.uptodate':
-    'Экземпляры уже работают на текущей конфигурации, перезапуск не требуется.',
+    'Nothing to restart: this deployment has no instances running.',
   'models.restart.inprogress':
     'Перезапуск уже выполняется. Дождитесь его завершения и повторите попытку.',
   'models.restart.failed': 'Не удалось перезапустить модель.',
@@ -604,6 +600,8 @@ export default {
   'models.form.roles.resources': 'Ресурсы',
   'models.form.roles.resources.cpu': 'CPU (ядра)',
   'models.form.roles.resources.memory': 'Память (ГиБ)',
+  'models.form.roles.resources.default':
+    'Оставьте пустым, чтобы использовать значения по умолчанию: 2 ядра и 2 ГиБ',
   'models.form.roles.resources.tips':
     'Что запрашивает контейнер роутера. По умолчанию 2 ядра и 2 ГиБ.',
   'models.form.roles.router.health': 'Проверка состояния',
@@ -613,12 +611,21 @@ export default {
   'models.form.roles.cpuonly': 'Только CPU',
 
   'models.form.gather.title': 'Топологическая аффинность',
-  'models.form.gather.title.tips':
-    'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
-  'models.form.gather.prefer': 'As close as possible',
-  'models.form.gather.prefer.tips': 'Spread out rather than fail. Default.',
-  'models.form.gather.sameHost': 'Same host, or do not deploy',
-  'models.form.gather.sameLayer': 'Same {layer}, or do not deploy',
+  'models.form.gather.target.auto': 'Автоматически',
+  'models.form.gather.target.auto.tips':
+    'Самый быстрый подходящий путь передачи',
+  'models.form.gather.target.host': 'Один узел',
+  'models.form.gather.target.host.tips': 'Prefill и Decode на одной машине',
+  'models.form.gather.target.layer': 'Один {layer}',
+  'models.form.gather.target.tips':
+    'Желаемое качество передачи между участниками группы. Передача внутри одного домена ускорителей быстрее, чем внутри стойки, поэтому домен, охватывающий несколько стоек, тоже считается подходящим. Router не занимает ускоритель и под это ограничение не попадает.',
+  'models.form.gather.unmet': 'Если не помещается',
+  'models.form.gather.unmet.prefer': 'Всё равно развернуть',
+  'models.form.gather.unmet.prefer.tips':
+    'Откатиться к следующему подходящему размещению и отметить модель как не достигшую цели по топологии',
+  'models.form.gather.unmet.must': 'Отказать',
+  'models.form.gather.unmet.must.tips':
+    'Вместо того чтобы выдать более медленное развёртывание',
   'models.form.gather.fits': 'fits',
   'models.form.gather.fits.domain': 'fits in {domain}',
   'models.form.gather.short':
@@ -643,14 +650,6 @@ export default {
   // Topology-aware gather tiers. One chain, root to leaf: the option list is
   // flat in chain order and the retreat line says what happens when a rung
   // does not fit. The `chain.*` group headings are gone with the second chain.
-  'models.form.gather.tree.tips':
-    'Собирает по объявленной иерархии: уровнем выше — на шаг шире',
-  'models.form.gather.retreat':
-    'Выбрано «{tier}». Проверяется только на этом уровне: если не помещается, в развёртывании будет отказано — автоматического расширения до «{top}» не произойдёт. Чтобы расширять автоматически, выберите «Размещать рядом».',
-  'models.form.gather.retreat.top':
-    'Выбрано «{tier}». Это уже самый широкий уровень, поэтому, если не помещается, в развёртывании будет отказано. Чтобы расширять автоматически, выберите «Размещать рядом».',
-  'models.form.gather.retreat.host':
-    'Выбрано «{tier}». Хост — самый узкий уровень, ниже ничего нет, поэтому, если не помещается, в развёртывании будет отказано. Чтобы расширять автоматически, выберите «Размещать рядом».',
   'models.form.gather.goFill': 'Заполнить',
   'models.form.gather.infeasible.warning':
     'При текущей ёмкости эту группу разместить нельзя; после сохранения она будет ждать освобождения места. Варианты: переключиться на «как можно ближе» (может занять несколько хостов, KV-передача медленнее) · уменьшить число реплик или GPU на реплику'

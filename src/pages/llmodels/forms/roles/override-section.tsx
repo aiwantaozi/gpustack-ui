@@ -157,6 +157,27 @@ interface OverrideSectionProps {
    * showing it in only one would claim the switch controls it.
    */
   prefix?: React.ReactNode;
+  /**
+   * Drop the managed/custom switch and always show the editable group.
+   *
+   * 🔴 For the groups a role-less deployment has no switch for either —
+   * engine, parameters, environment. Two mental models for the same three
+   * fields was the cost of the switch, and it bought a distinction the reader
+   * mostly did not want to make: they opened the drawer to see what the role
+   * runs, and got a collapsed line telling them to click again.
+   *
+   * Inheritance is NOT dropped with it. The group opens seeded from the
+   * model's values, and `rolesFormToPayload` writes `null` for any group left
+   * identical to them — so an untouched role still follows the model, exactly
+   * as it did on the «managed» side of the switch. Editing anything is what
+   * makes the override real, which is the gesture people expected the switch
+   * to be doing anyway.
+   *
+   * Not for `scheduling`: «managed» there means "the scheduler picks", not
+   * "same as the model", so there is no seeded value to show and no
+   * inheritance to preserve.
+   */
+  alwaysOpen?: boolean;
   children?: React.ReactNode;
 }
 
@@ -177,6 +198,7 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
   inheritContent,
   seedFromModel = true,
   prefix,
+  alwaysOpen = false,
   children
 }) => {
   const intl = useIntl();
@@ -184,6 +206,30 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
   const fields = OverrideGroupFields[group] || [];
   const uiFields = GroupUIFields[group] || [];
   const overridden = Form.useWatch(['roles', index, 'overrides', group], form);
+
+  // Seed once, on the way in. `handleModeChange` did this when the user flipped
+  // the switch; with no switch there is no gesture to hang it on, so it happens
+  // when the section first mounts holding an inherited group. Without it the
+  // list opens empty and reads as "this role runs nothing", which is the one
+  // thing it must not say.
+  //
+  // `useEffect` with an empty dep list rather than a watch: this is a one-time
+  // initialisation of form state, not a reaction to it, and re-running it on
+  // every model-level keystroke would overwrite what the user just typed here.
+  React.useEffect(() => {
+    if (!alwaysOpen || overridden || disabledReason) {
+      return;
+    }
+    if (seedFromModel) {
+      [...fields, ...uiFields].forEach((field) => {
+        form.setFieldValue(
+          ['roles', index, field],
+          _.cloneDeep(form.getFieldValue(field))
+        );
+      });
+    }
+    form.setFieldValue(['roles', index, 'overrides', group], true);
+  }, []);
 
   const handleModeChange = (value: string | number) => {
     if (value === OverrideModeMap.Custom) {
@@ -278,7 +324,7 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
           : undefined
       }
       extra={
-        disabledReason ? (
+        alwaysOpen ? undefined : disabledReason ? (
           <Tooltip title={disabledReason}>{segmented}</Tooltip>
         ) : (
           segmented
@@ -286,7 +332,7 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
       }
     >
       {prefix}
-      {overridden ? (
+      {alwaysOpen || overridden ? (
         <>
           {emptyOverride && (
             <div className="note">

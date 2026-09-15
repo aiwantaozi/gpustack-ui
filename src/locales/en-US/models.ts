@@ -120,8 +120,6 @@ export default {
   'models.localpath.safe.tips':
     'Specify the model directory that contains .safetensors and config.json files, e.g., /data/models/model.',
   'models.localpath.chunks.tips': `Specify the first shard file of the model, e.g., /data/models/model-00001-of-00004.gguf.`,
-  'models.form.replicas.moved.roles':
-    'Per-role replicas, engine and parameters are set in Roles',
   'models.form.replicas.tips':
     'Multiple replicas enable load balancing for { api } inference requests.',
   'models.table.list.empty': 'No Models yet!',
@@ -385,7 +383,7 @@ export default {
     'Follows the catalog GPUStack publishes, on top of the one packaged with this release.',
 
   // --- Prefill/decode disaggregation ---
-  'models.form.pd.enable': 'PD Disaggregation',
+  'models.form.pd.section': 'PD Disaggregation',
   'models.form.pd.enable.off': 'Off',
   'models.form.pd.enable.on': 'PD Disaggregation',
   'models.form.pd.enable.tips':
@@ -441,8 +439,6 @@ export default {
   'models.form.roles.group.settings.tips': 'Apply to every role',
   'models.form.roles.group.wide': 'Group-wide',
   'models.form.roles.replicas': 'Replicas',
-  'models.form.roles.router.replicas.tips':
-    'The Router runs a single replica in this release.',
   'models.form.roles.router.routeArgs': 'Route arguments',
   'models.form.roles.router.routeArgs.tips':
     'The command line the router process starts with. Locked rows are rendered by GPUStack from where the group landed and cannot be edited.',
@@ -481,8 +477,6 @@ export default {
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'Per-role status',
   'models.pd.role.waiting': 'Waiting',
-  'models.pd.replicas.readonly':
-    'Adjust the per-role replica counts in Edit for a PD deployment.',
   'models.pd.degraded.cache':
     'The shared KV cache was not attached; the group is serving without it.',
   'models.pd.degraded.ratio':
@@ -493,6 +487,8 @@ export default {
     'The PD mode was cleared when disaggregation was turned off. Please select it again.',
   'models.pd.degraded.pairing':
     'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
+  'models.pd.degraded.gather':
+    'Below its topology target: the members are further apart than asked for',
   'models.pd.degraded.placement':
     'Some members are still deployed in the namespace they used before the upgrade. Serving is unaffected, but the accelerators they hold are absent from the tenant quota ledger, so atomic admission for the group is optimistic by that much. Restart the model to move them.',
   'models.pd.degraded.ineffective':
@@ -570,7 +566,7 @@ export default {
   'models.restart.done':
     'Restarting: the instances have been retired and will be rebuilt with the current configuration.',
   'models.restart.uptodate':
-    'The instances already run the current configuration, so there is nothing to restart.',
+    'Nothing to restart: this deployment has no instances running.',
   'models.restart.inprogress':
     'A restart is already in progress. Wait for it to finish and try again.',
   'models.restart.failed': 'Failed to restart the model.',
@@ -601,6 +597,8 @@ export default {
   'models.form.roles.resources': 'Resources',
   'models.form.roles.resources.cpu': 'CPU (cores)',
   'models.form.roles.resources.memory': 'Memory (GiB)',
+  'models.form.roles.resources.default':
+    'Leave empty to use the defaults: 2 cores and 2 GiB',
   'models.form.roles.resources.tips':
     'What the router container requests. Defaults to 2 cores and 2 GiB.',
   'models.form.roles.router.health': 'Health check',
@@ -610,12 +608,20 @@ export default {
   'models.form.roles.cpuonly': 'CPU only',
 
   'models.form.gather.title': 'Topology Affinity',
-  'models.form.gather.title.tips':
-    'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
-  'models.form.gather.prefer': 'As close as possible',
-  'models.form.gather.prefer.tips': 'Spread out rather than fail. Default.',
-  'models.form.gather.sameHost': 'Same host, or do not deploy',
-  'models.form.gather.sameLayer': 'Same {layer}, or do not deploy',
+  'models.form.gather.target.auto': 'Automatic',
+  'models.form.gather.target.auto.tips': 'The fastest transfer path that fits',
+  'models.form.gather.target.host': 'Same host',
+  'models.form.gather.target.host.tips': 'Prefill and Decode on one machine',
+  'models.form.gather.target.layer': 'Same {layer}',
+  'models.form.gather.target.tips':
+    'The transfer quality you want between the members of this group. Transfer inside one accelerator domain beats same-rack, so a domain spanning racks counts as met. The Router holds no accelerator and is not constrained.',
+  'models.form.gather.unmet': 'If it does not fit',
+  'models.form.gather.unmet.prefer': 'Deploy anyway',
+  'models.form.gather.unmet.prefer.tips':
+    'Fall back to the next best placement and mark the model as below its topology target',
+  'models.form.gather.unmet.must': 'Refuse',
+  'models.form.gather.unmet.must.tips':
+    'Rather than hand back a slower deployment',
   'models.form.gather.fits': 'fits',
   'models.form.gather.fits.domain': 'fits in {domain}',
   'models.form.gather.short':
@@ -640,14 +646,6 @@ export default {
   // Topology-aware gather tiers. One chain, root to leaf: the option list is
   // flat in chain order and the retreat line says what happens when a rung
   // does not fit. The `chain.*` group headings are gone with the second chain.
-  'models.form.gather.tree.tips':
-    'Gathers by the declared hierarchy: one rung up is one step wider',
-  'models.form.gather.retreat':
-    '“{tier}” selected. Judged at this rung only: not fitting means refusing to deploy, never widening to “{top}” on its own. To widen automatically, choose “Pack close”.',
-  'models.form.gather.retreat.top':
-    '“{tier}” selected. It is already the widest rung, so not fitting means refusing to deploy. To widen automatically, choose “Pack close”.',
-  'models.form.gather.retreat.host':
-    '“{tier}” selected. The host is the tightest rung there is, so not fitting means refusing to deploy. To widen automatically, choose “Pack close”.',
   'models.form.gather.goFill': 'Fill it in',
   'models.form.gather.infeasible.warning':
     'At current capacity this group cannot be placed; once saved it will wait until room frees up. Options: switch to “as close as possible” (may span hosts, slower KV transfer) · reduce replicas or GPUs per replica'

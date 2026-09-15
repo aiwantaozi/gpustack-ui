@@ -121,8 +121,6 @@ export default {
   'models.localpath.safe.tips':
     'config.jsonファイルを含む.safetensorsディレクトリを指定してください。例: /data/models/model。',
   'models.localpath.chunks.tips': `モデルの最初のシャードファイルを指定してください。例: /data/models/model-00001-of-00004.gguf。`,
-  'models.form.replicas.moved.roles':
-    '各ロールのレプリカ数・エンジン・パラメータは「ロール構成」で設定します',
   'models.form.replicas.tips':
     '複数のレプリカにより、{api} 推論リクエストの負荷分散が可能になります。',
   'models.table.list.empty': 'まだモデルがありません！',
@@ -386,7 +384,7 @@ export default {
     'Follows the catalog GPUStack publishes, on top of the one packaged with this release.',
 
   // --- Prefill/decode disaggregation ---
-  'models.form.pd.enable': 'PD 分離',
+  'models.form.pd.section': 'PD 分離設定',
   'models.form.pd.enable.off': '無効',
   'models.form.pd.enable.on': 'PD 分離',
   'models.form.pd.enable.tips':
@@ -442,8 +440,6 @@ export default {
   'models.form.roles.group.settings.tips': 'すべてのロールに適用',
   'models.form.roles.group.wide': 'グループ全体',
   'models.form.roles.replicas': 'レプリカ数',
-  'models.form.roles.router.replicas.tips':
-    '本リリースの Router はシングルレプリカです。',
   'models.form.roles.router.routeArgs': 'ルーティング引数',
   'models.form.roles.router.routeArgs.tips':
     'Router プロセスの起動コマンドライン引数です。鍵付きはグループの配置先から GPUStack が生成するもので、編集できません。',
@@ -483,8 +479,6 @@ export default {
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'ロール別の状態',
   'models.pd.role.waiting': '待機中',
-  'models.pd.replicas.readonly':
-    'PD デプロイのレプリカ数は「編集」から各ロールで調整してください。',
   'models.pd.degraded.cache':
     '共有 KV キャッシュが接続されていません。キャッシュなしで稼働中です。',
   'models.pd.degraded.ratio':
@@ -495,6 +489,8 @@ export default {
     'The PD mode was cleared when disaggregation was turned off. Please select it again.',
   'models.pd.degraded.pairing':
     'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
+  'models.pd.degraded.gather':
+    'トポロジー目標未達：メンバーが要求より離れて配置されています',
   'models.pd.degraded.placement':
     '一部のメンバーはアップグレード前の名前空間に残っています。サービスに影響はありませんが、それらが占有するアクセラレータはテナントのクォータ台帳に含まれないため、グループのアトミック受け入れはその分だけ楽観的になります。モデルを再起動すると移動します。',
   'models.pd.degraded.ineffective':
@@ -569,7 +565,7 @@ export default {
   'models.restart.done':
     '再起動中：インスタンスを停止しました。現在の設定で再構築されます。',
   'models.restart.uptodate':
-    'インスタンスはすでに現在の設定で稼働しているため、再起動は不要です。',
+    'Nothing to restart: this deployment has no instances running.',
   'models.restart.inprogress':
     '再起動がすでに進行中です。完了してからもう一度お試しください。',
   'models.restart.failed': 'モデルの再起動に失敗しました。',
@@ -600,6 +596,8 @@ export default {
   'models.form.roles.resources': 'リソース',
   'models.form.roles.resources.cpu': 'CPU（コア）',
   'models.form.roles.resources.memory': 'メモリ（GiB）',
+  'models.form.roles.resources.default':
+    '空欄のままにすると既定値（2 コア・2 GiB）が使われます',
   'models.form.roles.resources.tips':
     'Router コンテナが要求するリソース。デフォルトは 2 コア 2 GiB。',
   'models.form.roles.router.health': 'ヘルスチェック',
@@ -609,12 +607,19 @@ export default {
   'models.form.roles.cpuonly': 'CPU のみ',
 
   'models.form.gather.title': 'トポロジー親和性',
-  'models.form.gather.title.tips':
-    'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
-  'models.form.gather.prefer': 'As close as possible',
-  'models.form.gather.prefer.tips': 'Spread out rather than fail. Default.',
-  'models.form.gather.sameHost': 'Same host, or do not deploy',
-  'models.form.gather.sameLayer': 'Same {layer}, or do not deploy',
+  'models.form.gather.target.auto': '自動',
+  'models.form.gather.target.auto.tips': '収まる範囲で最速の転送経路',
+  'models.form.gather.target.host': '同一ホスト',
+  'models.form.gather.target.host.tips': 'Prefill / Decode が同一マシン',
+  'models.form.gather.target.layer': '同一{layer}',
+  'models.form.gather.target.tips':
+    'このグループのメンバー間に求める転送品質。同一アクセラレータドメイン内の転送はラック内より高速なため、ラックをまたぐドメインも条件を満たすとみなします。Router はアクセラレータを占有しないため、この制約の対象外です。',
+  'models.form.gather.unmet': '収まらない場合',
+  'models.form.gather.unmet.prefer': 'そのままデプロイ',
+  'models.form.gather.unmet.prefer.tips':
+    '次善の配置に後退し、モデルに「トポロジー目標未達」を表示します',
+  'models.form.gather.unmet.must': 'デプロイしない',
+  'models.form.gather.unmet.must.tips': '遅いデプロイを返すくらいなら',
   'models.form.gather.fits': 'fits',
   'models.form.gather.fits.domain': 'fits in {domain}',
   'models.form.gather.short':
@@ -639,14 +644,6 @@ export default {
   // Topology-aware gather tiers. One chain, root to leaf: the option list is
   // flat in chain order and the retreat line says what happens when a rung
   // does not fit. The `chain.*` group headings are gone with the second chain.
-  'models.form.gather.tree.tips':
-    '宣言された階層に沿って集約します。1 つ上の段ほど範囲が広くなります',
-  'models.form.gather.retreat':
-    '「{tier}」を選択中。この段でのみ判定します。収まらなければデプロイを拒否し、「{top}」へ自動的に広げることはありません。自動で広げるには「できるだけ近くに」を選んでください。',
-  'models.form.gather.retreat.top':
-    '「{tier}」を選択中。これが最も広い段のため、収まらなければデプロイを拒否します。自動で広げるには「できるだけ近くに」を選んでください。',
-  'models.form.gather.retreat.host':
-    '「{tier}」を選択中。ホストはこれ以上狭くできない最小の段のため、収まらなければデプロイを拒否します。自動で広げるには「できるだけ近くに」を選んでください。',
   'models.form.gather.goFill': '入力する',
   'models.form.gather.infeasible.warning':
     '現在の容量ではこのグループは配置できません。保存すると空きが出るまで待機します。選択肢：「できるだけ近く」に変更（ホストをまたぎ、KV 転送が遅くなる）· レプリカ数またはレプリカあたりの GPU 数を減らす'

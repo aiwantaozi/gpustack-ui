@@ -1,4 +1,4 @@
-import { LabelInfo, ThemeTag } from '@gpustack/core-ui';
+import { ThemeTag } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { Alert, Flex, Form, Segmented } from 'antd';
 import { createStyles } from 'antd-style';
@@ -15,16 +15,7 @@ import { RoleSection } from './override-section';
 import RoleForm from './role-form';
 import RouterForm from './router-form';
 
-// Same border/radius/padding vocabulary as `RoleSection` — the group-settings
-// card IS one of those cards, and its nested affinity block is a field inside
-// it, not a second card.
 const useStyles = createStyles(({ css }) => ({
-  nested: css`
-    border: 1px solid var(--ant-color-border);
-    border-radius: 6px;
-    padding: 10px 12px 12px;
-    margin-bottom: 12px;
-  `,
   count: css`
     padding: 0 5px;
     border-radius: 4px;
@@ -178,18 +169,16 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName, pdBody }) => {
         }
       >
         {pdBody}
-        {/* Nested one level in: the affinity choice is scoped by the transport
-            above it (a tier means "no worse than X" *on this channel*), so it
-            reads as a refinement rather than a sibling. */}
-        <div className={styles.nested}>
-          <LabelInfo
-            label={intl.formatMessage({ id: 'models.form.gather.title' })}
-            description={intl.formatMessage({
-              id: 'models.form.gather.title.tips'
-            })}
-          ></LabelInfo>
-          <GatherLocality></GatherLocality>
-        </div>
+        {/* 🔴 No wrapper, and no label of its own. It used to have both — a
+            `LabelInfo` reading «拓扑亲和性» above a nested box — which put two
+            labels on one field: the section's, and then the select's own
+            floating one inside the border. The result read as a field inside
+            a field, and sat beside «传输方案» looking like a different kind of
+            control when it is the same kind.
+
+            The select carries «拓扑亲和性» as its own floating label now, so
+            the two group-level fields are structurally identical. */}
+        <GatherLocality></GatherLocality>
       </RoleSection>
       <Segmented
         block

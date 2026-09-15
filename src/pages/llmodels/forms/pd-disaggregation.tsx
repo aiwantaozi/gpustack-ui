@@ -1,17 +1,16 @@
 import { workerListAtom } from '@/atoms/models';
-import { Select as SealSelect, useAppUtils } from '@gpustack/core-ui';
+import {
+  LabelInfo,
+  Select as SealSelect,
+  useAppUtils
+} from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { Flex, Form, Switch, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import { useAtomValue } from 'jotai';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { resolvePDMode } from '../apis';
-import {
-  isPDModel,
-  PD_CAPABLE_BACKENDS,
-  PDEnableValueMap,
-  RoleValueMap
-} from '../config';
+import { PD_CAPABLE_BACKENDS, PDEnableValueMap, RoleValueMap } from '../config';
 import { useFormContext } from '../config/form-context';
 import {
   FormData,
@@ -30,10 +29,12 @@ const PD_MIN_GPUS = 2;
 // Bordered block whose switch sits in the title row, like the Scheduled Scaling
 // and GPU-allocation sections of the same form.
 const useStyles = createStyles(({ css }) => ({
+  /* 🔴 No frame of its own any more. This block used to be a standalone
+     section and drew its own card; it is now mounted inside the
+     group-settings card, so its border made «传输方案» a box inside a box
+     inside a box — the field's own outline being the third. The class stays
+     because the `.note` rules below hang off it. */
   sectionCard: css`
-    border: 1px solid var(--ant-color-border);
-    border-radius: 6px;
-    padding: 16px 12px 12px;
     margin-bottom: 8px;
     .section-title {
       font-size: 14px;
@@ -55,10 +56,21 @@ const useStyles = createStyles(({ css }) => ({
   // already is, and it did so at the top of the form where it cost a third of
   // the visible height. The trade-off now lives in the switch's own
   // description plus the notes below it.
-  toggleLabel: css`
-    font-size: 12px;
-    line-height: 20px;
-    color: var(--ant-color-text-tertiary);
+  /**
+   * The switch row.
+   *
+   * 🔴 The top gap is `padding`, not `margin`, and that is the whole point.
+   * «后端版本» renders a 78px-tall control where every other field is 54 —
+   * the extra 24 belongs to the control itself, not to a margin — so its
+   * `.ant-form-item` bottom edge sits flush against its content and the
+   * `margin-bottom: 24px` it carries produces no space at all against the
+   * next element (measured three times: gap 0 here, 24 between every other
+   * pair). Margins on *this* row cannot fix that; they collapse into the same
+   * nothing. Padding is inside this box and always renders.
+   */
+  toggleRow: css`
+    padding: 22px 2px 0;
+    min-height: 32px;
   `,
   modeId: css`
     font-size: 12px;
@@ -216,8 +228,20 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     // published that — which is what made an edit drawer on an existing group
     // open with its roles tab missing.
     !!form.getFieldValue('roles')?.length ||
-    !!form.getFieldValue(['disaggregation', 'mode']) ||
-    isPDModel({ roles: initialValues?.roles });
+    !!form.getFieldValue(['disaggregation', 'mode']);
+  // 🔴 `isPDModel({ roles: initialValues?.roles })` used to be a third clause
+  // here, as a further fallback for that first render. It made the switch
+  // impossible to turn OFF while editing an existing group: `initialValues`
+  // never changes, so however thoroughly `handleEnableChange` cleared the
+  // store, this clause answered "still on" and the switch snapped back. The
+  // symptom was exactly the contradiction the comment above `active`
+  // describes — blue switch, everything else in the off state — but reached
+  // from the other direction, and only on edit, which is why turning PD *on*
+  // during a create always looked fine.
+  //
+  // It was redundant as well as wrong: `roles` reaches the form through
+  // `use-form-initial-values`, so the store read one line up already answers
+  // for an edit on the first render.
   const [cacheCleared, setCacheCleared] = useState(false);
   // Turning PD off drops `disaggregation` entirely, mode included. Coming back
   // in therefore lands on an empty required field with nothing to explain it,
@@ -242,12 +266,36 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     : null;
   const gpuLabel = intl.formatMessage({ id: 'menu.resources.gpus' });
 
+  /**
+   * Reasons PD *cannot* run at all, which is the only thing that may disable
+   * the switch. Both are statements about capability, not about today's
+   * occupancy: llama-box has no PD recipe in existence, and `disabledReason`
+   * is passed in by a caller that knows the form cannot offer it.
+   */
   const blockedReason =
     disabledReason ||
     (ggufBlocked
       ? intl.formatMessage({ id: 'models.form.pd.disabled.gguf' })
-      : '') ||
-    (usableGpus !== null && usableGpus < PD_MIN_GPUS
+      : '');
+  const blocked = !!blockedReason;
+
+  /**
+   * Not enough free accelerators for the smallest group — a warning, never a
+   * gate.
+   *
+   * 🔴 It used to disable the switch, and that was wrong twice over. It
+   * contradicted this very form, where every other capacity shortfall is
+   * non-blocking: pick a gather tier nothing can hold and it saves, with
+   * «保存后组会一直等待，直到有空位». And it was self-defeating — the message
+   * tells the operator to reduce replicas or change the card type, and both
+   * of those live *behind* the switch it was holding shut.
+   *
+   * Capacity is also the most temporary fact on this screen: a group
+   * configured now and admitted when a node frees up is an ordinary
+   * workflow, not a mistake to be prevented.
+   */
+  const capacityShortfall =
+    usableGpus !== null && usableGpus < PD_MIN_GPUS
       ? intl.formatMessage(
           { id: 'models.pd.admission.infeasible' },
           {
@@ -255,8 +303,7 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
             available: `${usableGpus} ${gpuLabel}`
           }
         )
-      : '');
-  const blocked = !!blockedReason;
+      : '';
 
   // Not a block-level gate: a BYO engine may still run PD, only through the
   // `custom` mode (#5663 — users do want their own engines here). The mode
@@ -695,17 +742,34 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   /**
    * The switch, and nothing else.
    *
-   * Rendered into the replica field's label row, because turning it on is
-   * exactly what moves the replica count out of that field and into the roles
-   * — the control and its consequence share a line. Sized for that row: no
-   * title, no description, no card. The label is the row's own «PD 分离».
+   * Rendered as the first row of the «PD 分离配置» panel, above everything it
+   * turns on. Sized for that row: no title, no card, the label carrying the
+   * name of the decision.
+   *
+   * ⚠️ The caller must keep this mounted across a flip — in practice, an
+   * unconditional collapse item with `forceRender`. Its mount effect
+   * publishes `enabled` from a first render whose `roles` watch has not
+   * resolved (i.e. `false`), so a toggle that remounts when PD turns on
+   * immediately turns it back off, leaving the switch blue and the rest of
+   * the form in the off state.
    */
   if (variant === 'toggle') {
     const toggle = (
-      <Flex align="center" gap={8} data-field="pdMode">
-        <span className={styles.toggleLabel}>
-          {intl.formatMessage({ id: 'models.form.pd.shape.pd' })}
-        </span>
+      // A row of its own, label left and switch right, like every other
+      // full-width field around it. It used to be an inline pair overlaid on
+      // the replica input's label line — that read as a property *of* the
+      // replica count rather than as the deployment-shape decision it is.
+      <Flex
+        align="center"
+        justify="space-between"
+        gap={8}
+        className={styles.toggleRow}
+        data-field="pdMode"
+      >
+        <LabelInfo
+          label={intl.formatMessage({ id: 'models.form.pd.shape.pd' })}
+          description={intl.formatMessage({ id: 'models.form.pd.enable.tips' })}
+        ></LabelInfo>
         <Switch
           checked={active}
           // Blocked only bars the way IN. An existing group must always be
@@ -721,12 +785,30 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     );
     /* The reason has to be reachable, and a disabled Switch never receives
        hover on touch — so the tooltip wraps the label too, which is not
-       disabled. */
-    return blocked && blockedReason ? (
-      <Tooltip title={blockedReason}>{toggle}</Tooltip>
-    ) : (
-      toggle
-    );
+       disabled.
+
+       Carries the capacity shortfall as well, which no longer disables
+       anything: the operator can turn PD on regardless, and this is where
+       they find out the group will wait for room. Once it is on, the body
+       repeats it as a standing note — a tooltip is for the moment before the
+       decision, not for living with its consequence. */
+    const hint = blockedReason || capacityShortfall;
+    const withHint = hint ? <Tooltip title={hint}>{toggle}</Tooltip> : toggle;
+    /* Wrapped in a `Form.Item` with no `name`, purely for layout.
+     *
+     * 🔴 Hand-written margins did not work here. Every neighbour is a
+     * `Form.Item` spacing itself with `margin-bottom: 24px`, and that worked
+     * between any two of them — but «后端版本» renders 24px taller than the
+     * rest and its bottom margin produced *no* space against a plain `div`
+     * (measured: gap 0 above this row, while every other gap was exactly 24).
+     * Rather than chase which margin was being eaten, this row became the
+     * same kind of box as its neighbours, which is the only way it cannot
+     * drift from them again.
+     *
+     * ⚠️ Unconditional, like the row it wraps. A wrapper that appeared and
+     * disappeared would remount the switch and refire its mount effect —
+     * see `pdToggle` in `basic.tsx` for what that costs. */
+    return <Form.Item style={{ marginBottom: 3 }}>{withHint}</Form.Item>;
   }
 
   return (
@@ -828,6 +910,15 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
             ></SealSelect>
           </Form.Item>
           <Flex vertical gap={4}>
+            {/* The capacity shortfall, repeated here as a standing note.
+                The switch's tooltip said it once, before the decision; this
+                is what the operator lives with afterwards, and it is the
+                only place that survives a reopened drawer. Warning-coloured
+                but non-blocking — the group saves and waits for room, the
+                same as every other capacity shortfall in this form. */}
+            {capacityShortfall && (
+              <div className="note note-warning">{capacityShortfall}</div>
+            )}
             {/* §2.5.4: P(same host) = 1/x, and it depends on neither the
                 topology nor the gather choice — so at 8P8D even a perfectly
                 declared fabric pairs on-host about 12% of the time. Told here

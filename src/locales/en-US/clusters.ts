@@ -325,11 +325,6 @@ export default {
   'clusters.topology.mapping.title': 'Label key mapping',
   'clusters.topology.mapping.intro':
     'Which worker label each field reads its value from',
-  'clusters.topology.mapping.layers': 'Layers',
-  'clusters.topology.mapping.layers.tips':
-    'Nested: each level sits inside the one above',
-  'clusters.topology.mapping.layers.status': '{count} field(s) in use',
-  'clusters.topology.mapping.layers.status.empty': 'No field filled',
   'clusters.topology.mapping.showUnused': 'Show the {count} unused field(s)',
   'clusters.topology.mapping.hideUnused': 'Hide unused fields',
   'clusters.topology.mapping.moreKeys': '+ {count} more key(s)',

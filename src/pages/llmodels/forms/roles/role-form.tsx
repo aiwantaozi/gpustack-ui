@@ -86,19 +86,76 @@ const RoleForm: React.FC<RoleFormProps> = ({
     }))
   ];
 
+  // 🔴 The injected rows ARE the editable list now, not a locked block above
+  // it. They used to render as padlocked `<span>`s the user could read and
+  // nothing else, which made the role's parameter list disagree with a
+  // role-less deployment's on both shape and editability.
+  //
+  // Seeded rather than fixed: a row the user never touches is stripped again
+  // at submit (`stripUntouchedInjection`), so the server goes on rendering it
+  // — which it must, because `{{ports.kv_port}}` and `{{net_device}}` only
+  // resolve on the worker at launch, and `{{roles.*.tensor_parallel_size}}`
+  // has to keep following the TP the user sets two fields up. Freezing them
+  // here would answer a question with the answer it had when the drawer
+  // opened.
+  //
+  // `__injected` is the snapshot that comparison reads. UI-only, and
+  // `PAYLOAD_FIELDS` is a whitelist, so it cannot reach the wire.
+  const injectedParams = React.useMemo(
+    () => [
+      ...(Object.keys(injection?.connector || {}).length
+        ? [`--kv-transfer-config ${JSON.stringify(injection?.connector)}`]
+        : []),
+      ...flagLines(injection?.args || [])
+    ],
+    [injection]
+  );
+  const injectedEnv = React.useMemo(
+    () =>
+      Object.entries(injection?.env || {}).reduce<Record<string, string>>(
+        (acc, [key, value]) => {
+          acc[key] = String(value);
+          return acc;
+        },
+        {}
+      ),
+    [injection]
+  );
+
+  React.useEffect(() => {
+    if (!injectedParams.length && !Object.keys(injectedEnv).length) {
+      return;
+    }
+    form.setFieldValue(['roles', index, '__injected'], {
+      params: injectedParams,
+      env: injectedEnv
+    });
+    const params = form.getFieldValue(['roles', index, 'backend_parameters']);
+    const missing = injectedParams.filter(
+      (line) => !(params || []).includes(line)
+    );
+    if (missing.length) {
+      form.setFieldValue(
+        ['roles', index, 'backend_parameters'],
+        [...missing, ...(params || [])]
+      );
+    }
+    const env = form.getFieldValue(['roles', index, 'env']) || {};
+    const addedEnv = Object.entries(injectedEnv).filter(
+      ([key]) => !(key in env)
+    );
+    if (addedEnv.length) {
+      form.setFieldValue(['roles', index, 'env'], {
+        ...Object.fromEntries(addedEnv),
+        ...env
+      });
+    }
+  }, [injectedParams, injectedEnv, form, index]);
+
   const lockHint = (
     <span className="managed-hint">
       {intl.formatMessage({ id: 'models.form.roles.managed.locked' })}
     </span>
-  );
-
-  // Which half of the group the user owns. Watched here as well as inside
-  // `OverrideSection` because the editable lists no longer live in that
-  // section's children — they are footers of the cards below, so this is where
-  // "does the user get one" has to be answered.
-  const overridden = Form.useWatch(
-    ['roles', index, 'overrides', OverrideGroupMap.Parameters],
-    form
   );
 
   const managedGroups = [
@@ -107,51 +164,43 @@ const RoleForm: React.FC<RoleFormProps> = ({
       description: intl.formatMessage({
         id: 'models.form.roles.managed.params.tips'
       }),
-      titleExtra: lockHint,
-      rows: paramRows,
-      footer: overridden ? (
-        /* Measured on Ascend 910B2: prefill and decode differ in nearly every
-           performance-related parameter, down to HCCL_CONNECT_TIMEOUT and
-           HCCL_BUFFSIZE — which is why the override surface is the whole of
-           both lists rather than a PD-specific subset. */
+      rows: [],
+      /* Measured on Ascend 910B2: prefill and decode differ in nearly every
+         performance-related parameter, down to HCCL_CONNECT_TIMEOUT and
+         HCCL_BUFFSIZE — which is why the override surface is the whole of
+         both lists rather than a PD-specific subset.
+
+         No longer gated on the override flag: the group has no switch now
+         (`alwaysOpen`), so there is no state in which the list should be
+         hidden. */
+      footer: (
         <BackendParametersList
           namePrefix={['roles', index]}
         ></BackendParametersList>
-      ) : null
+      )
     },
     {
       title: intl.formatMessage({ id: 'models.form.env' }),
       description: intl.formatMessage({
         id: 'models.form.roles.managed.env.tips'
       }),
-      rows: Object.entries(injection?.env || {}).map(([key, value]) => ({
-        kind: 'pair' as const,
-        label: key,
-        value: String(value)
-      })),
-      footer: overridden ? (
+      rows: [],
+      footer: (
         <Form.Item name={['roles', index, 'env']}>
           <LabelSelector
             label={intl.formatMessage({ id: 'models.form.env' })}
             btnText={intl.formatMessage({ id: 'common.button.vars' })}
           ></LabelSelector>
         </Form.Item>
-      ) : null
-    },
-    {
-      // A group like the other two, and with no footer in either branch: a
-      // bind-mount is the one thing here the platform cannot let the user add.
-      // The rows carry the path alone — a «宿主机挂载» label on a row inside a
-      // «宿主机挂载» card is the word twice.
-      title: intl.formatMessage({ id: 'models.form.roles.managed.mounts' }),
-      description: intl.formatMessage({
-        id: 'models.form.roles.managed.mounts.tips'
-      }),
-      rows: (injection?.host_mounts || []).map((path) => ({
-        kind: 'flag' as const,
-        text: path
-      }))
+      )
     }
+    // 🔴 No «宿主机挂载» card. It listed what the PD recipe bind-mounts
+    // (Ascend's `/etc/hccn.conf`), and it was the one group here the user
+    // could neither edit nor act on — `host_mounts` exists on the mode
+    // catalog and on the rendered injection, never on `RoleSpec`, so there is
+    // nowhere to put a different answer even if one were wanted. A read-only
+    // card among editable ones reads as a control that is broken rather than
+    // as information.
   ];
 
   const engineRows = useEngineRows();
@@ -201,6 +250,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
       <OverrideSection
         group={OverrideGroupMap.Backend}
         index={index}
+        alwaysOpen
         inheritContent={
           <SystemManaged groups={[{ rows: engineRows }]}></SystemManaged>
         }
@@ -216,6 +266,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
       <OverrideSection
         group={OverrideGroupMap.Parameters}
         index={index}
+        alwaysOpen
         inheritContent={null}
         prefix={<SystemManaged groups={managedGroups}></SystemManaged>}
       >
@@ -228,18 +279,14 @@ const RoleForm: React.FC<RoleFormProps> = ({
           heterogeneous group — which is also the precondition for gang
           admission, so this group is load-bearing rather than a convenience.
 
-          Managed says what the system will do, not what it inherited: with no
-          selectors set there is nothing to inherit, and the old summary printed
-          «继承: -» — a dash where the answer «the scheduler picks, using the
-          affinity you set above» belonged. */}
+          🔴 No switch here either, and no «系统托管» summary behind it. That
+          summary said "the scheduler picks, using the affinity you set above",
+          which is simply what Scheduling Mode «Auto» — the default the group
+          now opens on — already says, in a control the user can act on. */}
       <OverrideSection
         group={OverrideGroupMap.Scheduling}
         index={index}
-        inheritContent={
-          <div className="section-summary">
-            {intl.formatMessage({ id: 'models.form.roles.scheduling.managed' })}
-          </div>
-        }
+        alwaysOpen
       >
         <ScheduleTypeForm namePrefix={['roles', index]}></ScheduleTypeForm>
       </OverrideSection>

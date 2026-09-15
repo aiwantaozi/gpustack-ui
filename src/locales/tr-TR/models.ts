@@ -121,8 +121,6 @@ export default {
   'models.localpath.safe.tips':
     '.safetensors ve config.json dosyaları içeren model dizinini belirtin, örn., /data/models/model.',
   'models.localpath.chunks.tips': `Modelin ilk parça dosyasını belirtin, örn., /data/models/model-00001-of-00004.gguf.`,
-  'models.form.replicas.moved.roles':
-    'Rol başına kopya, motor ve parametreler «Roller» bölümünde ayarlanır',
   'models.form.replicas.tips':
     'Birden fazla kopya, { api } çıkarım istekleri için yük dengelemeyi etkinleştirir.',
   'models.table.list.empty': 'Henüz model yok!',
@@ -385,7 +383,7 @@ export default {
     'Follows the catalog GPUStack publishes, on top of the one packaged with this release.',
 
   // --- Prefill/decode disaggregation ---
-  'models.form.pd.enable': 'PD Ayrıştırma',
+  'models.form.pd.section': 'PD Ayrıştırma Ayarları',
   'models.form.pd.enable.off': 'Kapalı',
   'models.form.pd.enable.on': 'PD Ayrıştırma',
   'models.form.pd.enable.tips':
@@ -441,8 +439,6 @@ export default {
   'models.form.roles.group.settings.tips': 'Tüm rollere uygulanır',
   'models.form.roles.group.wide': 'Grup genelinde',
   'models.form.roles.replicas': 'Replikalar',
-  'models.form.roles.router.replicas.tips':
-    'Bu sürümde Router tek replika çalışır.',
   'models.form.roles.router.routeArgs': 'Yönlendirme argümanları',
   'models.form.roles.router.routeArgs.tips':
     'Router sürecinin başlatıldığı komut satırı argümanları. Kilitli satırları GPUStack, grubun yerleştiği yere göre üretir ve düzenlenemez.',
@@ -482,8 +478,6 @@ export default {
   'models.pd.tag': 'PD',
   'models.pd.roles.detail': 'Rol başına durum',
   'models.pd.role.waiting': 'Bekliyor',
-  'models.pd.replicas.readonly':
-    'PD dağıtımı için rol başına replika sayılarını Düzenle içinde ayarlayın.',
   'models.pd.degraded.cache':
     'Paylaşılan KV önbelleği bağlanmadı; grup onsuz hizmet veriyor.',
   'models.pd.degraded.ratio':
@@ -494,6 +488,8 @@ export default {
     'The PD mode was cleared when disaggregation was turned off. Please select it again.',
   'models.pd.degraded.pairing':
     'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
+  'models.pd.degraded.gather':
+    'Topoloji hedefinin altında: üyeler istenenden daha uzakta',
   'models.pd.degraded.placement':
     'Bazı üyeler hâlâ yükseltmeden önceki ad alanında dağıtılmış durumda. Hizmet etkilenmez, ancak bu üyelerin tuttuğu hızlandırıcılar kiracı kota defterinde yer almadığından grubun atomik kabulü o kadar iyimserdir. Taşımak için modeli yeniden başlatın.',
   'models.pd.degraded.ineffective':
@@ -568,7 +564,7 @@ export default {
   'models.restart.done':
     'Yeniden başlatılıyor: örnekler durduruldu ve geçerli yapılandırmayla yeniden oluşturulacak.',
   'models.restart.uptodate':
-    'Örnekler zaten geçerli yapılandırmayla çalışıyor, yeniden başlatmaya gerek yok.',
+    'Nothing to restart: this deployment has no instances running.',
   'models.restart.failed': 'Model yeniden başlatılamadı.',
   'models.restart.inprogress':
     'Zaten bir yeniden başlatma sürüyor. Tamamlanmasını bekleyip yeniden deneyin.',
@@ -600,6 +596,8 @@ export default {
   'models.form.roles.resources': 'Kaynaklar',
   'models.form.roles.resources.cpu': 'CPU (çekirdek)',
   'models.form.roles.resources.memory': 'Bellek (GiB)',
+  'models.form.roles.resources.default':
+    'Varsayılanları kullanmak için boş bırakın: 2 çekirdek, 2 GiB',
   'models.form.roles.resources.tips':
     'Router konteynerinin istediği kaynaklar. Varsayılan 2 çekirdek ve 2 GiB.',
   'models.form.roles.router.health': 'Sağlık kontrolü',
@@ -609,12 +607,19 @@ export default {
   'models.form.roles.cpuonly': 'Yalnızca CPU',
 
   'models.form.gather.title': 'Topoloji Yakınlığı',
-  'models.form.gather.title.tips':
-    'Where this group must fit. The scheduler always places into the tightest domain that fits; this decides whether to refuse or to spread out when it does not.',
-  'models.form.gather.prefer': 'As close as possible',
-  'models.form.gather.prefer.tips': 'Spread out rather than fail. Default.',
-  'models.form.gather.sameHost': 'Same host, or do not deploy',
-  'models.form.gather.sameLayer': 'Same {layer}, or do not deploy',
+  'models.form.gather.target.auto': 'Otomatik',
+  'models.form.gather.target.auto.tips': 'Sığan en hızlı aktarım yolu',
+  'models.form.gather.target.host': 'Aynı sunucu',
+  'models.form.gather.target.host.tips': 'Prefill ve Decode aynı makinede',
+  'models.form.gather.target.layer': 'Aynı {layer}',
+  'models.form.gather.target.tips':
+    'Bu grubun üyeleri arasında istediğiniz aktarım kalitesi. Tek bir hızlandırıcı alanı içindeki aktarım aynı kabin içindekinden hızlıdır; bu yüzden kabinleri aşan bir alan da karşılanmış sayılır. Router hızlandırıcı kullanmaz ve bu kısıta dahil değildir.',
+  'models.form.gather.unmet': 'Sığmazsa',
+  'models.form.gather.unmet.prefer': 'Yine de dağıt',
+  'models.form.gather.unmet.prefer.tips':
+    'Bir sonraki en iyi yerleşime düş ve modeli topoloji hedefinin altında olarak işaretle',
+  'models.form.gather.unmet.must': 'Dağıtma',
+  'models.form.gather.unmet.must.tips': 'Daha yavaş bir dağıtım vermektense',
   'models.form.gather.fits': 'fits',
   'models.form.gather.fits.domain': 'fits in {domain}',
   'models.form.gather.short':
@@ -639,14 +644,6 @@ export default {
   // Topology-aware gather tiers. One chain, root to leaf: the option list is
   // flat in chain order and the retreat line says what happens when a rung
   // does not fit. The `chain.*` group headings are gone with the second chain.
-  'models.form.gather.tree.tips':
-    'Bildirilen hiyerarşiye göre toplar: bir üst kademe bir adım daha geniştir',
-  'models.form.gather.retreat':
-    '“{tier}” seçildi. Yalnızca bu düzeyde değerlendirilir: sığmazsa dağıtım reddedilir, “{top}” düzeyine kendiliğinden genişletilmez. Otomatik genişletme için “Yakın yerleştir” seçeneğini kullanın.',
-  'models.form.gather.retreat.top':
-    '“{tier}” seçildi. Bu en geniş kademe olduğundan sığmaması dağıtımın reddedilmesi demektir. Otomatik genişletme için “Yakın yerleştir” seçeneğini kullanın.',
-  'models.form.gather.retreat.host':
-    '“{tier}” seçildi. Sunucu, daha aşağısı olmayan en dar kademedir; sığmaması dağıtımın reddedilmesi demektir. Otomatik genişletme için “Yakın yerleştir” seçeneğini kullanın.',
   'models.form.gather.goFill': 'Doldur',
   'models.form.gather.infeasible.warning':
     'Mevcut kapasiteyle bu grup yerleştirilemez; kaydedildikten sonra yer açılana kadar bekler. Seçenekler: “olabildiğince yakın” seçeneğine geçin (sunuculara yayılabilir, KV aktarımı yavaşlar) · kopya sayısını veya kopya başına GPU sayısını azaltın'

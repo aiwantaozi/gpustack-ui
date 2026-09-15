@@ -83,8 +83,9 @@ interface DataFormProps {
 
 const TABKeysMap = {
   BASIC: 'basic',
+  // Covers the switch and the roles both. `ROLES` was a second key for the
+  // second half of one topic; it went when the two sections merged.
   PD: 'pd',
-  ROLES: 'roles',
   SCHEDULING: 'scheduling',
   PERFORMANCE: 'performance',
   // PD only: the fields a role cannot override, gathered where the fact is
@@ -180,24 +181,16 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
       icon: <IconFont type="icon-basic" />,
       field: 'name'
     },
+    // One entry, because there is one section now. A separate Roles tab that
+    // appeared only once PD was on advertised a second destination for what
+    // has always been one topic — and the switch it depended on lived under
+    // the *other* tab.
     {
       value: TABKeysMap.PD,
-      label: intl.formatMessage({ id: 'models.form.pd.enable' }),
+      label: intl.formatMessage({ id: 'models.form.pd.section' }),
       icon: <IconFont type="icon-model" />,
-      field: 'pdMode'
+      field: pdEffects.enabled ? 'roles' : 'pdMode'
     },
-    // Only reachable once PD is on: an always-present Roles tab on a plain
-    // model would advertise a section that renders nothing.
-    ...(pdEffects.enabled
-      ? [
-          {
-            value: TABKeysMap.ROLES,
-            label: intl.formatMessage({ id: 'models.form.roles' }),
-            icon: <IconFont type="icon-model" />,
-            field: 'roles'
-          }
-        ]
-      : []),
     // Performance is model-level, and under PD both of its fields have moved
     // down to the roles: the KV cache because prefill and decode want
     // different answers, speculative decoding because the NIXL handshake
@@ -351,7 +344,10 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
     // an empty array is a group with no members, while null is the plain
     // single-role deployment every model is today.
     if (pdEffects.enabled) {
-      allValues.roles = rolesFormToPayload(data.roles);
+      // `data` is the whole form, which is where the model-level values the
+      // roles may be inheriting live — the transform compares against them to
+      // tell an untouched group from a real override.
+      allValues.roles = rolesFormToPayload(data.roles, data);
     } else {
       allValues.roles = null;
       allValues.disaggregation = null;
@@ -639,17 +635,6 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
         >
           <BasicForm
             pdActive={pdEffects.enabled}
-            // In the replica field's own label row: turning it on is exactly
-            // what moves the count out of that field and into the roles, so
-            // the control sits on the line it changes. The body it reveals
-            // (transport, vendor, notes) is mounted in the Roles tab's
-            // group-settings card instead — see `Roles`.
-            pdToggle={
-              <PDDisaggregation
-                variant="toggle"
-                onEffectsChange={handlePDEffectsChange}
-              ></PDDisaggregation>
-            }
             sourceList={sourceList}
             clusterList={clusterList}
             sourceDisable={sourceDisable}
@@ -662,47 +647,65 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
             accordion={false}
             onChange={handleOnCollapseChange}
             items={[
-              // The item exists only with PD on, so `forceRender` is safe here
-              // and necessary: without it the section's fields register only
-              // once the panel is opened, and a group submitted without
-              // opening it would carry no roles at all.
-              ...(pdEffects.enabled
-                ? [
-                    {
-                      key: TABKeysMap.ROLES,
-                      label: intl.formatMessage({ id: 'models.form.roles' }),
-                      forceRender: true,
-                      children: (
-                        <Roles
-                          enabled={pdEffects.enabled}
-                          mode={pdEffects.modeData}
-                          modeName={pdEffects.mode}
-                          // The PD block's body, mounted inside the
-                          // group-settings card so «哪条通道 / 最紧到哪一档»
-                          // read as one group-wide topic instead of two
-                          // sections a scroll apart.
-                          pdBody={
-                            <PDDisaggregation
-                              variant="body"
-                              // The transport picker is in here, so the choice
-                              // is made here — but the switch is two sections
-                              // up and owns `enabled`. Only the choice comes
-                              // back, patched onto what the switch published.
-                              onModeChange={(mode, data) =>
-                                setPDEffects((prev) => ({
-                                  ...prev,
-                                  mode,
-                                  modeData: data,
-                                  isCustomMode: mode === PD_MODE_CUSTOM
-                                }))
-                              }
-                            ></PDDisaggregation>
-                          }
-                        ></Roles>
-                      )
-                    }
-                  ]
-                : []),
+              // One section for the whole topic: the switch that turns PD on
+              // and everything that only exists once it is on. It used to be
+              // two places a scroll apart — the switch on a row in Basic Info,
+              // the roles in a «角色配置» panel that appeared out of nowhere
+              // when you flipped it.
+              //
+              // ⚠️ The item itself is NOT conditional, and that is
+              // load-bearing rather than tidy. `PDDisaggregation
+              // variant="toggle"` must never unmount: its mount effect
+              // publishes `enabled` from a first render whose `roles` watch
+              // has not resolved — i.e. `false` — so a switch that remounts on
+              // every flip turns PD back off the moment you turn it on. Paired
+              // with `forceRender`, which keeps the children mounted while the
+              // panel is collapsed, that makes this the one place the toggle
+              // can live. `forceRender` is separately necessary for the roles:
+              // without it their fields register only once the panel is
+              // opened, and a group submitted without opening it would carry
+              // no roles at all.
+              {
+                key: TABKeysMap.PD,
+                label: intl.formatMessage({ id: 'models.form.pd.section' }),
+                forceRender: true,
+                children: (
+                  <>
+                    <PDDisaggregation
+                      variant="toggle"
+                      onEffectsChange={handlePDEffectsChange}
+                    ></PDDisaggregation>
+                    {pdEffects.enabled && (
+                      <Roles
+                        enabled={pdEffects.enabled}
+                        mode={pdEffects.modeData}
+                        modeName={pdEffects.mode}
+                        // The PD block's body, mounted inside the
+                        // group-settings card so «哪条通道 / 最紧到哪一档»
+                        // read as one group-wide topic instead of two
+                        // sections a scroll apart.
+                        pdBody={
+                          <PDDisaggregation
+                            variant="body"
+                            // The transport picker is in here, so the choice
+                            // is made here — but the switch above owns
+                            // `enabled`. Only the choice comes back, patched
+                            // onto what the switch published.
+                            onModeChange={(mode, data) =>
+                              setPDEffects((prev) => ({
+                                ...prev,
+                                mode,
+                                modeData: data,
+                                isCustomMode: mode === PD_MODE_CUSTOM
+                              }))
+                            }
+                          ></PDDisaggregation>
+                        }
+                      ></Roles>
+                    )}
+                  </>
+                )
+              },
               ...(pdEffects.enabled
                 ? []
                 : [

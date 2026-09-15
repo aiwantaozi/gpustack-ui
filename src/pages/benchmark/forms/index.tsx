@@ -36,6 +36,29 @@ interface ProviderFormProps {
   onFinishFailed?: (errorInfo: any) => void;
 }
 
+/**
+ * Warmup / cooldown / max error rate unit conversion.
+ *
+ * Every one of these is typed as a whole percent (the fields are labelled "%")
+ * while the API column carries guidellm's own scalar, a fraction below 1.
+ * Sending the typed number straight through was a footgun for warmup/cooldown,
+ * where guidellm reads 1-and-above as an absolute request count: "10" meant to
+ * be 10% landed as an absolute 10. Max error rate had the mirror problem — the
+ * field was the only one in the form asking for a raw fraction, so it read as
+ * inconsistent next to its neighbours.
+ *
+ * Only the percent range is offered in the form, so the conversion is
+ * unambiguous in both directions. A stored value of 1 or more predates warmup /
+ * cooldown being a percent — it is an absolute count, and is shown as-is rather
+ * than multiplied into a nonsensical 1000%. (Max error rate can't hold such a
+ * value: guidellm's constraint rejects anything outside the open interval.)
+ */
+const percentToFraction = (v?: number | null): number | undefined | null =>
+  v === undefined || v === null ? v : v / 100;
+
+const fractionToPercent = (v?: number | null): number | undefined | null =>
+  v === undefined || v === null || v >= 1 ? v : Math.round(v * 1000) / 10;
+
 const ProviderForm: React.FC<ProviderFormProps> = forwardRef((props, ref) => {
   const {
     action,
@@ -160,6 +183,10 @@ const ProviderForm: React.FC<ProviderFormProps> = forwardRef((props, ref) => {
     form.setFieldsValue({
       ...currentData,
       dataset_name: datasetName,
+      // Stored as a fraction, shown as a whole percent (see the onFinish note).
+      warmup: fractionToPercent(currentData.warmup),
+      cooldown: fractionToPercent(currentData.cooldown),
+      max_error_rate: fractionToPercent(currentData.max_error_rate),
       // Editable view of the 9 flat slo_*_ms thresholds (see config/index.ts).
       slo_targets: sloTargetsFromFields(currentData),
       model_instance: [currentData.model_name, currentData.model_instance_name],
@@ -236,7 +263,19 @@ const ProviderForm: React.FC<ProviderFormProps> = forwardRef((props, ref) => {
           // associations break, screen readers land on the wrong control, and any
           // id selector silently picks whichever came first in the DOM.
           name="benchmark"
-          onFinish={onFinish}
+          // Warmup / cooldown / max error rate are entered as whole percents
+          // (the fields are labelled "%") but the API columns hold guidellm's
+          // own scalar convention, where a value below 1 is a FRACTION. Convert
+          // at the boundary so neither side has to know about the other's unit;
+          // see `percentToFraction`.
+          onFinish={(values: FormData) =>
+            onFinish({
+              ...values,
+              warmup: percentToFraction(values.warmup),
+              cooldown: percentToFraction(values.cooldown),
+              max_error_rate: percentToFraction(values.max_error_rate)
+            })
+          }
           onFinishFailed={onFinishFailed}
           initialValues={{
             // Default to the Max Throughput preset: adaptive auto-tune on the

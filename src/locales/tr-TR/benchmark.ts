@@ -71,8 +71,14 @@ export default {
     'Stop the run once throughput plateaus (guidellm over-saturation constraint) instead of pushing further past saturation.',
   'benchmark.form.warmup': 'Warmup (%)',
   'benchmark.form.cooldown': 'Cooldown (%)',
+  'benchmark.form.warmup.tips':
+    'Trims the first N% of each stage\u2019s REQUESTS from the measured window (not the first N% of its seconds). Use it to exclude cold-start effects \u2014 the first few requests of a run can be several times slower than steady state. Enter a percentage \u2014 e.g. 10 trims the first 10% of each stage\u2019s requests.',
+  'benchmark.form.cooldown.tips':
+    'Trims the last N% of each stage\u2019s REQUESTS from the measured window, excluding the tail where the stage is draining. Enter a percentage \u2014 e.g. 10 trims the last 10% of each stage\u2019s requests.',
   'benchmark.form.maxErrors': 'Max Errors',
-  'benchmark.form.maxErrorRate': 'Maks. Hata Oranı (0–1)',
+  'benchmark.form.maxErrorRate': 'Maks. Hata Oranı (%)',
+  'benchmark.form.maxErrorRate.tips':
+    'Stops a stage once the share of failed requests reaches this level — a cap on how much of the run may fail before the numbers stop being worth measuring. Enter a percentage — e.g. 5 stops the stage at a 5% error rate. Leave it empty to tolerate any error rate.',
   'benchmark.form.stopOnSaturation': 'Stop on Saturation',
   'benchmark.form.datasetSeed.tips':
     'Sentetik veri üretme tohumu. Çok aşamalı çalıştırmada bu başlangıç tohumudur; her aşama başlangıç + aşama dizini kullanır (sabitlemek için «Gelişmiş» altındaki «Aşama başına farklı tohum» anahtarını kapatın).',

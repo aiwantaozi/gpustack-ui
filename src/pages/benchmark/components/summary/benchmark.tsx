@@ -49,6 +49,23 @@ interface Row {
   children?: React.ReactNode;
 }
 
+/**
+ * Warmup / cooldown are stored in guidellm's scalar convention: below 1 is a
+ * FRACTION of the stage's requests, 1 and above is an absolute count. The form
+ * only offers the percent range, so render a fraction as the percent that was
+ * typed -- showing a bare "0.1" against a field labelled "%" reads as 0.1%.
+ *
+ * Max error rate shares this: it is a fraction too, and the form now asks for
+ * it in percent alongside the other two. Its stored value is always inside the
+ * open interval (0, 1), so it never reaches the count branch.
+ */
+const asPercentOrCount = (v?: number | null) =>
+  v === undefined || v === null
+    ? v
+    : v < 1
+      ? `${Math.round(v * 1000) / 10}%`
+      : v;
+
 const isEmpty = (value: unknown) =>
   value === undefined ||
   value === null ||
@@ -295,7 +312,7 @@ const Benchmark: React.FC = () => {
     {
       key: 'maxErrorRate',
       labelId: 'benchmark.form.maxErrorRate',
-      value: detailData?.max_error_rate
+      value: asPercentOrCount(detailData?.max_error_rate)
     },
     ...(detailData?.stop_on_saturation
       ? [
@@ -313,12 +330,12 @@ const Benchmark: React.FC = () => {
     {
       key: 'warmup',
       labelId: 'benchmark.form.warmup',
-      value: detailData?.warmup
+      value: asPercentOrCount(detailData?.warmup)
     },
     {
       key: 'cooldown',
       labelId: 'benchmark.form.cooldown',
-      value: detailData?.cooldown
+      value: asPercentOrCount(detailData?.cooldown)
     }
   ];
 

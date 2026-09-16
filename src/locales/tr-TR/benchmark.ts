@@ -114,6 +114,7 @@ export default {
   'benchmark.form.concurrency': 'Eşzamanlılık',
   'benchmark.form.stages': 'Aşamalar',
   'benchmark.form.stages.mode.manual': 'Elle',
+  'benchmark.detail.stageLimits': 'Aşama Başına Limitler',
   'benchmark.form.addStage': 'Aşama Ekle',
   'benchmark.form.maxRequests': 'Maks. İstek',
   'benchmark.form.maxSeconds': 'Maks. Saniye',

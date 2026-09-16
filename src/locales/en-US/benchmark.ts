@@ -114,6 +114,7 @@ export default {
   'benchmark.form.concurrency': 'Concurrency',
   'benchmark.form.stages': 'Stages',
   'benchmark.form.stages.mode.manual': 'Manual',
+  'benchmark.detail.stageLimits': 'Per-Stage Limits',
   'benchmark.form.addStage': 'Add Stage',
   'benchmark.form.maxRequests': 'Max Requests',
   'benchmark.form.maxSeconds': 'Max Seconds',

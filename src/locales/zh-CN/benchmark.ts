@@ -115,6 +115,7 @@ export default {
   'benchmark.form.concurrency': '并发数',
   'benchmark.form.stages': '阶段 (Stages)',
   'benchmark.form.stages.mode.manual': '手动',
+  'benchmark.detail.stageLimits': '各级上限',
   'benchmark.form.addStage': '添加阶段',
   'benchmark.form.maxRequests': '最大请求数',
   'benchmark.form.maxSeconds': '最大时长 (秒)',

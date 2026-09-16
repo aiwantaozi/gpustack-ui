@@ -7,17 +7,18 @@ import { useDetailContext } from '../../config/detail-context';
 
 // What differs BETWEEN the members of one deployment.
 //
-// The card above this one describes the deployment as a whole, and for most of
-// what it shows that is correct: backend parameters, env, the model file, the
-// KV-cache and speculative settings all live on the Model, so every member of a
-// group shares them and printing them once is right.
+// The card above this one describes the deployment as a whole, reading one
+// representative member. That is right for the model file and the settings a
+// group genuinely shares.
 //
-// These do not. Role, placement, the version the engine actually reported, the
-// parameters the server injected and the state each member was in are per
-// member — and on a disaggregated group they are exactly what a reader is
-// looking for, because prefill and decode are configured differently on
-// purpose. Reading them off one representative member (which is what the card
-// above has to do) would state one member's placement as the deployment's.
+// It is wrong for everything in this table. Role, placement, the version the
+// engine actually reported, the parameters the server injected and the
+// environment each member ran with are per member — and on a disaggregated
+// group they are exactly what a reader is looking for, because prefill and
+// decode are configured differently on purpose (`env` and
+// `backend_parameters` are overridable per role for that reason; on Ascend
+// 910B2 they differ down to `HCCL_CONNECT_TIMEOUT`). Reading them off one
+// member would state one role's configuration as the whole deployment's.
 //
 // Hidden for a single-member deployment: one row restating the card above it is
 // noise.
@@ -119,10 +120,27 @@ const DeploymentMembers: React.FC = () => {
         )
     },
     {
-      title: intl.formatMessage({ id: 'common.table.status' }),
-      dataIndex: 'state',
-      width: 130,
-      render: (state: string) => <AutoTooltip ghost>{state || '-'}</AutoTooltip>
+      // Per-role overrides land here, and on a PD group they are where prefill
+      // and decode actually diverge — measured on Ascend 910B2 they differ down
+      // to `HCCL_CONNECT_TIMEOUT` (120 vs 1200). The status this replaced was
+      // the one column that said nothing about the configuration: every member
+      // of a finished run is `running`, and a member that was not would have
+      // failed the run rather than shown up here with a different word.
+      title: intl.formatMessage({ id: 'models.form.env' }),
+      dataIndex: 'env',
+      width: 320,
+      render: (env: Record<string, string>) => {
+        const entries = Object.entries(env || {});
+        return entries.length ? (
+          <Flex gap={'4px 8px'} wrap="wrap">
+            {entries.map(([key, value]) => (
+              <ThemeTag key={key}>{`${key}=${value}`}</ThemeTag>
+            ))}
+          </Flex>
+        ) : (
+          '-'
+        );
+      }
     }
   ];
 

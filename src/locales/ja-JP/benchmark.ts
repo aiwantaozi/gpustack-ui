@@ -114,6 +114,7 @@ export default {
   'benchmark.form.concurrency': '並行数',
   'benchmark.form.stages': 'ステージ',
   'benchmark.form.stages.mode.manual': '手動',
+  'benchmark.detail.stageLimits': 'ステージごとの上限',
   'benchmark.form.addStage': 'ステージを追加',
   'benchmark.form.maxRequests': '最大リクエスト数',
   'benchmark.form.maxSeconds': '最大秒数',

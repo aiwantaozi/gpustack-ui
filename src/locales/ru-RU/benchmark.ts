@@ -116,6 +116,7 @@ export default {
   'benchmark.form.concurrency': 'Параллелизм',
   'benchmark.form.stages': 'Этапы',
   'benchmark.form.stages.mode.manual': 'Вручную',
+  'benchmark.detail.stageLimits': 'Лимиты по этапам',
   'benchmark.form.addStage': 'Добавить этап',
   'benchmark.form.maxRequests': 'Макс. запросов',
   'benchmark.form.maxSeconds': 'Макс. секунд',

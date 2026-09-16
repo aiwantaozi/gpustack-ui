@@ -159,6 +159,14 @@ export default {
     'このモデルには約{vram}のVRAMと{ram}のメモリが必要です。',
   'models.form.check.claims2': 'このモデルには約{vram}のVRAMが必要です。',
   'models.form.check.claims3': 'このモデルには約{ram}のメモリが必要です。',
+  'models.form.check.claims.group':
+    'このグループ全体で約{vram}のVRAMと{ram}のメモリが必要です。',
+  'models.form.check.claims.role':
+    '{role} × {replicas}：1レプリカあたり約{vram}のVRAM',
+  'models.form.check.claims.role.total':
+    '{role} × {replicas}：合計で約{vram}のVRAM',
+  'models.form.check.claims.role.ram':
+    '{role} × {replicas}：合計で約{ram}のメモリ',
   'models.form.update.tips':
     '変更はインスタンスを削除して再作成した後にのみ適用されます。',
   'models.table.download.progress': '進行状況',

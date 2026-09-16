@@ -159,6 +159,14 @@ export default {
     'Model yaklaşık {vram} VRAM ve {ram} RAM tüketecektir.',
   'models.form.check.claims2': 'Model yaklaşık {vram} VRAM tüketecektir.',
   'models.form.check.claims3': 'Model yaklaşık {ram} RAM tüketecektir.',
+  'models.form.check.claims.group':
+    'Grup toplamda yaklaşık {vram} VRAM ve {ram} RAM tüketecektir.',
+  'models.form.check.claims.role':
+    '{role} × {replicas}: replika başına yaklaşık {vram} VRAM',
+  'models.form.check.claims.role.total':
+    '{role} × {replicas}: toplamda yaklaşık {vram} VRAM',
+  'models.form.check.claims.role.ram':
+    '{role} × {replicas}: toplamda yaklaşık {ram} RAM',
   'models.form.update.tips':
     'Değişiklikler yalnızca örneği silip yeniden oluşturduğunuzda geçerli olur.',
   'models.table.download.progress': 'İlerleme',

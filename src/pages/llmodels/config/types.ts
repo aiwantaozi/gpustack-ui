@@ -840,6 +840,28 @@ export interface EvaluateResult {
       vram: number;
     };
   };
+  // Only a PD (role-bearing) deployment gets these, and then the claim above
+  // is the WHOLE group's — every replica of every role plus the router —
+  // rather than one instance's. A plain deployment leaves them undefined and
+  // its claim keeps meaning exactly what it always did.
+  role_resource_claims?: RoleResourceClaim[];
+  role_resource_claims_by_cluster_id?: {
+    [key: number]: RoleResourceClaim[];
+  };
+}
+
+export interface RoleResourceClaim {
+  role: string;
+  replicas: number;
+  // This role's whole demand, every replica summed.
+  ram: number;
+  vram: number;
+  // What ONE member costs, absent when the members disagree (a role spread
+  // over two accelerator types sizes differently on each).
+  per_replica?: {
+    ram: number;
+    vram: number;
+  } | null;
 }
 
 export interface BackendGroupOption {

@@ -418,16 +418,19 @@ export const DO_NOT_TRIGGER_CHECK_COMPATIBILITY = [
   'speculative_config.enabled',
   'speculative_config.draft_model',
   'max_context_len',
-  'native_anthropic_api',
-  // Whether PD is on, and which recipe it picked: neither changes what the
-  // deployment needs from a worker.
-  'pdMode',
-  'disaggregation.mode',
-  // Role edits do not move the model-level answer either — and they are the
-  // fields a user types through, so leaving them out would mean a round trip
-  // per keystroke. Per-role sizing needs the endpoint to report a claim per
-  // role, which it does not yet.
-  'roles'
+  'native_anthropic_api'
+  // 🔴 `pdMode`, `disaggregation.mode` and `roles` used to be listed here, on
+  // the reading that none of them changes what the deployment needs from a
+  // worker. That was true only while the endpoint answered for a single
+  // instance: it now prices the whole group, so turning PD on changes the
+  // answer from one replica to x+y+1, the recipe decides which accelerator
+  // vendors may host it, and a role's replica count IS the group's size.
+  //
+  // `roles` is the one that had a second reason — the user types through those
+  // fields, and a round trip per keystroke is what the exclusion prevented.
+  // That is handled where it belongs now, by the signature gate in
+  // `forms/index.tsx`, which fires only when a role's SIZE or card selection
+  // moves rather than on every character of its parameters.
 ];
 
 // ignore to compare old and new data when these fields change in updating model

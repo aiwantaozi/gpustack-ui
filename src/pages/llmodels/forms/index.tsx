@@ -428,7 +428,7 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
     await new Promise((resolve) => {
       setTimeout(resolve, 150);
     });
-    onValuesChange?.({}, form.getFieldsValue());
+    onValuesChange?.({}, withRoles(form.getFieldsValue()));
   };
 
   // The basic form seeds a default cluster on open, before a model is picked.
@@ -437,6 +437,48 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
   const handleClusterSeed = async (value: number) => {
     await onClusterChange?.(value);
     applyClusterScopedOptions(value);
+  };
+
+  /**
+   * What a role contributes to the evaluation, and nothing else.
+   *
+   * The replica count is the x and the y of xPyD, and the card selection
+   * decides what one member lands on — those two are the whole of what changes
+   * the group's footprint or whether it fits. A role's engine parameters are
+   * deliberately out, exactly as the model-level `backend_parameters` are:
+   * they are typed through, and each keystroke would otherwise cost a full
+   * group solve.
+   */
+  const rolesEvaluationSignature = (roles?: any[] | null) =>
+    JSON.stringify(
+      (roles || []).map((role: any) => [
+        role?.name,
+        role?.replicas,
+        role?.gpu_selector,
+        role?.gpu_type_selector,
+        role?.resources
+      ])
+    );
+
+  const rolesSignatureRef = React.useRef<string>(
+    rolesEvaluationSignature(initialValues?.roles)
+  );
+
+  /**
+   * The form's values with the roles read off the store rather than off what
+   * antd handed over.
+   *
+   * 🔴 The same trap `handleOk` documents: antd builds `allValues` from
+   * REGISTERED fields only, and `roles[i].__injected` — the snapshot of what
+   * the PD recipe seeded into a role's parameter list — is written with
+   * `setFieldValue` under a path that has no `Form.Item`. Evaluating the
+   * version without it means `stripUntouchedInjection` has nothing to strip,
+   * so the recipe's own rows (including `{{...}}` placeholders only the worker
+   * can resolve) are sent as if the user had typed them.
+   */
+  const withRoles = (values: Record<string, any>) => {
+    const roles = form.getFieldValue('roles');
+    return roles ? { ...values, roles } : values;
   };
 
   const getFieldPaths = (obj: Record<string, any>, prefix = ''): string => {
@@ -467,7 +509,19 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
     ) {
       return;
     }
-    onValuesChange?.(changedValues, allValues);
+    // A role edit only moves the answer when it moves the group's SIZE or the
+    // cards its members want; everything else in a role is typed through
+    // character by character, and evaluating a group is a whole solve over the
+    // cluster. `roles` used to sit in DO_NOT_TRIGGER_CHECK_COMPATIBILITY for
+    // that reason, which also meant changing 1P1D to 4P4D never re-evaluated.
+    if (fieldName === 'roles') {
+      const signature = rolesEvaluationSignature(form.getFieldValue('roles'));
+      if (signature === rolesSignatureRef.current) {
+        return;
+      }
+      rolesSignatureRef.current = signature;
+    }
+    onValuesChange?.(changedValues, withRoles(allValues));
   };
 
   const handleOnCollapseChange = (keys: string | string[]) => {

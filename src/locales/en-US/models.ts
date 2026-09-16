@@ -160,6 +160,14 @@ export default {
     'The model will consume approximately {vram} VRAM.',
   'models.form.check.claims3':
     'The model will consume approximately {ram} RAM.',
+  'models.form.check.claims.group':
+    'The group will consume approximately {vram} VRAM and {ram} RAM in total.',
+  'models.form.check.claims.role':
+    '{role} × {replicas}: approximately {vram} VRAM each',
+  'models.form.check.claims.role.total':
+    '{role} × {replicas}: approximately {vram} VRAM in total',
+  'models.form.check.claims.role.ram':
+    '{role} × {replicas}: approximately {ram} RAM in total',
   'models.form.update.tips':
     'Changes will only apply after you delete and recreate the instance.',
   'models.table.download.progress': 'Progress',

@@ -161,6 +161,14 @@ export default {
     'Модель требует примерно {vram} VRAM и {ram} RAM.',
   'models.form.check.claims2': 'Модель требует примерно {vram} VRAM.',
   'models.form.check.claims3': 'Модель требует примерно {ram} RAM.',
+  'models.form.check.claims.group':
+    'Группа требует примерно {vram} VRAM и {ram} RAM суммарно.',
+  'models.form.check.claims.role':
+    '{role} × {replicas}: примерно {vram} VRAM на реплику',
+  'models.form.check.claims.role.total':
+    '{role} × {replicas}: примерно {vram} VRAM суммарно',
+  'models.form.check.claims.role.ram':
+    '{role} × {replicas}: примерно {ram} RAM суммарно',
   'models.form.update.tips':
     'Изменения вступят в силу только после удаления и повторного создания инстанса.',
   'models.table.download.progress': 'Прогресс',

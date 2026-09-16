@@ -8,12 +8,13 @@ import { useAtomValue } from 'jotai';
 import _ from 'lodash';
 import { useEffect, useRef, useState } from 'react';
 import { evaluationsModelSpec } from '../apis';
-import { modelSourceMap, modelTaskMap } from '../config';
-import { EvaluateResult, FormData } from '../config/types';
+import { modelSourceMap, modelTaskMap, RoleLabelMap } from '../config';
+import { EvaluateResult, FormData, RoleResourceClaim } from '../config/types';
 import {
   backendOptionsMap,
   BuiltInBackendOptions
 } from '../constants/backend-parameters';
+import { rolesFormToPayload } from '../forms/roles/transform';
 import { derivesNativeAnthropicApi, generateGPUIds } from '../utils';
 import useCheckBackend from './use-check-backend';
 import useRecognizeAudio from './use-recognize-audio';
@@ -236,16 +237,37 @@ export const useCheckCompatibility = () => {
                 'scheduleType',
                 'manualGpuMode',
                 'scaling_schedule',
-                // Same reasoning again, and the strongest case of it: a role
-                // is held in form shape — the override switches, the router's
-                // managed flag, and GPU ids still in the cascader's
-                // [worker, gpu] pairs — which the API's `List[str]` rejects
-                // outright, so the whole evaluation 422s and surfaces as an
-                // error toast. The wire shape is assembled at submit; there is
-                // nothing per-role for this endpoint to answer yet anyway.
-                'roles',
-                'disaggregation'
+                // Assembled below instead of passed through: a role is held in
+                // FORM shape — the override switches, the router's managed
+                // flag, and GPU ids still in the cascader's [worker, gpu]
+                // pairs — which the API's `List[str]` rejects outright, so
+                // sending it raw 422s the whole evaluation.
+                'roles'
               ]),
+              // 🔴 The roles are what make this a PD evaluation, and they used
+              // to be dropped here along with the form-only keys above. With
+              // them gone the server had no way to know it was pricing a
+              // group, so it answered for ONE instance of the model-level spec
+              // — no per-role overrides, no x+y replicas, no router, and no
+              // check that prefill and decode fit together. A 4P4D deployment
+              // therefore read like a single replica.
+              //
+              // `rolesFormToPayload` is the same transform submit runs, so
+              // what is evaluated is what would be deployed. `data` is passed
+              // as the model-level values because the transform demotes a role
+              // whose every field still equals the model's back to inheriting.
+              //
+              // `disaggregation` travels with them and is nulled without
+              // them: it is already in wire shape, but a form that had PD
+              // turned back off still carries the last recipe, and sending
+              // that alone would have the server narrow the eligible
+              // accelerators for a deployment that is no longer a group.
+              ...(data.roles?.length
+                ? {
+                    roles: rolesFormToPayload(data.roles, data),
+                    disaggregation: data.disaggregation ?? null
+                  }
+                : { roles: null, disaggregation: null }),
               // Same reasoning for the vGPU selector, which the form walks
               // through an incomplete state on every GPU-type switch: the new
               // type's capacity may not admit the percentage the previous one
@@ -290,6 +312,42 @@ export const useCheckCompatibility = () => {
     return clusterNames.join(', ');
   };
 
+  /**
+   * One line of a PD group's breakdown.
+   *
+   * Three shapes, and the difference between them is what the number means:
+   * a role whose members all size the same reports what ONE costs (the useful
+   * figure when you are deciding a replica count), a role whose members differ
+   * — two accelerator types under one role — can only report the total, and a
+   * role that holds no weights reports memory because it claims no card.
+   */
+  const formatRoleClaim = (claim: RoleResourceClaim) => {
+    // A role the UI has no label for is shown under the name the API used —
+    // phase two opens up encoder / draft, and an unlabelled role must still
+    // appear in the breakdown rather than as an empty line.
+    const labelId = RoleLabelMap[claim.role as keyof typeof RoleLabelMap];
+    const values = {
+      role: labelId ? intl.formatMessage({ id: labelId }) : claim.role,
+      replicas: claim.replicas
+    };
+
+    if (!claim.vram) {
+      return intl.formatMessage(
+        { id: 'models.form.check.claims.role.ram' },
+        { ...values, ram: convertFileSize(claim.ram || 0, 2) }
+      );
+    }
+    return claim.per_replica
+      ? intl.formatMessage(
+          { id: 'models.form.check.claims.role' },
+          { ...values, vram: convertFileSize(claim.per_replica.vram, 2) }
+        )
+      : intl.formatMessage(
+          { id: 'models.form.check.claims.role.total' },
+          { ...values, vram: convertFileSize(claim.vram, 2) }
+        );
+  };
+
   const handleCheckCompatibility = (
     evaluateResult: EvaluateResult | null
   ): MessageStatus => {
@@ -306,6 +364,7 @@ export const useCheckCompatibility = () => {
       compatibility_messages = [],
       scheduling_messages = [],
       resource_claim_by_cluster_id,
+      role_resource_claims_by_cluster_id,
       cluster_id,
       error,
       error_message
@@ -360,10 +419,28 @@ export const useCheckCompatibility = () => {
       if (!vram) {
         messageId = 'models.form.check.claims3';
       }
-      msgData = {
-        title: intl.formatMessage({ id: 'models.form.check.passed' }),
-        message: intl.formatMessage({ id: messageId }, { ram, vram })
-      };
+
+      // A PD deployment's claim is the WHOLE group's — every replica of every
+      // role plus the router — so it is said differently and broken down by
+      // role. Without the breakdown the total is unreadable: "1.25 TiB" tells
+      // nobody which role is asking for it, and that is the first question
+      // when the group does not fit.
+      const roleClaims = role_resource_claims_by_cluster_id?.[cluster_id!];
+      msgData = roleClaims?.length
+        ? {
+            title: intl.formatMessage({ id: 'models.form.check.passed' }),
+            message: [
+              intl.formatMessage(
+                { id: 'models.form.check.claims.group' },
+                { ram, vram }
+              ),
+              ...roleClaims.map(formatRoleClaim)
+            ]
+          }
+        : {
+            title: intl.formatMessage({ id: 'models.form.check.passed' }),
+            message: intl.formatMessage({ id: messageId }, { ram, vram })
+          };
     }
 
     return {

@@ -153,6 +153,12 @@ export default {
   'models.form.check.claims': '该模型大约需要消耗 {vram} 显存和 {ram} 内存。',
   'models.form.check.claims2': '该模型大约需要消耗 {vram} 显存。',
   'models.form.check.claims3': '该模型大约需要消耗 {ram} 内存。',
+  'models.form.check.claims.group':
+    '该部署组大约需要消耗 {vram} 显存和 {ram} 内存。',
+  'models.form.check.claims.role': '{role} × {replicas}：每副本约 {vram} 显存',
+  'models.form.check.claims.role.total':
+    '{role} × {replicas}：合计约 {vram} 显存',
+  'models.form.check.claims.role.ram': '{role} × {replicas}：合计约 {ram} 内存',
   'models.form.update.tips': '更改仅在删除并重新创建实例后生效。',
   'models.table.download.progress': '进度',
   'models.table.button.apiAccessInfo': 'API 接入信息',

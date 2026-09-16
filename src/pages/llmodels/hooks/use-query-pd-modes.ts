@@ -43,20 +43,59 @@ export interface PDModeOption {
 export const transportLabel = (mode?: PDMode) =>
   mode?.transport || mode?.display_name?.split(' + ').pop() || mode?.name || '';
 
+/**
+ * The catalog, fetched at most once per page load.
+ *
+ * 🔴 It used to be fetched per hook instance, and turning PD on issued four
+ * identical requests: `PDDisaggregation` mounts twice (the `toggle` and the
+ * `body` share no state by design — see its `variant` prop), and each of them
+ * asks from three places — the enable handler, the `[active, backend,
+ * clusterId]` effect once `active` flips, and its own mount effect. The
+ * in-instance guard (`pdModes.length ? pdModes : ...`) cannot see across
+ * instances, and none of the three had resolved before the others fired.
+ *
+ * Safe to hold for the whole page: the catalog is a YAML asset shipped in the
+ * server image, so it cannot change without a restart — and a restart is a
+ * reload. `inflight` is the half that actually fixes the count; the four calls
+ * are concurrent, so a value-only cache would still have let all four through.
+ *
+ * A failure is not cached. `catalog` stays null, so the next caller retries
+ * rather than inheriting an empty list for the rest of the session — which
+ * would render the mode picker permanently empty after one flaky request.
+ */
+let catalog: PDMode[] | null = null;
+let inflight: Promise<PDMode[]> | null = null;
+
+const fetchCatalog = async (): Promise<PDMode[]> => {
+  if (catalog) {
+    return catalog;
+  }
+  if (inflight) {
+    return inflight;
+  }
+  inflight = queryPDModes()
+    .then((res) => {
+      catalog = res?.items || [];
+      return catalog;
+    })
+    .catch(() => [])
+    .finally(() => {
+      inflight = null;
+    });
+  return inflight;
+};
+
 export default function useQueryPDModes() {
   const intl = useIntl();
-  const [pdModes, setPDModes] = useState<PDMode[]>([]);
+  // Seeded from the cache so a second instance mounting after the first has
+  // resolved renders with the catalog already in hand, rather than blank until
+  // its own call returns.
+  const [pdModes, setPDModes] = useState<PDMode[]>(catalog || []);
 
   const getPDModes = async () => {
-    try {
-      const res = await queryPDModes();
-      const list = res?.items || [];
-      setPDModes(list);
-      return list;
-    } catch (error) {
-      setPDModes([]);
-      return [];
-    }
+    const list = await fetchCatalog();
+    setPDModes(list);
+    return list;
   };
 
   /**

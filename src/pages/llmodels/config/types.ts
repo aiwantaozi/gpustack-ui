@@ -331,10 +331,31 @@ export interface PDModeEligibility {
  * for this pair (offer Custom), or several vendor partitions could host the
  * group (ask which — `candidate_vendors`).
  */
+/**
+ * `PDModeUnresolvedCode` on the server. A union rather than an enum, because
+ * this is the shape of a response: a server newer than this client can send a
+ * code that is not listed here, and the render falls back to the prose.
+ */
+export type PDUnresolvedCode =
+  | 'vendor_not_in_cluster'
+  | 'vendors_unknown'
+  | 'no_built_in_recipe'
+  | 'multiple_vendors'
+  | 'no_preferred_recipe';
+
 export interface PDModeResolution {
   mode?: string | null;
   vendor?: string | null;
+  /**
+   * The server's English prose. Rendered only as the fallback for a server
+   * that predates `unresolved_code` — on its own it put an English sentence
+   * in the middle of an otherwise localized form.
+   */
   unresolved_reason?: string | null;
+  /** `PDModeUnresolvedCode` — the same reason, translated by this client. */
+  unresolved_code?: PDUnresolvedCode | null;
+  /** Interpolation values, pre-joined by the server into display strings. */
+  unresolved_params?: Record<string, string> | null;
   candidate_vendors: string[];
   cluster_vendors: string[];
   options: PDModeEligibility[];

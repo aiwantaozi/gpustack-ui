@@ -123,6 +123,15 @@ export interface PDMetricsState {
    * deployment moving", `rate` answers "how fast is the link".
    */
   externalTokensPerSecond?: number | null;
+  /**
+   * The share of requests whose KV transfer can stay inside one host.
+   *
+   * 🔑 Not measured — placement arithmetic, so it is present even when
+   * `available` is false and needs no traffic to be true. The deploy form can
+   * only show `1/x`, a floor derived from the replica count; this is the real
+   * value, derived from how many machines the group actually landed on.
+   */
+  pairingLocality?: number | null;
 }
 
 const EMPTY: PDMetricsState = {
@@ -182,7 +191,11 @@ const toState = (data: PDMetrics): PDMetricsState => {
     recomputeTailTokens: data.recomputed_tokens_p99 ?? null,
     recomputeTailAlarming:
       (data.recomputed_tokens_p99 ?? 0) >= RECOMPUTE_FIRST_BUCKET,
-    externalTokensPerSecond: transfer.external_tokens_per_second ?? null
+    externalTokensPerSecond: transfer.external_tokens_per_second ?? null,
+    // `?? null` and not `|| null`: zero is the loudest reading this figure
+    // has — no prefill and decode share a host, so every transfer crosses the
+    // network — and `||` would turn it into "not measured".
+    pairingLocality: data.pairing_locality ?? null
   };
 };
 

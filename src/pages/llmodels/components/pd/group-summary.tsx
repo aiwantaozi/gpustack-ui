@@ -444,6 +444,48 @@ const GroupSummary: React.FC<GroupSummaryProps> = ({
                       )}
                     </Flex>
                     <Flex align="center" gap={16} wrap="wrap">
+                      {metrics.pairingLocality != null && (
+                        // 🔑 The only figure on this panel that is not
+                        // measured — it is placement arithmetic, so it is
+                        // present even when nothing could be scraped, and it
+                        // needs no traffic to be true.
+                        //
+                        // Shown in every state rather than only when it is
+                        // bad, for the same reason the effectiveness headline
+                        // above is: a number that appears only on failure
+                        // teaches nobody what normal looks like, and "normal"
+                        // here is a fraction well below 1 that would otherwise
+                        // read as a fault the first time someone sees it.
+                        //
+                        // 🔴 Zero is the loudest reading this figure has, and
+                        // the only one coloured: no prefill and decode share a
+                        // host, so every request's KV crosses the network —
+                        // which on a link without RDMA makes disaggregation
+                        // strictly worse than not disaggregating. It is the
+                        // same condition as the `pairing_remote` marker on the
+                        // model row, from the same server-side function.
+                        <Metric
+                          label={intl.formatMessage({
+                            id: 'models.pd.pairingLocality'
+                          })}
+                        >
+                          <Tooltip
+                            title={intl.formatMessage({
+                              id: 'models.pd.pairingLocality.tips'
+                            })}
+                          >
+                            <span
+                              style={
+                                metrics.pairingLocality === 0
+                                  ? { color: 'var(--ant-color-error)' }
+                                  : valueStyle
+                              }
+                            >
+                              {`${Math.round(metrics.pairingLocality * 100)}%`}
+                            </span>
+                          </Tooltip>
+                        </Metric>
+                      )}
                       {metrics.rate != null && (
                         <Metric
                           label={intl.formatMessage({

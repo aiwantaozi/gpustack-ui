@@ -508,6 +508,9 @@ export default {
   // called the model vs this mode's router exports no request counter.
   'models.pd.effectiveness.idle': '（无流量）',
   'models.pd.effectiveness.unmeasurable': '无分母',
+  'models.pd.pairingLocality': '同机配对',
+  'models.pd.pairingLocality.tips':
+    '按这个组实际落在哪些机器上算出的「一次请求的 KV 能留在同一台机器内」的比例。它由放置推导而来，不是测出来的，所以没有流量也成立。0% 表示没有任何一对 prefill 与 decode 同机，每次传输都要过网络。部署表单里给的是按副本数算的下界，这里是真实值 —— 真正决定它的是这个组摊在几台机器上。',
   'models.pd.transferP99': '传输 p99',
   'models.pd.bytesPerTransfer': '每次传输',
   'models.pd.ttft': '首 token',
@@ -600,7 +603,7 @@ export default {
   'models.form.gather.unknown': '{count} 台 worker 容量读不到，这一档无法判断',
   'models.form.gather.declare': '在集群「拓扑」里填机柜后，可以选更粗的档次。',
   'models.form.gather.largeGroup':
-    '这个规模下约 {percent}% 的请求会落在同一台机上，与拓扑和上面的选择都无关。若追求 KV 传输局部性，考虑部署多个较小的分离组。',
+    '这个规模下至少约 {percent}% 的请求会落在同一台机上，与拓扑和上面的选择都无关。这是按副本数算的下界 —— 真实比例取决于这个组最终摊在几台机器上，部署后可在组摘要里看到。若追求 KV 传输局部性，考虑部署多个较小的分离组。',
 
   'models.form.gather.checking': '正在检查放得下哪一档…',
   'models.form.gather.unavailable':

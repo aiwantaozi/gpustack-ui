@@ -129,6 +129,19 @@ export interface PDMetrics {
   // [timestamp, value]; a null value is a gap, which is not a zero.
   kv_transfers_per_request_series?: (number | null)[][];
   kv_transfer_bytes_per_second_series?: (number | null)[][];
+  // The share of requests whose KV can stay inside one host, from where the
+  // members actually landed.
+  //
+  // 🔑 The one figure here that is NOT measured — it is placement arithmetic,
+  // so it is present even when `available` is false, and it needs no traffic
+  // to be true. Same source as the `pairing_remote` degradation, which is this
+  // value at exactly zero.
+  //
+  // 🔴 The deploy form shows `1/x`, which is only a FLOOR: it knows the
+  // replica count the user typed, not how many machines the solver spread the
+  // group over, and the true value is driven by the latter. This is the
+  // answer, so it is the one worth showing beside the floor.
+  pairing_locality?: number | null;
 }
 
 export interface PDMemberMetrics {

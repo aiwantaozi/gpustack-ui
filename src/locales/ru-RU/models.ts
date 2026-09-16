@@ -541,6 +541,9 @@ export default {
   // called the model vs this mode's router exports no request counter.
   'models.pd.effectiveness.idle': '(no traffic)',
   'models.pd.effectiveness.unmeasurable': 'no denominator',
+  'models.pd.pairingLocality': 'Local pairing',
+  'models.pd.pairingLocality.tips':
+    'Share of requests whose KV can stay inside one host, from where this group actually landed. Derived from placement, not measured, so it holds with no traffic. 0% means no prefill and decode share a host, so every transfer crosses the network. The deploy form shows a floor based on the replica count; this is the real figure, driven by how many machines the group spread over.',
   'models.pd.transferP99': 'Transfer p99',
   'models.pd.bytesPerTransfer': 'Per transfer',
   'models.pd.ttft': 'TTFT',
@@ -645,7 +648,7 @@ export default {
   'models.form.gather.declare':
     'Заполните стойки в разделе «Топология» кластера, чтобы открыть более крупные уровни.',
   'models.form.gather.largeGroup':
-    'At this size about {percent}% of requests pair on the same host, whatever the topology. For KV transfer locality, consider several smaller disaggregated groups instead.',
+    'At this size at least about {percent}% of requests pair on the same host, whatever the topology. That is a floor derived from the replica count — the real share depends on how many machines the group ends up spread over, and is shown in the group summary once deployed. For KV transfer locality, consider several smaller disaggregated groups instead.',
 
   'models.form.gather.checking': 'Checking what fits…',
   'models.form.gather.unavailable':

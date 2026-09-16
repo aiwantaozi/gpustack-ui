@@ -44,6 +44,7 @@ interface ActionItem {
   icon: React.ReactNode;
   props?: {
     danger?: boolean;
+    disabled?: boolean;
   };
 }
 
@@ -251,6 +252,29 @@ const useModelsColumns = ({
 
       return true;
     });
+
+    // A restart the server is still carrying out. Disabled rather than hidden:
+    // the entry vanishing and coming back is the same ambiguity as a button
+    // that does nothing, and this is the one moment the reader most needs to
+    // be told the action is already under way.
+    //
+    // 🔴 It is not cosmetic. A second teardown during this window deletes the
+    // replacements the first one just built, costing the group another full
+    // startup — and "clicked it, nothing seemed to happen, clicked again" is
+    // exactly how an operator reaches it. The server answers 409, so the worst
+    // case without this is a refusal the user has to read; the point of the
+    // disabled state is that they never have to.
+    if (record.restarting_since) {
+      return _.map(actions, (action: ActionItem) =>
+        action.key === 'restart'
+          ? {
+              ...action,
+              label: 'models.restart.inflight',
+              props: { ...action.props, disabled: true }
+            }
+          : action
+      );
+    }
 
     if (!record.stale) {
       return actions;

@@ -575,6 +575,7 @@ export default {
   'models.pd.stale':
     'Yapılandırma değişti; uygulamak için grubu yeniden başlatın.',
   'models.restart': 'Yeniden başlat',
+  'models.restart.inflight': 'Yeniden başlatılıyor…',
   'models.restart.confirm':
     '{name} modelinin tüm örnekleri durdurulur ve geçerli yapılandırmayla yeniden oluşturulur. Bu sırada model kullanılamaz.',
   'models.restart.done':

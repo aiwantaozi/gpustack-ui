@@ -85,6 +85,10 @@ export interface ListItem {
   stale?: boolean | null;
   // `DegradationValueMap` values, and a list because they coexist.
   degradations?: string[] | null;
+  // A restart the server is still carrying out, cleared once the rebuilt group
+  // is running. Present so the Restart entry can be disabled for that window —
+  // a second teardown deletes the replacements the first one just built.
+  restarting_since?: string | null;
 }
 
 // One window's answer for one disaggregated group, from `GET

@@ -543,6 +543,7 @@ export default {
   'models.pd.instance.stale': '该实例使用旧版配置，重启整组后生效。',
   'models.pd.stale': '配置已变更，需重启整组生效。',
   'models.restart': '重启',
+  'models.restart.inflight': '重启中…',
   'models.restart.confirm':
     '将停止 {name} 的全部实例，并以当前配置重建，期间该模型不可用。',
   'models.restart.done': '正在重启：实例已停止，将以当前配置重建。',

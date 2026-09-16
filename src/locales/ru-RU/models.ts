@@ -579,6 +579,7 @@ export default {
   'models.pd.stale':
     'Конфигурация изменена; перезапустите группу, чтобы применить.',
   'models.restart': 'Перезапустить',
+  'models.restart.inflight': 'Перезапуск…',
   'models.restart.confirm':
     'Все экземпляры {name} будут остановлены и пересозданы с текущей конфигурацией. В это время модель будет недоступна.',
   'models.restart.done':

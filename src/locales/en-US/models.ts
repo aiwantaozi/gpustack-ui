@@ -578,6 +578,7 @@ export default {
     'This instance is running an older configuration; restart the group to apply the change.',
   'models.pd.stale': 'Configuration changed; restart the group to apply it.',
   'models.restart': 'Restart',
+  'models.restart.inflight': 'Restarting…',
   'models.restart.confirm':
     'All instances of {name} are stopped and rebuilt with its current configuration. The model is unavailable in between.',
   'models.restart.done':

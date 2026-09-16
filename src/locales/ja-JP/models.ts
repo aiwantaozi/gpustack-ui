@@ -576,6 +576,7 @@ export default {
   'models.pd.stale':
     '設定が変更されました。グループ全体を再起動すると反映されます。',
   'models.restart': '再起動',
+  'models.restart.inflight': '再起動中…',
   'models.restart.confirm':
     '{name} のすべてのインスタンスを停止し、現在の設定で再構築します。その間、このモデルは利用できません。',
   'models.restart.done':

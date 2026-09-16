@@ -30,10 +30,12 @@ const PD_MIN_GPUS = 2;
 // and GPU-allocation sections of the same form.
 const useStyles = createStyles(({ css }) => ({
   /* 🔴 No frame of its own any more. This block used to be a standalone
-     section and drew its own card; it is now mounted inside the
-     group-settings card, so its border made «传输方案» a box inside a box
-     inside a box — the field's own outline being the third. The class stays
-     because the `.note` rules below hang off it. */
+     section and drew its own card; the transport picker inside it already
+     draws the standard field frame, so its border made «传输方案» a box inside
+     a box. (It was briefly a box inside a box inside a box, while the
+     «组级设置» card was still wrapped around this and «拓扑亲和性» — that card
+     is gone too.) The class stays because the `.note` rules below hang off
+     it. */
   sectionCard: css`
     margin-bottom: 8px;
     .section-title {
@@ -57,20 +59,22 @@ const useStyles = createStyles(({ css }) => ({
   // the visible height. The trade-off now lives in the switch's own
   // description plus the notes below it.
   /**
-   * The switch row.
+   * The switch row, framed like a field.
    *
-   * 🔴 The top gap is `padding`, not `margin`, and that is the whole point.
-   * «后端版本» renders a 78px-tall control where every other field is 54 —
-   * the extra 24 belongs to the control itself, not to a margin — so its
-   * `.ant-form-item` bottom edge sits flush against its content and the
-   * `margin-bottom: 24px` it carries produces no space at all against the
-   * next element (measured three times: gap 0 here, 24 between every other
-   * pair). Margins on *this* row cannot fix that; they collapse into the same
-   * nothing. Padding is inside this box and always renders.
+   * 🔴 It used to be a bare row with a top padding and no border, from when it
+   * lived between «后端版本» and the replica count in Basic Info — a plain row
+   * among plain rows. Inside the «PD 分离配置» panel it sits next to «传输方案»
+   * and «拓扑亲和», both of which draw the standard field frame, and an
+   * unframed row beside them read as a caption rather than as the control it
+   * is. The padding-for-margin trick went with the move: that worked around
+   * «后端版本»'s 78px control eating the gap below it, and it is no longer the
+   * element above this one.
    */
   toggleRow: css`
-    padding: 22px 2px 0;
-    min-height: 32px;
+    border: 1px solid var(--ant-color-border);
+    border-radius: var(--ant-border-radius-lg, 8px);
+    padding: 12px 16px;
+    min-height: 54px;
   `,
   modeId: css`
     font-size: 12px;
@@ -135,8 +139,9 @@ interface PDDisaggregationProps {
    *
    * `toggle` is the switch alone, mounted in the replica field's label row;
    * `body` is everything the switch reveals (vendor, transport picker, notes),
-   * mounted in the group-settings card down in Roles. Two instances, one truth:
-   * `enabled` is derived from `roles`, so neither owns it.
+   * mounted at the top of Roles, above the role tabs and beside «拓扑亲和性».
+   * Two instances, one truth: `enabled` is derived from `roles`, so neither
+   * owns it.
    *
    * Only the `toggle` instance runs the enable sequence and publishes effects —
    * the body would publish the same thing a second time.
@@ -468,6 +473,21 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   // whose change *is* the action, and this component only watches them
   // because the engine and cluster fields belong to a sibling section.
   useEffect(() => {
+    // ⚠️ TEMPORARY DIAGNOSTIC — remove once #resolve-while-pd-off is closed.
+    // A `/pd-modes/resolve` was observed on a form whose PD switch was off,
+    // which this guard should make impossible. `active` is the only way past
+    // it, so this prints what `active` was derived FROM.
+    console.debug('[pd-resolve-probe]', {
+      variant,
+      active,
+      clusterId,
+      backend,
+      watchedRoles: (roles as RoleFormItem[] | undefined)?.length ?? null,
+      storeRoles: form.getFieldValue('roles')?.length ?? null,
+      storeMode: form.getFieldValue(['disaggregation', 'mode']) ?? null,
+      storeVendor: form.getFieldValue(['disaggregation', 'vendor']) ?? null,
+      wholeDisaggregation: form.getFieldValue('disaggregation') ?? null
+    });
     if (!active) {
       resolveSession.current += 1;
       setDerived({ resolution: null });
@@ -678,6 +698,41 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     (option) => !option.disabled || option.value === mode
   );
 
+  /**
+   * Why the server derived nothing, in the reader's language.
+   *
+   * 🔴 `unresolved_reason` used to be rendered verbatim, and it is assembled
+   * in English by `pd_mode_resolver.py` — so this one warning came out in
+   * English inside a form that is otherwise fully localized. The server now
+   * sends a `unresolved_code` plus pre-joined `unresolved_params` alongside
+   * the prose, and the lookup happens here.
+   *
+   * The prose stays as the fallback, for a server older than the code (and
+   * for a code newer than this client — `formatMessage` on an id the catalog
+   * does not hold logs and echoes the id, which would be worse than an
+   * English sentence that at least says what happened).
+   */
+  const unresolvedNote = (() => {
+    const resolution = derived.resolution;
+    if (!resolution?.unresolved_reason && !resolution?.unresolved_code) {
+      return null;
+    }
+    const id = `models.form.pd.unresolved.${resolution.unresolved_code}`;
+    if (!resolution.unresolved_code || !intl.messages[id]) {
+      return resolution.unresolved_reason;
+    }
+    const params = { ...(resolution.unresolved_params || {}) };
+    // `backend` is optional on the request, and the server sends `''` rather
+    // than its own "this engine" — that half-sentence is the client's to
+    // word. Left empty it would render as a hole mid-sentence.
+    if (params.backend === '') {
+      params.backend = intl.formatMessage({
+        id: 'models.form.pd.unresolved.thisEngine'
+      });
+    }
+    return intl.formatMessage({ id }, params);
+  })();
+
   const onlyCustomLeft =
     modeOptions.length > 0 &&
     modeOptions
@@ -767,8 +822,20 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
         data-field="pdMode"
       >
         <LabelInfo
-          label={intl.formatMessage({ id: 'models.form.pd.shape.pd' })}
-          description={intl.formatMessage({ id: 'models.form.pd.enable.tips' })}
+          label={intl.formatMessage({ id: 'models.form.pd.enable' })}
+          // 🔴 The engine-support sentence used to be a standing `.note` line
+          // of its own down in the body. It is a fact about whether this
+          // switch can be turned on at all, so it belongs to the switch —
+          // and as a permanent row it cost a line of the form to say
+          // something most deployments never need to hear.
+          description={[
+            intl.formatMessage({ id: 'models.form.pd.enable.tips' }),
+            !pdCapableBackend && backend
+              ? intl.formatMessage({ id: 'models.form.pd.disabled.backend' })
+              : null
+          ]
+            .filter(Boolean)
+            .join(' ')}
         ></LabelInfo>
         <Switch
           checked={active}
@@ -808,7 +875,11 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
      * ⚠️ Unconditional, like the row it wraps. A wrapper that appeared and
      * disappeared would remount the switch and refire its mount effect —
      * see `pdToggle` in `basic.tsx` for what that costs. */
-    return <Form.Item style={{ marginBottom: 3 }}>{withHint}</Form.Item>;
+    // 12, matching every other gap in this panel: measured, the section cards
+    // below (Group settings, Engine and image, Parameters, Resources, Shared
+    // KV cache, Speculative Decoding) all sit 12px apart. The 3 was from when
+    // this row lived in Basic Info among plain form rows.
+    return <Form.Item style={{ marginBottom: 12 }}>{withHint}</Form.Item>;
   }
 
   return (
@@ -874,9 +945,9 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
               kind of choice at a finer grain — was already a Select. Two
               controls for one topic, in two different shapes, read as two
               topics. The Select IS the picker now. */}
-          {derived.resolution?.unresolved_reason && (
+          {unresolvedNote && (
             <div className="note note-warning" style={{ marginBottom: 8 }}>
-              {derived.resolution.unresolved_reason}
+              {unresolvedNote}
             </div>
           )}
           {/* The single entry point for every connection-state parameter:
@@ -931,11 +1002,6 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
                   { id: 'models.form.gather.largeGroup' },
                   { percent: largeGroupPairing }
                 )}
-              </div>
-            )}
-            {!pdCapableBackend && backend && (
-              <div className="note">
-                {intl.formatMessage({ id: 'models.form.pd.disabled.backend' })}
               </div>
             )}
             {pdCapableBackend && onlyCustomLeft && (

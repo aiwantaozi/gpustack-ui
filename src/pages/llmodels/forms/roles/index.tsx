@@ -1,4 +1,3 @@
-import { ThemeTag } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
 import { Alert, Flex, Form, Segmented } from 'antd';
 import { createStyles } from 'antd-style';
@@ -11,7 +10,6 @@ import {
 } from '../../config';
 import { PDMode, RoleFormItem } from '../../config/types';
 import GatherLocality from '../gather-locality';
-import { RoleSection } from './override-section';
 import RoleForm from './role-form';
 import RouterForm from './router-form';
 
@@ -40,8 +38,9 @@ interface RolesProps {
    *
    * Mounted here rather than up in Basic because everything in it is
    * group-wide, and «哪条通道» is the question «最紧到哪一档» is a refinement
-   * of — putting them in one card is what makes the second read as a
-   * refinement instead of an unrelated control two sections away.
+   * of — standing them next to each other above the role tabs is what makes
+   * the second read as a refinement instead of an unrelated control two
+   * sections away.
    */
   pdBody?: React.ReactNode;
   /** The selected pd mode's catalog entry. */
@@ -88,11 +87,13 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName, pdBody }) => {
   const cacheDisabledReason = isCustom
     ? intl.formatMessage({ id: 'models.form.roles.cache.custom.conflict' })
     : undefined;
-  // The custom mode injects nothing, so there is no router for the system to
-  // derive — the managed branch has nothing to show and nothing to run.
-  const managedDisabledReason = isCustom
-    ? intl.formatMessage({ id: 'models.form.roles.router.custom.forced' })
-    : undefined;
+  // 🔴 `managedDisabledReason` went with the router's engine group. It said
+  // «自定义 PD 模式下系统不推导 Router，请提供镜像与启动命令», and the place to
+  // provide them is now the Model's own «镜像» and «启动命令» — the router
+  // role inherits both (`role_effective_model`), because `custom` sets
+  // `router.protocol = user_provided` and the worker then reads the role
+  // spec rather than the catalog. Pointing at a per-role field that is no
+  // longer there would be the wrong instruction.
 
   // Which roles have a validation error, so the user can see it without
   // switching tabs. `getFieldsError` on the role subtree rather than a watch:
@@ -145,41 +146,36 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName, pdBody }) => {
 
   return (
     <>
-      {/* Above the role picker, and outside every role card, because its
+      {/* Above the role picker, and outside every role card, because their
           subject is a *pair* rather than a workload. Every other scheduling
-          control here answers "where does THIS go"; this one answers "how far
-          apart may THESE be", which belongs to no single role — the card below
-          is badged "this role only" and a group-wide control inside it would
-          contradict its own label, besides showing four copies of one
-          model-level value that all move together.
+          control here answers "where does THIS go"; these answer "which
+          channel, and how far apart may THESE be", which belongs to no single
+          role — the card below is badged "this role only" and a group-wide
+          control inside it would contradict its own label, besides showing
+          four copies of one model-level value that all move together.
 
           Kept in this tab rather than back in the PD block so scheduling
           stays one topic in one place, and read before the per-role panels
           because that is the order the decisions happen in: how close they
-          must be, then where each one goes. */}
-      <RoleSection
-        label={intl.formatMessage({ id: 'models.form.roles.group.settings' })}
-        description={intl.formatMessage({
-          id: 'models.form.roles.group.settings.tips'
-        })}
-        extra={
-          <ThemeTag opacity={0.75}>
-            {intl.formatMessage({ id: 'models.form.roles.group.wide' })}
-          </ThemeTag>
-        }
-      >
-        {pdBody}
-        {/* 🔴 No wrapper, and no label of its own. It used to have both — a
-            `LabelInfo` reading «拓扑亲和性» above a nested box — which put two
-            labels on one field: the section's, and then the select's own
-            floating one inside the border. The result read as a field inside
-            a field, and sat beside «传输方案» looking like a different kind of
-            control when it is the same kind.
+          must be, then where each one goes.
 
-            The select carries «拓扑亲和性» as its own floating label now, so
-            the two group-level fields are structurally identical. */}
-        <GatherLocality></GatherLocality>
-      </RoleSection>
+          🔴 No «组级设置» card around them any more. Both fields draw the
+          standard field frame themselves, so the card was a third border
+          around two already-bordered controls — and its title plus «对所有角色
+          生效» said in two lines what their position above the role tabs
+          already says. The two fields are the group level; nothing else is up
+          here for them to be distinguished from. */}
+      {pdBody}
+      {/* 🔴 No wrapper, and no label of its own. It used to have both — a
+          `LabelInfo` reading «拓扑亲和性» above a nested box — which put two
+          labels on one field: the section's, and then the select's own
+          floating one inside the border. The result read as a field inside a
+          field, and sat beside «传输方案» looking like a different kind of
+          control when it is the same kind.
+
+          The select carries «拓扑亲和性» as its own floating label now, so the
+          two group-level fields are structurally identical. */}
+      <GatherLocality></GatherLocality>
       <Segmented
         block
         value={active}
@@ -209,11 +205,7 @@ const Roles: React.FC<RolesProps> = ({ enabled, mode, modeName, pdBody }) => {
           style={{ display: role.name === active ? undefined : 'none' }}
         >
           {role.name === RoleValueMap.Router ? (
-            <RouterForm
-              index={index}
-              mode={mode}
-              managedDisabledReason={managedDisabledReason}
-            ></RouterForm>
+            <RouterForm index={index} mode={mode}></RouterForm>
           ) : (
             <RoleForm
               index={index}

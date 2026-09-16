@@ -4,18 +4,12 @@ import { Form, Input } from 'antd';
 import React from 'react';
 import { OverrideGroupMap } from '../../config';
 import { PDRoleInjection } from '../../config/types';
-import BackendFields from '../backend';
 import BackendParametersList from '../backend-parameters-list';
-import CustomBackend from '../custom-backend';
 import ScheduleTypeForm from '../schedule-type';
 import SpeculativeDecode from '../speculative-decode';
 import OverrideSection from './override-section';
 import RoleKVCache from './role-kv-cache';
-import SystemManaged, {
-  LockedRow,
-  flagLines,
-  useEngineRows
-} from './system-managed';
+import SystemManaged, { LockedRow, flagLines } from './system-managed';
 
 interface RoleFormProps {
   /** The role's index in `roles`. */
@@ -203,8 +197,6 @@ const RoleForm: React.FC<RoleFormProps> = ({
     // as information.
   ];
 
-  const engineRows = useEngineRows();
-
   return (
     <>
       {/* The role's identity has no visible control, so nothing would register
@@ -243,21 +235,23 @@ const RoleForm: React.FC<RoleFormProps> = ({
         ></InputNumber>
       </Form.Item>
 
-      {/* 🔴 Named, not summarized. This used to collapse to «继承: vLLM 0.23.0
-          <image> <command>» — a run-on of four fields where only the first two
-          answer the question the section asks, and the engine's own name was
-          buried in the middle of it. One labelled row instead. */}
-      <OverrideSection
-        group={OverrideGroupMap.Backend}
-        index={index}
-        alwaysOpen
-        inheritContent={
-          <SystemManaged groups={[{ rows: engineRows }]}></SystemManaged>
-        }
-      >
-        <BackendFields namePrefix={['roles', index]}></BackendFields>
-        <CustomBackend namePrefix={['roles', index]}></CustomBackend>
-      </OverrideSection>
+      {/* 🔴 No «引擎与镜像» section. A role runs the Model's engine, full stop:
+          the four fields are `Optional = None` on `RoleSpec` and
+          `role_effective_model()` reads that None as "inherit the Model field
+          of the same name", so the Model already answers this question for
+          every role. The section only ever offered a second place to answer
+          it — and answering it there froze a copy that stopped following
+          later edits to the Model, which is the failure `demoteUntouchedGroups`
+          exists to catch.
+
+          `roleFormToPayload` now nulls the group unconditionally, so the form
+          and the wire agree: there is one engine per deployment.
+
+          ⚠️ What goes with it is the MIXED-engine group under
+          `pd_mode=custom` — the one mode the server permits it on. Every role
+          now runs the Model's engine, so "prefill on vLLM, decode on SGLang"
+          has no form representation. The API still accepts it: the fields are
+          on `RoleSpec` and the projection still reads them. */}
 
       {/* `inheritContent={null}` rather than the derived summary: the prefix
           above already lists what runs, row by row and in the engine's own

@@ -384,6 +384,21 @@ export default {
 
   // --- Prefill/decode disaggregation ---
   'models.form.pd.section': 'PD Disaggregation',
+  'models.form.pd.enable': 'Enable',
+  // Why the server derived no transport. Keyed by `PDModeUnresolvedCode`;
+  // the server also sends English prose, which is rendered only when this
+  // catalog has no entry for the code it sent.
+  'models.form.pd.unresolved.vendor_not_in_cluster':
+    'This cluster reports no {vendor} accelerator (it has: {vendors}).',
+  'models.form.pd.unresolved.vendors_unknown':
+    'The cluster’s accelerators are not known yet, so the transport cannot be derived.',
+  'models.form.pd.unresolved.no_built_in_recipe':
+    'No built-in recipe covers {backend} on {vendors}. Pick the Custom transport to supply the connection parameters yourself.',
+  'models.form.pd.unresolved.multiple_vendors':
+    'This cluster has more than one accelerator vendor that could host the group ({vendors}), and a PD group cannot span vendors. Pick one.',
+  'models.form.pd.unresolved.no_preferred_recipe':
+    'Several recipes fit and none is marked preferred.',
+  'models.form.pd.unresolved.thisEngine': 'this engine',
   'models.form.pd.enable.off': 'Off',
   'models.form.pd.enable.on': 'PD Disaggregation',
   'models.form.pd.enable.tips':
@@ -424,7 +439,6 @@ export default {
   'models.form.roles.prefill': 'Prefill',
   'models.form.roles.decode': 'Decode',
   'models.form.roles.router': 'Router',
-  'models.form.roles.inherit': 'Same as model',
   'models.form.roles.override': 'Custom',
   'models.form.roles.inherited': 'Inherited',
   'models.form.roles.group.backend': 'Engine and image',
@@ -437,17 +451,10 @@ export default {
   'models.form.roles.group.cache': 'Shared KV cache',
   'models.form.roles.group.settings': 'Group settings',
   'models.form.roles.group.settings.tips': 'Apply to every role',
-  'models.form.roles.group.wide': 'Group-wide',
   'models.form.roles.replicas': 'Replicas',
   'models.form.roles.router.routeArgs': 'Route arguments',
   'models.form.roles.router.routeArgs.tips':
     'The command line the router process starts with. Locked rows are rendered by GPUStack from where the group landed and cannot be edited.',
-  'models.form.roles.router.band.connection': 'Connection',
-  'models.form.roles.router.band.extra': 'Your own',
-  'models.form.roles.router.tunable.managed':
-    'System defaults; switch to Custom to override',
-  'models.form.roles.router.tunable.custom': 'Left empty, the default is saved',
-  'models.form.roles.router.tunable.default': 'default {value}',
   'models.form.roles.router.locality':
     'CPU only; placed automatically, as near this group’s prefill and decode as it fits',
   'models.form.roles.router.workerAllocation': 'Worker allocation',
@@ -576,8 +583,6 @@ export default {
   'models.pd.ratio': 'Ratio',
   'models.form.roles.router.entrypoint': 'Command',
   'models.form.roles.router.connectionArgs': 'Connection arguments',
-  'models.form.roles.router.tunableArgs':
-    'Strategy and resilience (overridable)',
   'models.form.roles.managed': 'Managed by the system',
   'models.form.roles.managed.tips':
     'Filled in by GPUStack from the PD mode and where the group is scheduled. Read-only, and there is no need to repeat any of it. Values in double braces are placeholders, replaced with the real addresses, ports and NIC at deployment.',
@@ -596,8 +601,6 @@ export default {
   'models.form.roles.resources': 'Resources',
   'models.form.roles.resources.cpu': 'CPU (cores)',
   'models.form.roles.resources.memory': 'Memory (GiB)',
-  'models.form.roles.resources.default':
-    'Leave empty to use the defaults: 2 cores and 2 GiB',
   'models.form.roles.resources.tips':
     'What the router container requests. Defaults to 2 cores and 2 GiB.',
   'models.form.roles.router.health': 'Health check',
@@ -609,8 +612,8 @@ export default {
   'models.form.gather.title': 'Topology Affinity',
   'models.form.gather.target.auto': 'Automatic',
   'models.form.gather.target.auto.tips': 'The fastest transfer path that fits',
-  'models.form.gather.target.host': 'Same host',
-  'models.form.gather.target.host.tips': 'Prefill and Decode on one machine',
+  'models.form.gather.target.host': 'Same worker',
+  'models.form.gather.target.host.tips': 'Prefill and Decode on one worker',
   'models.form.gather.target.layer': 'Same {layer}',
   'models.form.gather.target.tips':
     'The transfer quality you want between the members of this group. Transfer inside one accelerator domain beats same-rack, so a domain spanning racks counts as met. The Router holds no accelerator and is not constrained.',

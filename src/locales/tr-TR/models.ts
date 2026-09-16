@@ -384,6 +384,21 @@ export default {
 
   // --- Prefill/decode disaggregation ---
   'models.form.pd.section': 'PD Ayrıştırma Ayarları',
+  'models.form.pd.enable': 'Etkinleştir',
+  // Why the server derived no transport. Keyed by `PDModeUnresolvedCode`;
+  // the server also sends English prose, which is rendered only when this
+  // catalog has no entry for the code it sent.
+  'models.form.pd.unresolved.vendor_not_in_cluster':
+    'Bu kümede {vendor} hızlandırıcı yok (mevcut: {vendors}).',
+  'models.form.pd.unresolved.vendors_unknown':
+    'Kümenin hızlandırıcıları henüz bilinmiyor, bu nedenle aktarım şeması türetilemiyor.',
+  'models.form.pd.unresolved.no_built_in_recipe':
+    '{backend} için {vendors} üzerinde yerleşik bir reçete yok. Bağlantı parametrelerini kendiniz vermek üzere «Özel» aktarım şemasını seçin.',
+  'models.form.pd.unresolved.multiple_vendors':
+    'Bu kümede grubu barındırabilecek birden fazla hızlandırıcı üreticisi var ({vendors}) ve bir PD grubu üreticiler arasında bölünemez. Birini seçin.',
+  'models.form.pd.unresolved.no_preferred_recipe':
+    'Birden fazla reçete uyuyor ancak hiçbiri tercih edilen olarak işaretlenmemiş.',
+  'models.form.pd.unresolved.thisEngine': 'bu motor',
   'models.form.pd.enable.off': 'Kapalı',
   'models.form.pd.enable.on': 'PD Ayrıştırma',
   'models.form.pd.enable.tips':
@@ -424,7 +439,6 @@ export default {
   'models.form.roles.prefill': 'Prefill',
   'models.form.roles.decode': 'Decode',
   'models.form.roles.router': 'Router',
-  'models.form.roles.inherit': 'Modelle aynı',
   'models.form.roles.override': 'Özel',
   'models.form.roles.inherited': 'Devralınan',
   'models.form.roles.group.backend': 'Motor ve imaj',
@@ -437,18 +451,10 @@ export default {
   'models.form.roles.group.cache': 'Paylaşılan KV önbelleği',
   'models.form.roles.group.settings': 'Grup ayarları',
   'models.form.roles.group.settings.tips': 'Tüm rollere uygulanır',
-  'models.form.roles.group.wide': 'Grup genelinde',
   'models.form.roles.replicas': 'Replikalar',
   'models.form.roles.router.routeArgs': 'Yönlendirme argümanları',
   'models.form.roles.router.routeArgs.tips':
     'Router sürecinin başlatıldığı komut satırı argümanları. Kilitli satırları GPUStack, grubun yerleştiği yere göre üretir ve düzenlenemez.',
-  'models.form.roles.router.band.connection': 'Bağlantı',
-  'models.form.roles.router.band.extra': 'Kendi eklediğiniz',
-  'models.form.roles.router.tunable.managed':
-    'Sistem varsayılanları; değiştirmek için Özel’e geçin',
-  'models.form.roles.router.tunable.custom':
-    'Boş bırakılırsa varsayılan değer kaydedilir',
-  'models.form.roles.router.tunable.default': 'varsayılan {value}',
   'models.form.roles.router.locality':
     'Yalnızca CPU; bu grubun prefill ve decode üyelerine olabildiğince yakın bir Worker’a otomatik yerleştirilir',
   'models.form.roles.router.workerAllocation': 'Worker ataması',
@@ -575,8 +581,6 @@ export default {
   'models.form.roles.router.entrypoint': 'Çalıştırma komutu',
   'models.form.roles.router.connectionArgs':
     'Bağlantı parametreleri (GPUStack tarafından verilir)',
-  'models.form.roles.router.tunableArgs':
-    'Strateji ve dayanıklılık (geçersiz kılınabilir)',
   'models.form.roles.managed': 'Sistem tarafından yönetilir',
   'models.form.roles.managed.tips':
     'GPUStack tarafından PD moduna ve grubun zamanlandığı yere göre doldurulur. Salt okunurdur ve bunların hiçbirini yeniden belirtmeniz gerekmez. Çift süslü parantez içindeki değerler yer tutucudur; dağıtım sırasında gerçek adresler, portlar ve ağ arayüzü ile değiştirilir.',
@@ -595,8 +599,6 @@ export default {
   'models.form.roles.resources': 'Kaynaklar',
   'models.form.roles.resources.cpu': 'CPU (çekirdek)',
   'models.form.roles.resources.memory': 'Bellek (GiB)',
-  'models.form.roles.resources.default':
-    'Varsayılanları kullanmak için boş bırakın: 2 çekirdek, 2 GiB',
   'models.form.roles.resources.tips':
     'Router konteynerinin istediği kaynaklar. Varsayılan 2 çekirdek ve 2 GiB.',
   'models.form.roles.router.health': 'Sağlık kontrolü',
@@ -608,8 +610,9 @@ export default {
   'models.form.gather.title': 'Topoloji Yakınlığı',
   'models.form.gather.target.auto': 'Otomatik',
   'models.form.gather.target.auto.tips': 'Sığan en hızlı aktarım yolu',
-  'models.form.gather.target.host': 'Aynı sunucu',
-  'models.form.gather.target.host.tips': 'Prefill ve Decode aynı makinede',
+  'models.form.gather.target.host': 'Aynı Worker',
+  'models.form.gather.target.host.tips':
+    'Prefill ve Decode aynı Worker üzerinde',
   'models.form.gather.target.layer': 'Aynı {layer}',
   'models.form.gather.target.tips':
     'Bu grubun üyeleri arasında istediğiniz aktarım kalitesi. Tek bir hızlandırıcı alanı içindeki aktarım aynı kabin içindekinden hızlıdır; bu yüzden kabinleri aşan bir alan da karşılanmış sayılır. Router hızlandırıcı kullanmaz ve bu kısıta dahil değildir.',

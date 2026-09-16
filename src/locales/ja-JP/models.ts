@@ -385,6 +385,21 @@ export default {
 
   // --- Prefill/decode disaggregation ---
   'models.form.pd.section': 'PD 分離設定',
+  'models.form.pd.enable': '有効化',
+  // Why the server derived no transport. Keyed by `PDModeUnresolvedCode`;
+  // the server also sends English prose, which is rendered only when this
+  // catalog has no entry for the code it sent.
+  'models.form.pd.unresolved.vendor_not_in_cluster':
+    'このクラスターに {vendor} アクセラレーターはありません（現在: {vendors}）。',
+  'models.form.pd.unresolved.vendors_unknown':
+    'クラスターのアクセラレーターがまだ判明していないため、転送方式を導出できません。',
+  'models.form.pd.unresolved.no_built_in_recipe':
+    '{backend} × {vendors} に対応する組み込みレシピがありません。「カスタム」を選び、接続パラメーターをご自身で指定してください。',
+  'models.form.pd.unresolved.multiple_vendors':
+    'このグループを収容できるアクセラレーターベンダーが複数あります（{vendors}）。PD グループはベンダーをまたげません。1 つ選んでください。',
+  'models.form.pd.unresolved.no_preferred_recipe':
+    '複数のレシピが該当しますが、優先指定がありません。',
+  'models.form.pd.unresolved.thisEngine': 'このエンジン',
   'models.form.pd.enable.off': '無効',
   'models.form.pd.enable.on': 'PD 分離',
   'models.form.pd.enable.tips':
@@ -425,7 +440,6 @@ export default {
   'models.form.roles.prefill': 'Prefill',
   'models.form.roles.decode': 'Decode',
   'models.form.roles.router': 'Router',
-  'models.form.roles.inherit': 'モデルと同じ',
   'models.form.roles.override': 'カスタム',
   'models.form.roles.inherited': '継承',
   'models.form.roles.group.backend': 'エンジンとイメージ',
@@ -438,18 +452,10 @@ export default {
   'models.form.roles.group.cache': '共有 KV キャッシュ',
   'models.form.roles.group.settings': 'グループ設定',
   'models.form.roles.group.settings.tips': 'すべてのロールに適用',
-  'models.form.roles.group.wide': 'グループ全体',
   'models.form.roles.replicas': 'レプリカ数',
   'models.form.roles.router.routeArgs': 'ルーティング引数',
   'models.form.roles.router.routeArgs.tips':
     'Router プロセスの起動コマンドライン引数です。鍵付きはグループの配置先から GPUStack が生成するもので、編集できません。',
-  'models.form.roles.router.band.connection': '接続',
-  'models.form.roles.router.band.extra': 'ユーザー追加',
-  'models.form.roles.router.tunable.managed':
-    'システム既定値。カスタムに切り替えると上書きできます',
-  'models.form.roles.router.tunable.custom':
-    '空のままにすると既定値で保存されます',
-  'models.form.roles.router.tunable.default': '既定 {value}',
   'models.form.roles.router.locality':
     'CPU のみ。このグループの Prefill / Decode になるべく近い Worker にシステムが自動配置します',
   'models.form.roles.router.workerAllocation': 'Worker 割り当て',
@@ -576,7 +582,6 @@ export default {
   'models.form.roles.router.entrypoint': '実行コマンド',
   'models.form.roles.router.connectionArgs':
     '接続パラメータ（GPUStack が注入）',
-  'models.form.roles.router.tunableArgs': 'ルーティングと復旧（上書き可）',
   'models.form.roles.managed': 'システム管理',
   'models.form.roles.managed.tips':
     'PD モードとグループのスケジュール先から GPUStack が自動生成します。読み取り専用で、同じ内容を再度指定する必要はありません。二重波括弧の値はプレースホルダーで、デプロイ時に実際のアドレス・ポート・NIC に置き換わります。',
@@ -595,8 +600,6 @@ export default {
   'models.form.roles.resources': 'リソース',
   'models.form.roles.resources.cpu': 'CPU（コア）',
   'models.form.roles.resources.memory': 'メモリ（GiB）',
-  'models.form.roles.resources.default':
-    '空欄のままにすると既定値（2 コア・2 GiB）が使われます',
   'models.form.roles.resources.tips':
     'Router コンテナが要求するリソース。デフォルトは 2 コア 2 GiB。',
   'models.form.roles.router.health': 'ヘルスチェック',
@@ -608,8 +611,8 @@ export default {
   'models.form.gather.title': 'トポロジー親和性',
   'models.form.gather.target.auto': '自動',
   'models.form.gather.target.auto.tips': '収まる範囲で最速の転送経路',
-  'models.form.gather.target.host': '同一ホスト',
-  'models.form.gather.target.host.tips': 'Prefill / Decode が同一マシン',
+  'models.form.gather.target.host': '同一 Worker',
+  'models.form.gather.target.host.tips': 'Prefill / Decode が同一 Worker',
   'models.form.gather.target.layer': '同一{layer}',
   'models.form.gather.target.tips':
     'このグループのメンバー間に求める転送品質。同一アクセラレータドメイン内の転送はラック内より高速なため、ラックをまたぐドメインも条件を満たすとみなします。Router はアクセラレータを占有しないため、この制約の対象外です。',

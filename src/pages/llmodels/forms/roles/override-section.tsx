@@ -16,7 +16,14 @@ const useStyles = createStyles(({ css }) => ({
   sectionCard: css`
     border: 1px solid var(--ant-color-border);
     border-radius: 6px;
-    padding: 12px 12px 0;
+    /* 🔴 The card owns its bottom inset. It used to be 0 and rely on whatever
+       it contained to supply one, which produced three different gaps in one
+       panel: 25px under a section ending in a Form.Item (its 24px margin),
+       and 1px under the two ending in something with no margin of its own —
+       SystemManaged, once the editable lists moved inside its groups, and the
+       engine fields. Zeroing the last child's margin and paying for the gap
+       here makes every card end the same way, whatever it contains. */
+    padding: 12px;
     margin-bottom: 12px;
     .section-title {
       margin-bottom: 12px;
@@ -28,6 +35,18 @@ const useStyles = createStyles(({ css }) => ({
       padding-bottom: 12px;
       font-size: 12px;
       color: var(--ant-color-text-tertiary);
+    }
+    /* ⚠️ Last in the block on purpose, and !important on purpose.
+       Source order: this has the same specificity as the .section-title rule
+       above (one class plus one simple selector), so written any earlier a
+       card whose last child IS the title — an empty section — kept the
+       title's 12px and ended 25px deep next to neighbours ending at 13.
+       !important: several of the things that land here carry an inline
+       margin of their own (GatherLocality's field, the role tabs, the KV
+       cache row), which no stylesheet rule can outrank. The card decides its
+       own bottom inset; what it contains does not get a vote. */
+    > *:last-child {
+      margin-bottom: 0 !important;
     }
   `
 }));

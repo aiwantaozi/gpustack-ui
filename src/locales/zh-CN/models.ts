@@ -365,6 +365,21 @@ export default {
 
   // --- Prefill/decode disaggregation ---
   'models.form.pd.section': 'PD 分离配置',
+  'models.form.pd.enable': '启用',
+  // Why the server derived no transport. Keyed by `PDModeUnresolvedCode`;
+  // the server also sends English prose, which is rendered only when this
+  // catalog has no entry for the code it sent.
+  'models.form.pd.unresolved.vendor_not_in_cluster':
+    '集群里没有 {vendor} 加速卡（现有：{vendors}）。',
+  'models.form.pd.unresolved.vendors_unknown':
+    '还没读到集群的加速卡信息，暂时无法推导传输方案。',
+  'models.form.pd.unresolved.no_built_in_recipe':
+    '没有内置方案覆盖 {backend} × {vendors}。可改用「自定义」传输方案，自行提供连接参数。',
+  'models.form.pd.unresolved.multiple_vendors':
+    '集群里有多种加速卡都能承载这一组（{vendors}），而 PD 组不能跨厂商。请指定一种。',
+  'models.form.pd.unresolved.no_preferred_recipe':
+    '有多个方案都适用，但没有一个被标为首选。',
+  'models.form.pd.unresolved.thisEngine': '该引擎',
   'models.form.pd.enable.off': '不开启',
   'models.form.pd.enable.on': 'PD 分离',
   'models.form.pd.enable.tips':
@@ -403,7 +418,6 @@ export default {
   'models.form.roles.prefill': 'Prefill',
   'models.form.roles.decode': 'Decode',
   'models.form.roles.router': 'Router',
-  'models.form.roles.inherit': '与模型相同',
   'models.form.roles.override': '自定义',
   'models.form.roles.inherited': '继承',
   'models.form.roles.group.backend': '引擎与镜像',
@@ -415,16 +429,10 @@ export default {
   'models.form.roles.group.cache': '共享 KV 缓存',
   'models.form.roles.group.settings': '组级设置',
   'models.form.roles.group.settings.tips': '对所有角色生效',
-  'models.form.roles.group.wide': '组级',
   'models.form.roles.replicas': '副本数',
   'models.form.roles.router.routeArgs': '路由参数',
   'models.form.roles.router.routeArgs.tips':
     'Router 进程启动时的命令行参数。带锁的由 GPUStack 按组的落点渲染，不可编辑。',
-  'models.form.roles.router.band.connection': '连接',
-  'models.form.roles.router.band.extra': '自定义追加',
-  'models.form.roles.router.tunable.managed': '系统默认值，切到自定义可覆盖',
-  'models.form.roles.router.tunable.custom': '留空按默认值保存',
-  'models.form.roles.router.tunable.default': '默认 {value}',
   'models.form.roles.router.locality':
     '仅 CPU，由系统就近 Prefill / Decode 自动选择 Worker',
   'models.form.roles.router.workerAllocation': 'Worker 分配',
@@ -539,7 +547,6 @@ export default {
   'models.pd.ratio': '配比',
   'models.form.roles.router.entrypoint': '执行命令',
   'models.form.roles.router.connectionArgs': '连接参数',
-  'models.form.roles.router.tunableArgs': '策略与韧性（可覆盖）',
   'models.form.roles.managed': '系统托管',
   'models.form.roles.managed.tips':
     '由 GPUStack 按 PD 模式和调度结果自动填入，不可修改，也无需重复填写。双花括号包起来的是占位符，在部署时替换为实际的地址、端口和网卡。',
@@ -557,7 +564,6 @@ export default {
   'models.form.roles.resources': '资源',
   'models.form.roles.resources.cpu': 'CPU（核）',
   'models.form.roles.resources.memory': '内存（GiB）',
-  'models.form.roles.resources.default': '留空则使用默认的 2 核 2 GiB',
   'models.form.roles.resources.tips':
     'Router 容器申请的资源，默认为 2 核 2 GiB。',
   'models.form.roles.router.health': '健康检查',
@@ -569,8 +575,8 @@ export default {
   'models.form.gather.title': '拓扑亲和性',
   'models.form.gather.target.auto': '自动',
   'models.form.gather.target.auto.tips': '选传输最快的可行位置',
-  'models.form.gather.target.host': '同机',
-  'models.form.gather.target.host.tips': 'Prefill / Decode 同一台机器',
+  'models.form.gather.target.host': '同一 Worker',
+  'models.form.gather.target.host.tips': 'Prefill / Decode 在同一个 Worker',
   'models.form.gather.target.layer': '同{layer}',
   'models.form.gather.target.tips':
     '希望这组成员之间的传输链路不低于哪一档。同一加速器域的传输快于同机柜，因此跨机柜的域也算满足。Router 不占卡，不参与此约束。',

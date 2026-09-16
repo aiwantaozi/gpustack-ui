@@ -388,6 +388,21 @@ export default {
 
   // --- Prefill/decode disaggregation ---
   'models.form.pd.section': 'Настройки разделения PD',
+  'models.form.pd.enable': 'Включить',
+  // Why the server derived no transport. Keyed by `PDModeUnresolvedCode`;
+  // the server also sends English prose, which is rendered only when this
+  // catalog has no entry for the code it sent.
+  'models.form.pd.unresolved.vendor_not_in_cluster':
+    'В этом кластере нет ускорителей {vendor} (есть: {vendors}).',
+  'models.form.pd.unresolved.vendors_unknown':
+    'Ускорители кластера ещё неизвестны, поэтому схему передачи нельзя определить.',
+  'models.form.pd.unresolved.no_built_in_recipe':
+    'Нет встроенной схемы для {backend} на {vendors}. Выберите «Пользовательскую» схему передачи и задайте параметры подключения самостоятельно.',
+  'models.form.pd.unresolved.multiple_vendors':
+    'В кластере несколько производителей ускорителей, способных разместить группу ({vendors}), а группа PD не может охватывать разных производителей. Выберите одного.',
+  'models.form.pd.unresolved.no_preferred_recipe':
+    'Подходит несколько схем, но ни одна не помечена как предпочтительная.',
+  'models.form.pd.unresolved.thisEngine': 'этот движок',
   'models.form.pd.enable.off': 'Выключено',
   'models.form.pd.enable.on': 'Разделение PD',
   'models.form.pd.enable.tips':
@@ -428,7 +443,6 @@ export default {
   'models.form.roles.prefill': 'Prefill',
   'models.form.roles.decode': 'Decode',
   'models.form.roles.router': 'Router',
-  'models.form.roles.inherit': 'Как у модели',
   'models.form.roles.override': 'Пользовательские',
   'models.form.roles.inherited': 'Наследуется',
   'models.form.roles.group.backend': 'Движок и образ',
@@ -441,18 +455,10 @@ export default {
   'models.form.roles.group.cache': 'Общий кэш KV',
   'models.form.roles.group.settings': 'Настройки группы',
   'models.form.roles.group.settings.tips': 'Применяются ко всем ролям',
-  'models.form.roles.group.wide': 'На всю группу',
   'models.form.roles.replicas': 'Реплики',
   'models.form.roles.router.routeArgs': 'Аргументы маршрутизации',
   'models.form.roles.router.routeArgs.tips':
     'Аргументы командной строки, с которыми запускается процесс router. Строки с замком формирует GPUStack по месту размещения группы; редактировать их нельзя.',
-  'models.form.roles.router.band.connection': 'Подключение',
-  'models.form.roles.router.band.extra': 'Ваши собственные',
-  'models.form.roles.router.tunable.managed':
-    'Значения по умолчанию; переключитесь на «Своё», чтобы изменить',
-  'models.form.roles.router.tunable.custom':
-    'Оставьте пустым — сохранится значение по умолчанию',
-  'models.form.roles.router.tunable.default': 'по умолчанию {value}',
   'models.form.roles.router.locality':
     'Только CPU; размещается автоматически, по возможности рядом с prefill и decode этой группы',
   'models.form.roles.router.workerAllocation': 'Назначение Worker',
@@ -579,8 +585,6 @@ export default {
   'models.form.roles.router.entrypoint': 'Команда запуска',
   'models.form.roles.router.connectionArgs':
     'Параметры подключения (задаёт GPUStack)',
-  'models.form.roles.router.tunableArgs':
-    'Стратегия и устойчивость (можно переопределить)',
   'models.form.roles.managed': 'Управляется системой',
   'models.form.roles.managed.tips':
     'Заполняется GPUStack на основе режима PD и места размещения группы. Только для чтения, повторять эти значения не нужно. Значения в двойных фигурных скобках — это заполнители, которые при развёртывании заменяются реальными адресами, портами и сетевым интерфейсом.',
@@ -599,8 +603,6 @@ export default {
   'models.form.roles.resources': 'Ресурсы',
   'models.form.roles.resources.cpu': 'CPU (ядра)',
   'models.form.roles.resources.memory': 'Память (ГиБ)',
-  'models.form.roles.resources.default':
-    'Оставьте пустым, чтобы использовать значения по умолчанию: 2 ядра и 2 ГиБ',
   'models.form.roles.resources.tips':
     'Что запрашивает контейнер роутера. По умолчанию 2 ядра и 2 ГиБ.',
   'models.form.roles.router.health': 'Проверка состояния',
@@ -613,8 +615,8 @@ export default {
   'models.form.gather.target.auto': 'Автоматически',
   'models.form.gather.target.auto.tips':
     'Самый быстрый подходящий путь передачи',
-  'models.form.gather.target.host': 'Один узел',
-  'models.form.gather.target.host.tips': 'Prefill и Decode на одной машине',
+  'models.form.gather.target.host': 'Тот же Worker',
+  'models.form.gather.target.host.tips': 'Prefill и Decode на одном Worker',
   'models.form.gather.target.layer': 'Один {layer}',
   'models.form.gather.target.tips':
     'Желаемое качество передачи между участниками группы. Передача внутри одного домена ускорителей быстрее, чем внутри стойки, поэтому домен, охватывающий несколько стоек, тоже считается подходящим. Router не занимает ускоритель и под это ограничение не попадает.',

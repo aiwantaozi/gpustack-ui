@@ -4,27 +4,16 @@ import { Form, Input } from 'antd';
 import React from 'react';
 import { OverrideGroupMap } from '../../config';
 import { PDMode } from '../../config/types';
-import BackendFields from '../backend';
 import BackendParametersList from '../backend-parameters-list';
-import CustomBackend from '../custom-backend';
-import OverrideSection, { RoleSection } from './override-section';
+import OverrideSection from './override-section';
 import RouterScheduling, { RouterResources } from './router-scheduling';
 import SystemManaged, { flagLines } from './system-managed';
-
-const GIB = 1024 ** 3;
-
-const RouterModeMap = {
-  Managed: 'managed',
-  Custom: 'custom'
-};
 
 interface RouterFormProps {
   /** The router's index in `roles`. */
   index: number;
   /** The selected pd mode's catalog entry; its `router` block is what a managed router derives from. */
   mode?: PDMode;
-  /** Set when the mode cannot derive a router, which forces the custom branch. */
-  managedDisabledReason?: string;
 }
 
 /**
@@ -32,50 +21,29 @@ interface RouterFormProps {
  *
  * Different in kind from prefill and decode: its image, invocation, peer
  * addresses and health path all come from the mode catalog, so asking the user
- * to type them is asking them to restate what the system already knows. The
- * default is therefore "managed by the system".
+ * to type them is asking them to restate what the system already knows. It is
+ * therefore always managed by the system — there is no engine group here to
+ * take it over with.
  *
- * What the managed branch shows is deliberately not nothing. The catalog
- * declares the invocation in three classified parts, and the classification is
- * the whole point of showing it:
- *
- * - the **entrypoint** answers the question the image name cannot — the router
- *   runs the same image the model does, and what makes it a router is which
- *   executable inside it starts;
- * - the **connection arguments** are ours, rendered from where the group
- *   landed, and saying so is what makes "you cannot set this" legible rather
- *   than arbitrary;
- * - the **tunable arguments** are the user's to change, and appending one is
- *   how — repeated flags are last-wins in both shipped routers.
+ * What the catalog declares is still visible, and editable where it should be:
+ * the **connection arguments** are ours, rendered from where the group landed,
+ * and the **tunable arguments** are the user's to change. Both are seeded into
+ * the one parameter list below, and a row left untouched is stripped again at
+ * submit so the server goes on rendering it.
  */
-const RouterForm: React.FC<RouterFormProps> = ({
-  index,
-  mode,
-  managedDisabledReason
-}) => {
+const RouterForm: React.FC<RouterFormProps> = ({ index, mode }) => {
   const intl = useIntl();
   const form = Form.useFormInstance();
-  const managed = Form.useWatch(['roles', index, 'managed'], form);
-  const roleImage = Form.useWatch(['roles', index, 'image_name'], form);
-  const roleCommand = Form.useWatch(['roles', index, 'run_command'], form);
 
-  // The server's own rule, verbatim (`is_managed_router`): the platform keeps
-  // assembling the router's invocation until the role carries BOTH an image
-  // and a command of its own — only both opt out.
-  //
-  // Deliberately not `managed !== false`. That switch and this rule disagree
-  // in the case the switch itself creates: going Custom seeds an image from
-  // the Model and no command, which is still a router the platform assembles
-  // and still gets the connection arguments. Gating the block on the switch
-  // therefore hid flags the router does receive, and the user's only reading
-  // of that was "they are gone, I must add them" — which admission then
-  // refuses, `--prefill` being `action="append"` in both shipped routers.
-  const systemAssembled = !(roleImage && roleCommand);
-
+  // 🔴 `systemAssembled` is gone, and so is the rule it mirrored
+  // (`is_managed_router`: the platform keeps assembling the router's
+  // invocation until the role carries BOTH an image and a command of its
+  // own). With the engine group removed from every role, the payload nulls
+  // `image_name` and `run_command` unconditionally — so that rule can only
+  // ever answer "managed", and a branch on it is a branch with one side.
   const router = mode?.router;
   const connectionArgs = router?.connection_args || [];
   const tunableArgs = router?.tunable_args || [];
-  const entrypoint = (router?.entrypoint || []).join(' ');
 
   // 🔴 The connection flags are seeded into the role's own parameter list,
   // the same way a prefill's `--kv-transfer-config` is. They used to be a
@@ -125,40 +93,15 @@ const RouterForm: React.FC<RouterFormProps> = ({
     }
   }, [injectedRouterParams, form, index]);
 
-  // Taking the router over by hand should start from what the system was
-  // already going to run, the way every other role's "custom" does — an
-  // OverrideSection seeds the group from the Model on the same gesture. This
-  // switch is hand-rolled (managed/custom is not an inherit/override pair), so
-  // the seeding has to be too, and without it the required Backend field
-  // opened blank on a form whose Model already answers that question.
-  //
-  // `run_command` is deliberately NOT seeded, unlike the other roles': the
-  // Model's command starts an ENGINE, and copying it here would produce a
-  // router that runs one. What a managed router derives is the runner image
-  // plus its own entrypoint, so the image and the two fields that resolve it
-  // are the ones worth carrying over.
-  // Seeded on mount rather than on a switch that no longer exists. Same three
-  // fields the switch carried over, and for the same reason: the Backend field
-  // is required, and opening it blank on a form whose Model already answers it
-  // asks the user to retype what they had.
-  //
-  // `run_command` stays out, as it did before: the Model's command starts an
-  // ENGINE, and copying it here would produce a router that runs one.
-  React.useEffect(() => {
-    if (!systemAssembled) {
-      return;
-    }
-    ['backend', 'backend_version', 'image_name'].forEach((field) => {
-      if (form.getFieldValue(['roles', index, field]) == null) {
-        form.setFieldValue(['roles', index, field], form.getFieldValue(field));
-      }
-    });
-  }, []);
+  // 🔴 A mount effect used to seed `backend` / `backend_version` / `image_name`
+  // from the Model, so that the engine group's required Backend field did not
+  // open blank. It went with the group: there is no field left to fill, and
+  // writing those three into the role now would put values into a store the
+  // payload nulls anyway — an override that exists nowhere on screen.
 
   // 🔴 `handleModeChange` / `modeSwitch` / `managedDisabledReason` lived here,
-  // driving the engine group's managed-custom switch. All three went with it —
-  // see the note on the group below for why `managed` is derived rather than
-  // declared now.
+  // driving the engine group's managed-custom switch. All three went with it,
+  // and then the group itself did.
 
   // 🔴 `connectionBand` / `routeArgsGroup` / `managedArgs` lived here, building
   // the three-band read-only view of the route arguments for the collapsed
@@ -187,36 +130,25 @@ const RouterForm: React.FC<RouterFormProps> = ({
           and `RoleSpec.replicas` is `Field(default=1, ge=1)` server-side. The
           count was decided in three places already; the field was the only
           one that looked like a decision. */}
-      <RoleSection
-        label={intl.formatMessage({ id: 'models.form.roles.group.backend' })}
-        description={intl.formatMessage({
-          id: 'models.form.roles.router.order.tips'
-        })}
-      >
-        {/* 🔴 No managed/custom switch, matching every other engine group and
-            a role-less deployment. `managed` is not gone as a concept — it is
-            derived instead of declared: a router that carries neither an
-            image nor a command is still system-assembled, which is exactly
-            what `rolesSpecToForm` already read it back as. Filling either
-            field in is what takes the router over, and that is the gesture
-            the switch was standing in for.
+      {/* 🔴 No «引擎与镜像» section here either, matching prefill and decode.
+          Where the router's image and command come from is decided by the
+          mode, and neither branch needs a field:
 
-            `managedDisabledReason` went with it. It disabled the *managed*
-            side, i.e. "this deployment cannot have a system-assembled
-            router" — a state the user could not act on from here anyway, and
-            the deploy path reports it where it is decided. */}
-        <>
-          <BackendFields namePrefix={['roles', index]}></BackendFields>
-          <CustomBackend namePrefix={['roles', index]}></CustomBackend>
-          {/* 🔴 No «CPU only» checkbox. A router takes no accelerator in
-                every branch — the server derives it from the role's name now,
-                not from a flag — so the box had nothing left to decide. It
-                never really did: its unticked state meant "size this proxy
-                from the model's weights", the only sizing that path could
-                reach, which is 164 GiB for a 72B model. The «资源» section
-                below is where a router is sized, in CPU and RAM. */}
-        </>
-      </RoleSection>
+          - a built-in recipe declares `router.protocol != user_provided`, so
+            `is_managed_router` is true and `apply_managed_router` renders the
+            image and the entrypoint from the catalog's `router` block;
+          - `custom` declares `user_provided`, so `is_managed_router` is FALSE
+            whatever the role carries, and the worker reads the image and
+            command off the role spec — which `roleFormToPayload` now nulls,
+            so `role_effective_model` projects the MODEL's `image_name` and
+            `run_command` onto the router.
+
+          The second branch is the one this section used to serve, and the
+          Model's two fields serve it just as well: a `custom` group is on a
+          user-supplied image already, and putting the router binary in it —
+          with an entrypoint that dispatches on the role — is the same work as
+          typing the image name here, minus a second place to keep it in sync.
+       */}
 
       {/* Shown on BOTH branches, and so is the platform half inside it. A
           hand-written router still takes arguments and still needs environment

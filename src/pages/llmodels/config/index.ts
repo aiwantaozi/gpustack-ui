@@ -569,6 +569,20 @@ export const RoleValueMap = {
   Router: 'router'
 };
 
+/**
+ * The router container's CPU / memory floor, mirroring `ROUTER_DEFAULT_CPU`
+ * and `ROUTER_DEFAULT_MEMORY` in the server's `schemas/models.py`.
+ *
+ * Duplicated rather than fetched because the form needs it before any request
+ * would return — and duplicated SAFELY, because nothing here is ever sent: the
+ * resource fields are seeded with it for display and stripped again on submit
+ * while they still equal it. A drift between these numbers and the server's
+ * therefore shows up as a field that looks wrong, never as a deployment that
+ * requests the wrong thing.
+ */
+export const ROUTER_DEFAULT_CPU = 2;
+export const ROUTER_DEFAULT_MEMORY = 2 * 1024 ** 3;
+
 export const RoleLabelMap = {
   [RoleValueMap.Prefill]: 'models.form.roles.prefill',
   [RoleValueMap.Decode]: 'models.form.roles.decode',

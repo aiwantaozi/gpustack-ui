@@ -130,13 +130,34 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
   // Reported by the PD block, applied here: the effects land on sections the
   // block does not own (`replicas`, `scaling_schedule`, `extended_kv_cache`),
   // so it names them and this owner writes them.
-  const [pdEffects, setPDEffects] = React.useState<PDEffects>({
-    enabled: false,
-    mode: null,
-    isCustomMode: false,
-    replicasLocked: false,
-    scalingDisabled: false,
-    clearModelKVCache: false
+  //
+  // 🔴 Seeded from `initialValues`, not hardcoded to off. `enabled` is what
+  // decides the SHAPE of this form — which tabs exist, whether the replica
+  // field renders — and starting it at `false` meant an edit drawer on an
+  // existing group painted the whole non-PD layout first, then repainted as
+  // PD the moment `PDDisaggregation`'s mount effect reported back. One
+  // visible flash on every edit.
+  //
+  // `PDDisaggregation` already derives this correctly on its own first render
+  // (it reads the store synchronously, because `useWatch` answers `undefined`
+  // there); the gap was that the parent had no way to know until the child
+  // told it. This reads the same two facts from the same place.
+  //
+  // ⚠️ Initializer only — `useState` runs it once. Deriving `enabled` from
+  // `initialValues` on every render is a documented trap: `initialValues`
+  // never changes, so it would answer "still on" however thoroughly the user
+  // turned PD off, and the switch would snap back. See the note above
+  // `active` in `pd-disaggregation.tsx`.
+  const [pdEffects, setPDEffects] = React.useState<PDEffects>(() => {
+    const mode = initialValues?.disaggregation?.mode ?? null;
+    return {
+      enabled: !!initialValues?.roles?.length || !!mode,
+      mode,
+      isCustomMode: mode === PD_MODE_CUSTOM,
+      replicasLocked: false,
+      scalingDisabled: false,
+      clearModelKVCache: false
+    };
   });
 
   // `clearModelKVCache` is a one-shot instruction, so consume it where it
@@ -344,10 +365,24 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
     // an empty array is a group with no members, while null is the plain
     // single-role deployment every model is today.
     if (pdEffects.enabled) {
-      // `data` is the whole form, which is where the model-level values the
-      // roles may be inheriting live — the transform compares against them to
-      // tell an untouched group from a real override.
-      allValues.roles = rolesFormToPayload(data.roles, data);
+      // 🔴 `form.getFieldValue`, not `data.roles`. `data` is what `onFinish`
+      // hands over, and antd builds that from REGISTERED fields only — a value
+      // written with `setFieldValue` under a path that has no `Form.Item` is
+      // simply absent from it. `roles[i].__injected` is exactly that: the
+      // snapshot of what the PD recipe seeded into the role's parameter list,
+      // written by `role-form` / `router-form` and read by
+      // `stripUntouchedInjection` to take those rows back off.
+      //
+      // Reading it off `data` therefore made the strip a no-op, and every new
+      // PD deployment submitted the recipe's own rows as if the user had typed
+      // them — including the `{{...}}` placeholders, which only the worker can
+      // resolve. Observed as a launch failure: «A configuration value reached
+      // the engine unrendered ... Unrendered: {{kv_lease_duration}}», with the
+      // JSON further mangled by `flatten_to_argv` re-tokenizing it.
+      //
+      // `data` stays as the model-level half: those fields ARE registered, and
+      // it is the shape the rest of this function already works from.
+      allValues.roles = rolesFormToPayload(form.getFieldValue('roles'), data);
     } else {
       allValues.roles = null;
       allValues.disaggregation = null;

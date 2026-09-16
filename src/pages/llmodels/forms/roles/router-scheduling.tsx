@@ -29,11 +29,6 @@ const WORKER_NAME_LABEL = 'worker-name';
 const useStyles = createStyles(({ css }) => ({
   resources: css`
     margin-bottom: 12px;
-    .resources-hint {
-      margin-top: 6px;
-      font-size: 12px;
-      color: var(--ant-color-text-tertiary);
-    }
   `,
   nested: css`
     border: 1px solid var(--ant-color-border);
@@ -66,16 +61,21 @@ interface RouterSchedulingProps {
  * would not reach them. An `initialValue` is therefore wrong however much
  * nicer the filled-in field looks.
  *
- * 🔴 **And the defaults cannot be shown as `placeholder` either** — that is a
- * bug in core-ui, not a style choice. Its text `Input` gates the placeholder
- * on the floating label (`placeholder: focused || !label ? ph : ''`), so the
- * two never share a line; `InputNumber` passes it straight through, so with a
- * label the placeholder renders *underneath* the un-floated label and the two
- * overlap. These were the only two fields in the repo combining `label` with
- * `placeholder` on an `InputNumber`, which is why nothing else shows it.
+ * 🔴 **Seeded with the server's floor, and stripped again on submit.** Both
+ * halves live in `transform.ts` — `rolesSpecToForm` fills the fields,
+ * `stripDefaultResources` drops a value that came back still equal to the
+ * floor — because a `useEffect` here raced the form's own `initialValues` and
+ * lost: the fields rendered empty. Untouched therefore still means «whatever the server's
+ * default is», which is the only reading under which a later change to
+ * `ROUTER_DEFAULT_CPU` reaches existing groups.
  *
- * So the defaults are stated in the section's own footnote instead, where
- * they are visible without being values.
+ * Not a `placeholder`, which would have been the obvious way to show a
+ * default without it being a value: core-ui's text `Input` gates the
+ * placeholder on the floating label (`placeholder: focused || !label ? ph :
+ * ''`) so the two never share a line, but `InputNumber` passes it straight
+ * through and the two then render on top of each other. Measured — with the
+ * field empty and unfocused, the label box and the input's text box start at
+ * the same y.
  */
 export const RouterResources: React.FC<RouterSchedulingProps> = ({ index }) => {
   const intl = useIntl();
@@ -119,14 +119,6 @@ export const RouterResources: React.FC<RouterSchedulingProps> = ({ index }) => {
           ></InputNumber>
         </Form.Item>
       </Flex>
-      {/* The defaults, as text. They cannot be the fields' `placeholder` (see
-          the note above) and must not be their value, so this line is the
-          only place left that can state them — and it has to sit here rather
-          than in the section's own footnote, which renders in the inherit
-          branch only while these two inputs render in both. */}
-      <div className="resources-hint">
-        {intl.formatMessage({ id: 'models.form.roles.resources.default' })}
-      </div>
     </div>
   );
 };

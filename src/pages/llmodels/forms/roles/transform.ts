@@ -5,6 +5,8 @@ import {
   OverrideGroupMap,
   RoleOrder,
   RoleValueMap,
+  ROUTER_DEFAULT_CPU,
+  ROUTER_DEFAULT_MEMORY,
   ScheduleValueMap
 } from '../../config';
 import { RoleFormItem, RoleSpec } from '../../config/types';
@@ -113,7 +115,23 @@ export const rolesSpecToForm = (
       // of its own — those two are the whole of what the catalog derives, so
       // their presence IS the user having taken it over.
       ...(role.name === RoleValueMap.Router
-        ? { managed: !role.image_name && !role.run_command }
+        ? {
+            // 🔴 No `managed` flag. It was derived here as «carries neither an
+            // image nor a command» and read by `roleFormToPayload` to decide
+            // the engine group — which is now forced off for every role, so
+            // the flag had one reader and it stopped asking. `UI_ONLY_KEYS`
+            // still lists it, to strip it off anything that still carries one.
+            //
+            // Seeded so the two inputs read like ordinary filled fields
+            // instead of empty ones whose meaning the user has to know.
+            // `stripDefaultResources` takes them back off at submit while
+            // they still equal the floor, so an untouched router keeps
+            // following the server's default rather than freezing today's.
+            resources: {
+              cpu: role.resources?.cpu ?? ROUTER_DEFAULT_CPU,
+              memory: role.resources?.memory ?? ROUTER_DEFAULT_MEMORY
+            }
+          }
         : {}),
       scheduleType: hasGPUSelection
         ? ScheduleValueMap.Manual
@@ -135,13 +153,40 @@ export const rolesSpecToForm = (
 const roleFormToPayload = (role: RoleFormItem): RoleSpec => {
   const isRouter = role.name === RoleValueMap.Router;
   const overrides = role.overrides || {};
-  // A managed router derives its image and command from the catalog, so it
-  // owns none of the engine group; asking for custom is what turns it on.
   const isGroupOn = (group: string) => {
-    // A managed router derives its image and command from the catalog, so it
-    // owns none of the engine group; asking for custom is what turns it on.
-    if (isRouter && group === OverrideGroupMap.Backend) {
-      return role.managed === false;
+    /**
+     * 🔴 The engine group is never on, for any role.
+     *
+     * There is no «引擎与镜像» section in the form any more: a prefill or a
+     * decode runs the Model's engine (`RoleSpec.backend` &co. are
+     * `Optional = None`, and `role_effective_model()` reads that None as
+     * "inherit the Model field of the same name"), and a router derives its
+     * image and invocation from the mode catalog.
+     *
+     * Forced here rather than left to `overrides`, so that the wire cannot
+     * disagree with the screen. Two ways it could: `rolesSpecToForm` derives
+     * the flag from the stored spec, so editing a model saved while the
+     * section still existed would pass its frozen engine through invisibly;
+     * and the router's flag used to come from `role.managed`, which nothing
+     * sets any more.
+     *
+     * ⚠️ Editing such a model therefore CLEARS its per-role engine override.
+     * That is the intent — one engine per deployment — and PD has not shipped,
+     * so there is nothing in the field to clear.
+     *
+     * 🔴 Except for the router, which has an «引擎与镜像» section again. Its
+     * fields became editable when that section lost its managed/custom switch,
+     * and a blanket `false` here meant a hand-written router image or command
+     * was accepted by the form and dropped on the way out. A router is the one
+     * role whose engine is genuinely its own — a `vllm-router` is not the
+     * model's engine — so it answers the same data question every other group
+     * now answers.
+     */
+    if (group === OverrideGroupMap.Backend) {
+      return (
+        role.name === RoleValueMap.Router &&
+        isGroupOverridden(role as unknown as RoleSpec, group)
+      );
     }
     // The cache group is the one that does not inherit (see role-kv-cache):
     // there is no "same as model" switch for it, so nothing writes an override
@@ -149,7 +194,28 @@ const roleFormToPayload = (role: RoleFormItem): RoleSpec => {
     if (group === OverrideGroupMap.Cache) {
       return true;
     }
-    return !!overrides[group];
+    /**
+     * 🔴 The DATA decides, not the UI flag.
+     *
+     * This read `overrides[group]` — a UI-only boolean the managed/custom
+     * switch used to own. That switch is gone (every group is `alwaysOpen`
+     * now), and what set the flag in its place was an `OverrideSection` mount
+     * effect. A mount effect is not a reliable owner of submit semantics: if
+     * anything rewrote `roles` after the section had already mounted — turning
+     * PD on seeds `createDefaultRoles()`, which sets every flag to false — the
+     * effect never ran again and the flag stayed false. `roleFormToPayload`
+     * then wrote `null` over whatever the user had typed.
+     *
+     * Reported as: added `--gpu-memory-utilization=0.3` to prefill and decode
+     * at deploy time, reopened the deployment, both gone. Confirmed in the
+     * database — the roles' `backend_parameters` were null while the model
+     * level held only the catalog's own two parameters.
+     *
+     * `isGroupOverridden` asks the only question that cannot go stale: does
+     * the group hold a value. It is the same predicate `rolesSpecToForm` uses
+     * to derive the flag on the way in, so the round trip is symmetric.
+     */
+    return isGroupOverridden(role as unknown as RoleSpec, group);
   };
 
   // Normalized once for the whole role: the scheduling group's three fields
@@ -174,7 +240,16 @@ const roleFormToPayload = (role: RoleFormItem): RoleSpec => {
       const value = _.has(scheduling, field)
         ? (scheduling as Record<string, any>)[field]
         : (role as Record<string, any>)[field];
-      payload[field] = value === undefined ? null : value;
+      // 🔴 An empty list or object is `null`, not `[]`/`{}`. A group is "on"
+      // as a whole, so setting only the env of the parameter group left its
+      // `backend_parameters` as `[]` — and the server reads that as "this role
+      // runs NO parameters", overriding the model's with emptiness, rather
+      // than as "nothing said here". Only a value that exists is a value.
+      const empty =
+        value === undefined ||
+        value === null ||
+        (_.isObject(value) && _.isEmpty(value));
+      payload[field] = empty ? null : value;
     });
   });
 
@@ -224,6 +299,8 @@ export const rolesFormToPayload = (
     return index === -1 ? RoleOrder.length : index;
   })
     .map(stripUntouchedInjection)
+    .map(splitStructuredValues)
+    .map(stripDefaultResources)
     .map((role: RoleFormItem) => demoteUntouchedGroups(role, modelValues))
     .map(roleFormToPayload);
 };
@@ -262,6 +339,70 @@ const stripUntouchedInjection = (role: RoleFormItem): RoleFormItem => {
     )
   );
   return { ...role, backend_parameters: params, env } as RoleFormItem;
+};
+
+/**
+ * `--flag {json}` goes over the wire as TWO elements, not one string.
+ *
+ * `backend_parameters` is a concatenated argv, and the server's
+ * `flatten_to_argv` re-tokenizes any element whose first word looks like a CLI
+ * key — through shlex, which eats the quotes. Verified against the real
+ * helper:
+ *
+ *     ['--kv-transfer-config {"kv_connector":"NixlConnector"}']
+ *       -> ['--kv-transfer-config', '{kv_connector:NixlConnector}']   ✗
+ *     ['--kv-transfer-config', '{"kv_connector":"NixlConnector"}']
+ *       -> ['--kv-transfer-config', '{"kv_connector":"NixlConnector"}'] ✓
+ *
+ * A bare element (one that does not start with a flag) passes through
+ * verbatim, which is exactly what a JSON document needs. The form keeps them
+ * on one line because that is how a person reads a flag and its value; the
+ * split happens here, at the boundary where the shape stops being a display
+ * concern.
+ *
+ * Reported as a launch failure on a freshly created group: «Invalid JSON: key
+ * must be a string», with the value shown as `{kv_connector:NixlConnec...}`.
+ */
+const splitStructuredValues = (role: RoleFormItem): RoleFormItem => {
+  const params = role.backend_parameters;
+  if (!params?.length) {
+    return role;
+  }
+  const split = params.flatMap((line: string) => {
+    const match = /^(--[\w.-]+)\s+([[{].*[\]}])$/.exec(String(line).trim());
+    return match ? [match[1], match[2]] : [line];
+  });
+  return { ...role, backend_parameters: split } as RoleFormItem;
+};
+
+/**
+ * A resource field still sitting on the server's floor is not an override.
+ *
+ * The router's CPU / memory inputs are seeded with `ROUTER_DEFAULT_CPU` /
+ * `ROUTER_DEFAULT_MEMORY` so they read like ordinary filled fields rather
+ * than like empty ones the user has to know the meaning of. Submitting those
+ * numbers would freeze today's floor into every deployment: the server reads
+ * `declared.cpu if declared and declared.cpu else ROUTER_DEFAULT_CPU`, so a
+ * stored 2 keeps winning after the default moves, while a stored `null`
+ * follows it. The field exists to move OFF the floor, and that is the only
+ * thing worth persisting.
+ *
+ * Per field, not per object: raising memory while leaving CPU alone has to
+ * send the memory and keep inheriting the CPU.
+ */
+const stripDefaultResources = (role: RoleFormItem): RoleFormItem => {
+  const resources = (role as Record<string, any>).resources;
+  if (!resources) {
+    return role;
+  }
+  const cpu = resources.cpu === ROUTER_DEFAULT_CPU ? null : resources.cpu;
+  const memory =
+    resources.memory === ROUTER_DEFAULT_MEMORY ? null : resources.memory;
+  return {
+    ...role,
+    resources:
+      cpu == null && memory == null ? null : { ...resources, cpu, memory }
+  } as RoleFormItem;
 };
 
 /**
@@ -336,7 +477,15 @@ export const createDefaultRoles = (): RoleFormItem[] =>
       [OverrideGroupMap.Scheduling]: false,
       [OverrideGroupMap.Cache]: false
     },
-    ...(name === RoleValueMap.Router ? { managed: true } : {}),
+    ...(name === RoleValueMap.Router
+      ? {
+          // Same seeding as `rolesSpecToForm`, for a group being created.
+          resources: {
+            cpu: ROUTER_DEFAULT_CPU,
+            memory: ROUTER_DEFAULT_MEMORY
+          }
+        }
+      : {}),
     scheduleType: ScheduleValueMap.Auto,
     manualGpuMode: ManualGPUModeMap.FullGPU
   })) as RoleFormItem[];

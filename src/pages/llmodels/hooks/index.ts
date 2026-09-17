@@ -262,10 +262,26 @@ export const useCheckCompatibility = () => {
               // turned back off still carries the last recipe, and sending
               // that alone would have the server narrow the eligible
               // accelerators for a deployment that is no longer a group.
+              //
+              // 🔴 And nulled while it has no `mode`, which is a state the
+              // form passes through every single time PD is switched on: the
+              // roles are seeded synchronously and the recipe is resolved by
+              // a request, so between the two there is a `disaggregation` of
+              // `{}`. `mode` is required on the wire, so sending that empty
+              // object 422s the whole evaluation — the panel reads "评估失败"
+              // at the very moment the user turned the feature on.
+              //
+              // Null is not a workaround here, it is the honest answer: with
+              // no recipe there is nothing to narrow the placement by, and
+              // the roles alone are enough to price the group. The next
+              // evaluation — the resolution itself triggers one — carries the
+              // recipe.
               ...(data.roles?.length
                 ? {
                     roles: rolesFormToPayload(data.roles, data),
-                    disaggregation: data.disaggregation ?? null
+                    disaggregation: data.disaggregation?.mode
+                      ? data.disaggregation
+                      : null
                   }
                 : { roles: null, disaggregation: null }),
               // Same reasoning for the vGPU selector, which the form walks

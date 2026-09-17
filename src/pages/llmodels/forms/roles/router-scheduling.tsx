@@ -9,22 +9,11 @@ import { useIntl } from '@umijs/max';
 import { Flex, Form } from 'antd';
 import { createStyles } from 'antd-style';
 import React from 'react';
-import { ScheduleValueMap } from '../../config';
+import { ScheduleValueMap, WORKER_NAME_LABEL } from '../../config';
 import { useFormContext } from '../../config/form-context';
+import { isManualWorkerSelector } from './transform';
 
 const GIB = 1024 ** 3;
-
-/**
- * The built-in label every worker carries (`worker_manager.py` writes it on
- * registration), and therefore the one label that can name a single machine.
- *
- * 🔴 It is also the whole mechanism behind «手动». A CPU-only role has no cards
- * to name, so manual scheduling has nothing to point at except the host — and
- * `worker_selector` already points at hosts. Rather than inventing a second
- * field that means the same thing, «手动» writes exactly one pair here and
- * «自动» writes any number.
- */
-const WORKER_NAME_LABEL = 'worker-name';
 
 const useStyles = createStyles(({ css }) => ({
   resources: css`
@@ -152,11 +141,19 @@ const RouterScheduling: React.FC<RouterSchedulingProps> = ({ index }) => {
   const form = Form.useFormInstance();
   const path = (...field: (string | number)[]) => ['roles', index, ...field];
 
-  const selector = Form.useWatch(path('worker_selector'), form);
+  // 🔴 `preserve`, because in «手动» NOTHING registers `worker_selector` — the
+  // only Form.Item in that branch is the display shim below, and the map is
+  // written by hand. A plain `useWatch` reads `getFieldsValue()`, which omits
+  // unregistered fields, so an edit drawer opened on a hand-pinned router read
+  // its own stored selector as empty and rendered a blank picker over a
+  // perfectly good value. `preserve` reads `getFieldsValue(true)` instead.
+  const selector = Form.useWatch(path('worker_selector'), {
+    form,
+    preserve: true
+  });
   const stored = Form.useWatch(path('scheduleType'), form);
 
-  const keys = Object.keys(selector || {});
-  const derivedManual = keys.length === 1 && keys[0] === WORKER_NAME_LABEL;
+  const derivedManual = isManualWorkerSelector(selector);
   const mode =
     stored ?? (derivedManual ? ScheduleValueMap.Manual : ScheduleValueMap.Auto);
   const manual = mode === ScheduleValueMap.Manual;
@@ -234,10 +231,26 @@ const RouterScheduling: React.FC<RouterSchedulingProps> = ({ index }) => {
             // error. On reopening an edit drawer the shim is undefined while
             // the selector holds a worker, so `required: true` would fail a
             // form that is perfectly valid.
+            //
+            // 🔴 Read through `getFieldValue`, NOT through the watched
+            // `selector` above, and that distinction is the whole of a bug
+            // this carried: picking a worker rendered its name and «请选择»
+            // at the same time, and the field stayed red with a value in it.
+            //
+            // rc-field-form wraps the validate trigger AROUND the value
+            // trigger, so the order on one change is: store the value, run
+            // this element's own `onChange` — which is where
+            // `handleWorkerChange` writes the map — and only then dispatch
+            // validation. So the store already holds the new selector when a
+            // validator runs, while `useWatch`'s copy is still a render
+            // behind and empty. The store is what was just written; the watch
+            // is for rendering.
             rules={[
               {
                 validator: () =>
-                  selector?.[WORKER_NAME_LABEL]
+                  form.getFieldValue(path('worker_selector'))?.[
+                    WORKER_NAME_LABEL
+                  ]
                     ? Promise.resolve()
                     : Promise.reject(
                         getRuleMessage(
@@ -248,8 +261,14 @@ const RouterScheduling: React.FC<RouterSchedulingProps> = ({ index }) => {
               }
             ]}
           >
+            {/* 🔴 No `allowClear`, for two reasons that point the same way.
+                It has nothing to clear TO: in «手动» a worker is required, so
+                the button's only outcome is the error state below — the way
+                to stop naming a machine is to switch back to «自动». And it
+                renders wrong here: the clear button lands on top of the
+                select's own suffix icon (both 12×12, 3px apart, measured),
+                so hovering shows a ✕ and a chevron drawn over each other. */}
             <SealSelect
-              allowClear
               showSearch
               onChange={handleWorkerChange}
               label={intl.formatMessage({

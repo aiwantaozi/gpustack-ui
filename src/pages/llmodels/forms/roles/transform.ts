@@ -7,10 +7,30 @@ import {
   RoleValueMap,
   ROUTER_DEFAULT_CPU,
   ROUTER_DEFAULT_MEMORY,
-  ScheduleValueMap
+  ScheduleValueMap,
+  WORKER_NAME_LABEL
 } from '../../config';
 import { RoleFormItem, RoleSpec } from '../../config/types';
 import { generateGPUIds, generateGPUSelector } from '../../utils';
+
+/**
+ * Whether a stored `worker_selector` means the router was scheduled by hand.
+ *
+ * 🔴 Exactly one pair, keyed `worker-name`, is «手动»; anything else — two
+ * pairs, or one pair keyed something else — is «自动». A selector the user
+ * typed in «自动» that happens to be that one pair therefore reopens as «手动»,
+ * showing the same machine: the label differs, the placement does not.
+ *
+ * Shared by the scheduling section (which renders the mode) and by
+ * `rolesSpecToForm` (which seeds it when an edit drawer opens), because those
+ * two disagreeing is what made a hand-pinned router reopen as «自动».
+ */
+export const isManualWorkerSelector = (
+  selector?: Record<string, any> | null
+): boolean => {
+  const keys = Object.keys(selector || {});
+  return keys.length === 1 && keys[0] === WORKER_NAME_LABEL;
+};
 
 // The keys a role carries only so the form can render it. None of them exists
 // on `RoleSpec`, so all of them have to come off before submit — the same job
@@ -133,7 +153,18 @@ export const rolesSpecToForm = (
             }
           }
         : {}),
-      scheduleType: hasGPUSelection
+      // 🔴 The router is decided by a different field, and deciding it by
+      // `gpu_selector` like every other role is a bug this carried: that role
+      // never has one — it holds no cards — so a group deployed with the
+      // router pinned to a host reopened as «自动», showing the raw label
+      // selector instead of the machine the operator picked. The rule is the
+      // scheduling section's own, shared rather than restated so the two
+      // cannot drift again.
+      scheduleType: (
+        role.name === RoleValueMap.Router
+          ? isManualWorkerSelector(role.worker_selector)
+          : hasGPUSelection
+      )
         ? ScheduleValueMap.Manual
         : ScheduleValueMap.Auto,
       manualGpuMode: isVGPU ? ManualGPUModeMap.VGPU : ManualGPUModeMap.FullGPU

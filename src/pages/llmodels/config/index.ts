@@ -586,6 +586,21 @@ export const RoleValueMap = {
 export const ROUTER_DEFAULT_CPU = 2;
 export const ROUTER_DEFAULT_MEMORY = 2 * 1024 ** 3;
 
+/**
+ * The built-in label every worker carries (`worker_manager.py` writes it on
+ * registration), and therefore the one label that can name a single machine.
+ *
+ * 🔴 It is also the whole mechanism behind the router's «手动». A CPU-only role
+ * has no cards to name, so manual scheduling has nothing to point at except the
+ * host — and `worker_selector` already points at hosts. Rather than inventing a
+ * second field that means the same thing, «手动» writes exactly one pair here
+ * and «自动» writes any number.
+ *
+ * Lives here rather than in the scheduling section because the edit drawer has
+ * to read the same rule when it decides which mode a stored role reopens in.
+ */
+export const WORKER_NAME_LABEL = 'worker-name';
+
 export const RoleLabelMap = {
   [RoleValueMap.Prefill]: 'models.form.roles.prefill',
   [RoleValueMap.Decode]: 'models.form.roles.decode',

@@ -238,7 +238,7 @@ export default {
   'clusters.topology.field.row.tips': 'Row of racks',
   'clusters.topology.field.rack.tips': 'Rack or cabinet',
   'clusters.topology.field.switch.tips':
-    'Reported by the device (LLDP); can be filled by hand',
+    'Filled by hand, or written by a tool such as Topograph',
   'clusters.topology.field.acceleratorDomain.tips':
     'Fill by hand when the device does not report one',
   'clusters.topology.overview.workers': '{count} workers',

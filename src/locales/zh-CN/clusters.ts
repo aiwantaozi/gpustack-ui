@@ -230,7 +230,7 @@ export default {
   'clusters.topology.field.room.tips': '机房',
   'clusters.topology.field.row.tips': '机柜所在的列',
   'clusters.topology.field.rack.tips': '机柜',
-  'clusters.topology.field.switch.tips': '设备自报（LLDP），也可手填',
+  'clusters.topology.field.switch.tips': '手填，或由 Topograph 等工具写入',
   'clusters.topology.field.acceleratorDomain.tips': '设备未自报时手填',
   'clusters.topology.overview.workers': '{count} 台 worker',
   'clusters.topology.overview.domains': '{field} {count} 个',

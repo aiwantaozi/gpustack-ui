@@ -239,7 +239,7 @@ export default {
   'clusters.topology.field.row.tips': 'Kabin sırası',
   'clusters.topology.field.rack.tips': 'Kabin',
   'clusters.topology.field.switch.tips':
-    'Cihaz tarafından bildirilir (LLDP); elle de doldurulabilir',
+    'Elle doldurulur veya Topograph gibi bir araç tarafından yazılır',
   'clusters.topology.field.acceleratorDomain.tips':
     'Cihaz bildirmiyorsa elle doldurun',
   'clusters.topology.overview.workers': '{count} worker',

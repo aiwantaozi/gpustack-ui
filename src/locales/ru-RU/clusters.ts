@@ -240,7 +240,7 @@ export default {
   'clusters.topology.field.row.tips': 'Ряд стоек',
   'clusters.topology.field.rack.tips': 'Стойка или шкаф',
   'clusters.topology.field.switch.tips':
-    'Сообщается устройством (LLDP); можно заполнить вручную',
+    'Заполняется вручную или записывается инструментом вроде Topograph',
   'clusters.topology.field.acceleratorDomain.tips':
     'Заполните вручную, если устройство не сообщает',
   'clusters.topology.overview.workers': '{count} worker',

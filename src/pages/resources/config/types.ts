@@ -116,8 +116,8 @@ export interface ListItem {
       version: string;
     };
     kernel: Kernel;
-    // Location facts the runtime read off the hardware (NVLink clique, super
-    // pod, LLDP switch), keyed like labels. A label with the same key wins.
+    // Location facts the runtime read off the hardware (today: the NVIDIA
+    // NVLink clique), keyed like labels. A label with the same key wins.
     topology_facts?: Record<string, string> | null;
     uptime: {
       uptime: number;

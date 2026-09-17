@@ -241,7 +241,7 @@ export default {
   'clusters.topology.field.row.tips': 'ラックの列',
   'clusters.topology.field.rack.tips': 'ラックまたはキャビネット',
   'clusters.topology.field.switch.tips':
-    'デバイス自己報告（LLDP）。手入力も可能',
+    '手入力、または Topograph などのツールが書き込む',
   'clusters.topology.field.acceleratorDomain.tips':
     'デバイスが報告しない場合は手入力',
   'clusters.topology.overview.workers': '{count} 台の worker',

@@ -479,21 +479,6 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
   // whose change *is* the action, and this component only watches them
   // because the engine and cluster fields belong to a sibling section.
   useEffect(() => {
-    // ⚠️ TEMPORARY DIAGNOSTIC — remove once #resolve-while-pd-off is closed.
-    // A `/pd-modes/resolve` was observed on a form whose PD switch was off,
-    // which this guard should make impossible. `active` is the only way past
-    // it, so this prints what `active` was derived FROM.
-    console.debug('[pd-resolve-probe]', {
-      variant,
-      active,
-      clusterId,
-      backend,
-      watchedRoles: (roles as RoleFormItem[] | undefined)?.length ?? null,
-      storeRoles: form.getFieldValue('roles')?.length ?? null,
-      storeMode: form.getFieldValue(['disaggregation', 'mode']) ?? null,
-      storeVendor: form.getFieldValue(['disaggregation', 'vendor']) ?? null,
-      wholeDisaggregation: form.getFieldValue('disaggregation') ?? null
-    });
     if (!active) {
       resolveSession.current += 1;
       setDerived({ resolution: null });

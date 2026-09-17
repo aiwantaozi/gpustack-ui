@@ -9,6 +9,7 @@ import {
   OverrideGroupLabelMap,
   OverrideGroupTipsMap
 } from '../../config';
+import { isGroupOverridden } from './transform';
 
 // A role's sections reuse the bordered card the Scheduled Scaling and GPU
 // Allocation sections already use, with the switch in the title row.
@@ -236,7 +237,36 @@ const OverrideSection: React.FC<OverrideSectionProps> = ({
   // initialisation of form state, not a reaction to it, and re-running it on
   // every model-level keystroke would overwrite what the user just typed here.
   React.useEffect(() => {
-    if (!alwaysOpen || overridden || disabledReason) {
+    if (!alwaysOpen || disabledReason) {
+      return;
+    }
+    /**
+     * 🔴 The DATA decides, and it is read SYNCHRONOUSLY. Two separate reasons,
+     * and the guard needs both.
+     *
+     * This asked `overridden`, the `useWatch` above. `useWatch` holds
+     * `useState()` with no initial value and fills it from a *later* effect
+     * (rc-field-form's own), so on the mount this effect runs in it is always
+     * `undefined` — whatever the store holds. Every role therefore took the
+     * seeding branch, including one opened from an existing deployment with
+     * its own stored parameters, and `setFieldValue` wrote the MODEL's values
+     * over them. Under PD the model's are empty by then, because
+     * `clearModelParams` blanks them the moment the group is enabled, so what
+     * landed on the role was `[]` and `{}`.
+     *
+     * Reported as: added parameters and env to prefill, deployed, reopened —
+     * the injected rows were back (`role-form` re-seeds those from the mode
+     * catalog) and everything hand-typed was gone. Same shape as the bug
+     * `roleFormToPayload` documents, from the other end of the round trip: a
+     * UI-only boolean asked about submit semantics, and answered stale.
+     *
+     * `isGroupOverridden` is that transform's own predicate, shared rather
+     * than restated. A role holding a value is a role that has already been
+     * configured, and seeding over it is never right — however it got here.
+     */
+    const stored = form.getFieldValue(['roles', index]) || {};
+    if (isGroupOverridden(stored, group)) {
+      form.setFieldValue(['roles', index, 'overrides', group], true);
       return;
     }
     if (seedFromModel) {

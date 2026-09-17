@@ -55,8 +55,12 @@ const PAYLOAD_FIELDS = _.flatten(Object.values(OverrideGroupFields));
  * A group is "custom" exactly when at least one of its fields carries a value:
  * `null` is the wire's word for inherit, so a group of nulls is a group left
  * on "same as model" and the switch must come back off.
+ *
+ * Exported because the seeding effect in `override-section` has to ask the
+ * same question at the other end of the round trip — see the note there. The
+ * two disagreeing is what let a role open seeded over its own stored values.
  */
-const isGroupOverridden = (role: RoleSpec, group: string) =>
+export const isGroupOverridden = (role: RoleSpec, group: string) =>
   OverrideGroupFields[group].some((field) => {
     const value = (role as Record<string, any>)[field];
     if (value == null) {

@@ -33,8 +33,7 @@ import {
   ModelStateMap,
   ModelStateValueMap,
   MyModelsStatusLabelMap,
-  MyModelsStatusValueMap,
-  RoleValueMap
+  MyModelsStatusValueMap
 } from '../config';
 import { generateSource } from '../config/button-actions';
 import { ListItem, ModelInstanceListItem, RoleSpec } from '../config/types';
@@ -89,34 +88,10 @@ const Dot = ({ color }: { color: string }) => (
   ></span>
 );
 
-/**
- * The group's shape as «xPyD» — «1P1D», «1P3D», «2P2D».
- *
- * 🔑 That notation is the field's own: llm-d, Dynamo and vLLM all describe a
- * disaggregated deployment that way, so it needs no legend. A flat «PD» badge
- * said only «this row is disaggregated», which the row's own replica count
- * already implied; the ratio is the thing a reader of a PD list actually wants
- * and it costs the same width.
- *
- * The router is left out on purpose — «xPyD» counts the GPU-bearing roles, and
- * every group has exactly one router, so including it would add a constant.
- *
- * Falls back to «PD» when the roles have not arrived: the list endpoint is the
- * source, and a row mid-refresh should not flash «0P0D».
- */
-const pdRatioTag = (
-  record: ListItem,
-  intl: { formatMessage: (d: { id: string }) => string }
-): string => {
-  const count = (name: string) =>
-    (record.roles || []).find((role: any) => role?.name === name)?.replicas;
-  const prefill = count(RoleValueMap.Prefill);
-  const decode = count(RoleValueMap.Decode);
-  if (prefill == null || decode == null) {
-    return intl.formatMessage({ id: 'models.pd.tag' });
-  }
-  return `${prefill}P${decode}D`;
-};
+// 🔴 An «xPyD» tag used to be built here — first beside the name, then beside
+// the group total in the replica cell. It is gone because the cell now prints
+// one line per role: the desired counts running down that block ARE the 1P3D,
+// and a badge repeating them would state the shape twice on one row.
 
 const ActionList: ActionItem[] = [
   {
@@ -426,6 +401,14 @@ const useModelsColumns = ({
         align: 'left',
         sorter: tableSorter(4),
         span: spans.replicas,
+        // The only floor in this table, and it is here because this is the one
+        // cell whose width is not negotiable: a PD row in edit mode lays out
+        // «● Decode  3 /  [ 3 ]  ✓ ↺» on one line, and the cell clips rather
+        // than wraps (`overflow: hidden`), so a share too small would cut the
+        // save button off. 4fr alone drops under 200px on a laptop. The floor
+        // costs the other columns a little of the leftover width and nothing
+        // else — they were already truncating into an `AutoTooltip`.
+        minWidth: 280,
         editable: {
           valueType: 'number',
           title: intl.formatMessage({ id: 'models.table.replicas.edit' })
@@ -462,6 +445,8 @@ const useModelsColumns = ({
           ) : (
             plainDot
           );
+          // A PD row has no row-level dot any more — one per role, below — so
+          // the state and its message travel as values instead of a node.
 
           // Only when something is wrong. `stale` is computed for every model,
           // not only groups — an edited plain model is just as silently
@@ -502,24 +487,20 @@ const useModelsColumns = ({
               cell
             );
           }
-          // Same `ready / total` a role-less row shows — `modelReplicaCounts`
-          // sums the roles, so the column means one thing on every row. What
-          // differs is the editor behind it and the per-role split on hover,
-          // and that split has to work on the list response, which carries no
-          // instances — hence `role_status` rather than a count of the
-          // expanded row's children.
+          // A group's roles fail independently, so the cell prints them
+          // independently — one `ready / desired` line each — instead of the
+          // group total a role-less row shows. That split has to work on the
+          // list response, which carries no instances, hence `role_status`
+          // rather than a count of the expanded row's children.
           return (
             <PDReplicasCell
               record={record}
               markers={markers}
               instances={instancesByModel?.[record.id]}
-              // «2P2D · 5 / 5» — the declared shape and how much of it is
-              // actually up, in the order you read them: what was asked for,
-              // then what arrived.
-              value={`${pdRatioTag(record, intl)} · ${ready} / ${total}`}
               mode={record.disaggregation?.mode}
               className={styles.pdReplicas}
-              dot={dotNode}
+              status={dotStatus.status}
+              statusMessage={dotStatus.message}
               onSave={(roles) => onUpdateRoles(record, roles)}
             ></PDReplicasCell>
           );

@@ -1,21 +1,93 @@
-import { FormOutlined, WarningOutlined } from '@ant-design/icons';
+import { StatusMaps } from '@/config';
+import type { StatusType } from '@/config/types';
+import {
+  CheckOutlined,
+  FormOutlined,
+  UndoOutlined,
+  WarningOutlined
+} from '@ant-design/icons';
+import { StatusDot } from '@gpustack/core-ui';
 import { useIntl } from '@umijs/max';
-import { Button, Flex, InputNumber, Popover, Tooltip } from 'antd';
+import { Button, Flex, InputNumber, Tooltip } from 'antd';
+import { createStyles } from 'antd-style';
 import React from 'react';
 import { RoleValueMap } from '../../config';
 import { ListItem, ModelInstanceListItem, RoleSpec } from '../../config/types';
 import { MarkerReasons } from './pd-markers';
-import { orderedRoleStatus, roleLabel } from './role-status';
+import {
+  isRoleWaiting,
+  orderedRoleStatus,
+  roleLabel,
+  type RoleStatusItem
+} from './role-status';
 import RoleStatusDetail from './role-status-detail';
+
+/** The role line's own metrics, from the design: 14px on a 22px line, so the
+ *  block stacks to the same rhythm as the rest of the table's text. */
+const ROLE_LINE: React.CSSProperties = {
+  fontSize: 14,
+  gap: 8,
+  lineHeight: '22px'
+};
+
+/**
+ * In the editor every line is as tall as the number box it holds, including
+ * the router's, which has none — otherwise the router line would ride up.
+ *
+ * 🔴 The design specified the 32px box the aggregate row uses, for consistency
+ * down the column. It cost more than it bought: three of them turned a 66px
+ * block into a 112px one, so opening the editor shoved every row below this
+ * one down the page and closing it pulled them back. A control that moves the
+ * table to be used is worse than one that is a size off from its neighbour.
+ * `small` is 24px — the smallest antd height that is still a real input — and
+ * it holds the shift to ~14px, which reads as the row staying put.
+ */
+const EDIT_LINE_HEIGHT = 24;
+
+const ROLE_LINE_EDITING: React.CSSProperties = {
+  ...ROLE_LINE,
+  minHeight: EDIT_LINE_HEIGHT
+};
+
+const useStyles = createStyles(({ css }) => ({
+  // A grid, not a stack of flex rows: the counts have to line up under each
+  // other across roles, and only a shared track can promise that when one role
+  // reads «1 / 1» and the next «10 / 12». The track list is set by the caller,
+  // because the editor adds one.
+  roles: css`
+    display: grid;
+    column-gap: 12px;
+    align-items: center;
+    font-variant-numeric: tabular-nums;
+  `,
+  count: css`
+    text-align: right;
+    white-space: nowrap;
+    color: var(--ant-color-text);
+    font-size: 14px;
+    line-height: 22px;
+  `,
+  // Matches the number box's own text inset, so the router's fixed count sits
+  // on the same vertical as the editable ones beside it.
+  fixed: css`
+    padding-inline-start: 12px;
+    color: var(--ant-color-text);
+    font-size: 14px;
+    line-height: 22px;
+  `
+}));
 
 interface PDReplicasCellProps {
   record: ListItem;
   markers: string[];
-  /** The state dot, built by the column so the colour logic stays in one place. */
-  dot: React.ReactNode;
-  /** `ready / total` across the group's roles — the same text a role-less
-   *  row shows, so the column reads the same way on every kind of row. */
-  value: string;
+  /** The deployment's own state, as the column already computed it from
+   *  `Model.state`. A role that is short of its members borrows it, so the
+   *  colour of a gap says what kind of gap it is — scaling or broken — without
+   *  the cell second-guessing the backend's judgement. */
+  status: StatusType;
+  /** `state_message`. It used to hang off the single row-level dot; with that
+   *  dot gone it moves onto the tooltip rather than disappearing. */
+  statusMessage?: string;
   /** The disaggregation transport (`vllm-nixl`, …), for the tooltip. Came
    *  here with the shape when both left the name column. */
   mode?: string;
@@ -27,16 +99,16 @@ interface PDReplicasCellProps {
 }
 
 /**
- * The replica cell of a PD row: how much of the group is up, and the control
- * that changes how much there should be.
+ * The replica cell of a PD row: one line per role, and the control that changes
+ * how many members each role should have.
  *
- * 🔴 Briefly showed the shape («1P1D») instead of the counts. That put the
- * declared size in two places on one row — the name already carries an
- * «xPyD» tag — and cost the column the one thing only it could say, which is
- * how much of that declared size is actually serving. A reader scanning the
- * list for trouble is asking "is anything short", and «1P1D» answers a
- * different question. It reads «2 / 3» now, exactly like a role-less row,
- * with the per-role split on hover.
+ * 🔴 Went through «2P2D · 5 / 5» — the declared shape beside the group total —
+ * before landing here. That line was compact but it made the reader do the
+ * arithmetic the row exists to spare them: «5 / 5» is silent about *which*
+ * role is short, and on «4 / 5» the only way to find out was to hover. A
+ * group's roles fail independently, so the column now prints them
+ * independently, one per line, and the shape is no longer stated at all — the
+ * desired counts down the right-hand track *are* the 1P3D.
  *
  * 🔑 Editing per-role counts here is safe because the server treats them as a
  * scale, not a shape: `replicas` sits in `_DIGEST_EXCLUDED_SPEC_FIELDS`
@@ -47,35 +119,53 @@ interface PDReplicasCellProps {
 const PDReplicasCell: React.FC<PDReplicasCellProps> = ({
   record,
   markers,
-  dot,
-  value,
+  status,
+  statusMessage,
   mode,
   instances,
   className,
   onSave
 }) => {
   const intl = useIntl();
+  const { styles } = useStyles();
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [draft, setDraft] = React.useState<Record<string, number>>({});
 
   const roles: RoleSpec[] = record.roles || [];
-  // Role order, not `roles` order: the shape reads P before D and the editor
-  // has to agree with the label above it.
-  const ordered = orderedRoleStatus(record.role_status, roles).filter((item) =>
-    roles.some((role) => role.name === item.name)
-  );
+  // Role order, not `roles` order: a reader scans P before D, and the editor
+  // has to agree with the list it opened from.
+  const ordered = orderedRoleStatus(record.role_status, roles);
 
-  const openEditor = (open: boolean) => {
-    if (open) {
-      setDraft(
-        roles.reduce<Record<string, number>>((acc, role) => {
-          acc[role.name] = role.replicas ?? 0;
-          return acc;
-        }, {})
-      );
+  /**
+   * A role's dot.
+   *
+   * Only two things are decided here, and neither is a diagnosis:
+   *  - A role with all its members up is green, whatever the rest of the group
+   *    is doing. That is the whole point of splitting the line per role.
+   *  - A role that is short borrows the deployment's status, so «starting» and
+   *    «failed» stay the two colours the backend already distinguishes instead
+   *    of collapsing into one generic «not ready» orange.
+   *
+   * A stopped deployment greys out entirely: with `replicas` at 0 no role is
+   * «ready», it is simply switched off, and green on every line would read as
+   * a healthy group.
+   */
+  const roleStatus = (item: RoleStatusItem): StatusType => {
+    if (status === StatusMaps.inactive) {
+      return StatusMaps.inactive;
     }
-    setEditing(open);
+    return isRoleWaiting(item) ? status : StatusMaps.success;
+  };
+
+  const openEditor = () => {
+    setDraft(
+      roles.reduce<Record<string, number>>((acc, role) => {
+        acc[role.name] = role.replicas ?? 0;
+        return acc;
+      }, {})
+    );
+    setEditing(true);
   };
 
   const handleSave = async () => {
@@ -100,132 +190,179 @@ const PDReplicasCell: React.FC<PDReplicasCellProps> = ({
     (role) => (draft[role.name] ?? role.replicas) !== role.replicas
   );
 
-  const editor = (
-    <Flex vertical gap={12} style={{ minWidth: 200 }}>
-      <Flex vertical gap={8}>
-        {ordered.map((item) => {
-          const editable = item.name !== RoleValueMap.Router;
-          return (
-            <Flex
-              key={item.name}
-              align="center"
-              justify="space-between"
-              gap={16}
-            >
-              <span>{roleLabel(intl, item.name)}</span>
-              {editable ? (
-                <InputNumber
-                  size="small"
-                  min={0}
-                  precision={0}
-                  style={{ width: 80 }}
-                  value={draft[item.name]}
-                  onChange={(value) =>
-                    setDraft((prev) => ({
-                      ...prev,
-                      [item.name]: (value as number) ?? 0
-                    }))
-                  }
-                />
-              ) : (
-                <span style={{ width: 80, textAlign: 'center', opacity: 0.65 }}>
-                  {item.desired}
-                </span>
-              )}
-            </Flex>
-          );
-        })}
-      </Flex>
-      <Flex justify="flex-end" gap={8}>
-        <Button size="small" onClick={() => setEditing(false)}>
-          {intl.formatMessage({ id: 'common.button.cancel' })}
-        </Button>
-        <Button
-          size="small"
-          type="primary"
-          loading={saving}
-          disabled={!dirty}
-          onClick={handleSave}
-        >
-          {intl.formatMessage({ id: 'common.button.save' })}
-        </Button>
-      </Flex>
-    </Flex>
+  const roleLines = ordered.map((item) => {
+    // Only roles the spec actually declares can be scaled — `role_status` may
+    // carry a name the group no longer has, and there is nothing to write to.
+    const editable =
+      item.name !== RoleValueMap.Router &&
+      roles.some((role) => role.name === item.name);
+    return (
+      <React.Fragment key={item.name}>
+        <StatusDot
+          statusValue={{
+            status: roleStatus(item),
+            text: roleLabel(intl, item.name)
+          }}
+          style={editing ? ROLE_LINE_EDITING : ROLE_LINE}
+        />
+        <span className={styles.count}>
+          {editing ? `${item.ready} /` : `${item.ready} / ${item.desired}`}
+        </span>
+        {editing &&
+          (editable ? (
+            <InputNumber
+              size="small"
+              min={0}
+              precision={0}
+              style={{ width: 64 }}
+              value={draft[item.name]}
+              aria-label={roleLabel(intl, item.name)}
+              onChange={(value) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  [item.name]: (value as number) ?? 0
+                }))
+              }
+            />
+          ) : (
+            <span className={styles.fixed}>{item.desired}</span>
+          ))}
+      </React.Fragment>
+    );
+  });
+
+  const rolesBlock = (
+    <div
+      className={styles.roles}
+      // The editor adds a third track for the input, leaving the first two
+      // exactly where the reader last saw them. Inline rather than a second
+      // class, so the override does not depend on emitted rule order.
+      //
+      // Reading rows stack flush, as drawn: they are text on a 22px line and
+      // the leading is the separation. Editing rows cannot — two boxes with a
+      // row gap of zero meet border to border and read as one control with a
+      // line through it. The design drew them flush because its boxes were
+      // borderless blocks; a real bordered input needs the gap to stay a
+      // discrete field. Kept to 4px because every pixel here is a pixel the
+      // rows below move when the editor opens.
+      style={{
+        gridTemplateColumns: editing ? 'auto auto auto' : 'auto auto',
+        rowGap: editing ? 4 : 0,
+        cursor: editing ? undefined : 'help'
+      }}
+    >
+      {roleLines}
+    </div>
   );
 
   return (
-    <Flex
-      component="span"
-      align="center"
-      className={className}
-      style={{ minWidth: 23, color: 'var(--ant-color-text)' }}
-    >
-      {dot}
-      {/* The number carries the tooltip, so the thing you hover is the thing
-          it explains — the group's total expands to the per-role counts it is
-          the sum of. It used to hang off a separate ⓘ glyph after the number,
-          which made the breakdown reachable only by finding a 14px target and
-          put an icon on every PD row whether or not it had anything to
-          report. The warning below is the only glyph left, and it appears
-          solely when there is a reason for it. */}
-      <Tooltip
-        title={
-          <RoleStatusDetail
-            roleStatus={record.role_status}
-            roles={record.roles}
-            instances={instances}
-            footer={
-              <>
-                <MarkerReasons texts={markers} />
-                {!!mode && (
-                  <span style={{ opacity: 0.75 }}>
-                    {intl.formatMessage({ id: 'models.form.pd.mode' })}: {mode}
-                  </span>
-                )}
-              </>
-            }
-          ></RoleStatusDetail>
-        }
-      >
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            marginInlineStart: 8,
-            flexShrink: 0,
-            cursor: 'help'
-          }}
+    <Flex align="flex-start" gap={12} className={className}>
+      {/* The lines carry the tooltip, so the thing you hover is the thing it
+          explains. It is no longer where the per-role counts live — they are
+          printed now — but it is still the only place that can say what a
+          short role is *doing*, how far the running ratio has drifted from the
+          declared one, why a marker is up, and which transport the group uses.
+          Suppressed while editing: a tooltip over the inputs would cover the
+          numbers being typed. */}
+      {editing ? (
+        rolesBlock
+      ) : (
+        <Tooltip
+          title={
+            <RoleStatusDetail
+              roleStatus={record.role_status}
+              roles={record.roles}
+              instances={instances}
+              footer={
+                <>
+                  <MarkerReasons texts={markers} />
+                  {!!statusMessage && (
+                    <span style={{ opacity: 0.75 }}>{statusMessage}</span>
+                  )}
+                  {!!mode && (
+                    <span style={{ opacity: 0.75 }}>
+                      {intl.formatMessage({ id: 'models.form.pd.mode' })}:{' '}
+                      {mode}
+                    </span>
+                  )}
+                </>
+              }
+            ></RoleStatusDetail>
+          }
         >
-          {value}
-          {markers.length > 0 && (
-            <WarningOutlined style={{ color: 'var(--ant-color-warning)' }} />
-          )}
-        </span>
-      </Tooltip>
-      {/* Deliberately the same control a role-less row gets from the column's
+          {rolesBlock}
+        </Tooltip>
+      )}
+
+      {/* Deliberately the same controls a role-less row gets from the column's
           `editable` hook — antd `Button type="text" size="small"` around
-          `FormOutlined`, `m-l-10`. That editor is one number and cannot
-          express a shape, so this row hides it (see `pdReplicas`) and puts an
-          identical-looking one here that opens the per-role editor instead.
-          Matching it exactly is the point: from the reader's side the two
-          kinds of row offer the same affordance in the same place. */}
-      <Popover
-        trigger="click"
-        open={editing}
-        onOpenChange={openEditor}
-        placement="bottomLeft"
-        title={intl.formatMessage({ id: 'models.table.replicas.edit' })}
-        content={editor}
-      >
-        <Button
-          type="text"
-          size="small"
-          className="m-l-10"
-          icon={<FormOutlined />}
-          aria-label={intl.formatMessage({ id: 'models.table.replicas.edit' })}
-        />
-      </Popover>
+          `FormOutlined`, then `CheckOutlined` / `UndoOutlined` once open. That
+          editor is one number and cannot express a shape, so this row hides it
+          (see `pdReplicas`) and puts identical-looking ones here that drive one
+          input per role instead. Matching the control is the point: from the
+          reader's side the two kinds of row offer the same affordance in the
+          same place. Only the spacing is the cell's own, because here the
+          buttons sit beside a block rather than trailing a single number, and
+          they hold the first line of it. */}
+      {editing ? (
+        <Flex
+          align="center"
+          gap={2}
+          style={{ height: EDIT_LINE_HEIGHT, flexShrink: 0 }}
+        >
+          <Tooltip title={intl.formatMessage({ id: 'common.button.confirm' })}>
+            <Button
+              type="text"
+              size="small"
+              loading={saving}
+              disabled={!dirty}
+              icon={<CheckOutlined />}
+              onClick={handleSave}
+              aria-label={intl.formatMessage({ id: 'common.button.confirm' })}
+            />
+          </Tooltip>
+          <Tooltip title={intl.formatMessage({ id: 'common.button.cancel' })}>
+            <Button
+              type="text"
+              size="small"
+              icon={<UndoOutlined />}
+              onClick={() => setEditing(false)}
+              aria-label={intl.formatMessage({ id: 'common.button.cancel' })}
+            />
+          </Tooltip>
+        </Flex>
+      ) : (
+        <Flex align="center" gap={2} style={{ height: 22, flexShrink: 0 }}>
+          {/* 🔴 The reasons ride the glyph, not only the role lines to its
+              left. They are in that tooltip too — as its footer, beside what
+              each role is doing — but this is the thing that says something is
+              wrong, so it is the thing a reader hovers, and hovering it used
+              to produce nothing at all. A role-less row already does this
+              (`use-models-columns`); the group row is the one that did not,
+              which is exactly the rule `pd-markers` states about itself: a
+              marker without a reason is just another silent failure. */}
+          {markers.length > 0 && (
+            <Tooltip title={<MarkerReasons texts={markers} />}>
+              <WarningOutlined
+                style={{ flexShrink: 0, color: 'var(--ant-color-warning)' }}
+              />
+            </Tooltip>
+          )}
+          <Tooltip
+            title={intl.formatMessage({ id: 'models.table.replicas.edit' })}
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<FormOutlined />}
+              onClick={openEditor}
+              aria-label={intl.formatMessage({
+                id: 'models.table.replicas.edit'
+              })}
+            />
+          </Tooltip>
+        </Flex>
+      )}
     </Flex>
   );
 };

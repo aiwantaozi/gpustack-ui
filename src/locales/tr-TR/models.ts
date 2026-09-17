@@ -499,10 +499,16 @@ export default {
     'This group has no values, so it will be saved as inheriting the model-level configuration. Fill in at least one field to keep it custom.',
   'models.form.pd.mode.cleared':
     'The PD mode was cleared when disaggregation was turned off. Please select it again.',
+  'models.form.pd.engineVersion.below':
+    'The selected PD recipe declares support for engine versions {range}, and this deployment pins {version}. It will still deploy — a self-built image may carry a private version number — but a version genuinely below the floor can be missing behaviour the recipe assumes, such as deregistering a scaled-down member.',
   'models.pd.degraded.pairing':
     'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
   'models.pd.degraded.gather':
     'Topoloji hedefinin altında: üyeler istenenden daha uzakta',
+  'models.pd.degraded.scaleOut':
+    'The group is pinned to a single topology domain under the strict posture, and a member it was asked to add has not been placed. The members already running keep serving normally — what stopped is the scale-out. The status message on that member says what blocked it; from there, free capacity inside the domain, switch the posture to lenient, or lower the replica count back.',
+  'models.pd.degraded.engineVersion':
+    'The pinned engine version is below the range the selected PD recipe declares support for. This is allowed — a self-built image may carry a private version number — but the behaviour the recipe assumes may be missing: on SGLang below 0.5.7, for example, a scaled-down member cannot be deregistered and keeps taking traffic.',
   'models.pd.degraded.placement':
     'Bazı üyeler hâlâ yükseltmeden önceki ad alanında dağıtılmış durumda. Hizmet etkilenmez, ancak bu üyelerin tuttuğu hızlandırıcılar kiracı kota defterinde yer almadığından grubun atomik kabulü o kadar iyimserdir. Taşımak için modeli yeniden başlatın.',
   'models.pd.degraded.ineffective':

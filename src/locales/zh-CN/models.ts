@@ -471,9 +471,15 @@ export default {
   'models.form.roles.override.empty':
     '该组当前没有任何值，将按「继承模型级配置」保存。至少填写一项才能保持为自定义。',
   'models.form.pd.mode.cleared': '关闭 PD 分离时已清空 PD 模式，请重新选择。',
+  'models.form.pd.engineVersion.below':
+    '所选 PD 方案声明支持的引擎版本为 {range}，而当前固定的版本是 {version}。仍然可以部署 —— 自建镜像可能带有私有版本号 —— 但版本若确实低于下限，方案所依赖的行为可能并不存在，例如缩容成员的注销。',
   'models.pd.degraded.pairing':
     '没有任何 prefill 与 decode 成员在同一台机器上，因此每次 KV 传输都要走网络。在没有 RDMA 的链路上，这通常比不做分离更慢。请至少让一对同机，或为两个角色选择同一台机器上的 GPU。',
   'models.pd.degraded.gather': '未达拓扑目标：成员实际分布比要求的更松',
+  'models.pd.degraded.scaleOut':
+    '本组在严格模式下被限制在同一个拓扑域内，要新增的成员尚未被放置。已有成员仍在正常服务，停下来的是扩容。该成员的状态信息会说明是什么挡住了它；据此可在域内腾出空位、把拓扑约束改为宽松，或把副本数调回原值。',
+  'models.pd.degraded.engineVersion':
+    '当前固定的引擎版本低于所选 PD 方案声明支持的版本范围。这是允许的 —— 自建镜像可能带有私有版本号 —— 但方案所依赖的行为可能并不存在：例如 SGLang 低于 0.5.7 时，缩容下线的成员无法注销，仍会继续接收流量。',
   'models.pd.degraded.placement':
     '部分成员仍部署在升级前的命名空间。服务不受影响，但这些成员占用的加速卡未计入租户配额账本，组级原子准入因此偏乐观。重启该模型即可迁移。',
   'models.pd.degraded.ineffective':

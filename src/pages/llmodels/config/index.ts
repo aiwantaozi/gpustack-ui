@@ -677,7 +677,22 @@ export const DegradationValueMap = {
   // set under the lenient posture — the strict one refused instead, so there
   // is nothing running to mark. Without it, "I wanted same-rack" is in the
   // spec and "I got same-room" is nowhere.
-  GatherUnmet: 'gather_unmet'
+  GatherUnmet: 'gather_unmet',
+  // The strict posture's half of the same story, and the reason it needs a
+  // marker of its own: `gather_unmet` is "it spread and told you", this is
+  // "it refused to spread, so it did not grow". The group is still serving
+  // every member it already had — what failed is the addition, and nothing
+  // else on the row would say so, because the replica counts a strict refusal
+  // leaves behind look exactly like a group that was never scaled at all.
+  GatherBlockedScaleOut: 'gather_blocked_scale_out',
+  // The only marker here that is about the engine build rather than about
+  // where the members landed, and the only one that is not a failure: pinning
+  // a version outside the recipe's declared range is allowed, because a
+  // self-built image may carry a private version number that no range can
+  // describe. It is flagged because the recipe's floor usually encodes a
+  // behaviour the group depends on — below SGLang 0.5.7, for instance, a
+  // scaled-down member cannot be deregistered and keeps taking traffic.
+  EngineVersionBelowRecipeFloor: 'engine_version_below_recipe_floor'
 };
 
 export const DegradationLabelMap = {
@@ -687,7 +702,10 @@ export const DegradationLabelMap = {
   [DegradationValueMap.PDIneffective]: 'models.pd.degraded.ineffective',
   [DegradationValueMap.PlacementDrifted]: 'models.pd.degraded.placement',
   [DegradationValueMap.PairingRemote]: 'models.pd.degraded.pairing',
-  [DegradationValueMap.GatherUnmet]: 'models.pd.degraded.gather'
+  [DegradationValueMap.GatherUnmet]: 'models.pd.degraded.gather',
+  [DegradationValueMap.GatherBlockedScaleOut]: 'models.pd.degraded.scaleOut',
+  [DegradationValueMap.EngineVersionBelowRecipeFloor]:
+    'models.pd.degraded.engineVersion'
 };
 
 // The four override groups of a role tab. A group left on "same as model"

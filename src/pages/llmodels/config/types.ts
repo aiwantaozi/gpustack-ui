@@ -423,7 +423,16 @@ export interface PDMode {
   display_name: string;
   description?: string;
   backends: string[];
-  backend_versions?: Record<string, string> | null;
+  // One semver RANGE for the whole recipe (`">=0.20.0"`), not a map keyed by
+  // engine — `backends` above already says which engines this recipe targets,
+  // and a recipe that needed a different floor per engine would be two
+  // recipes. It was typed as a map here and nothing ever read it, so the wrong
+  // shape cost nothing until the first consumer arrived.
+  //
+  // Absent means "no declared floor", which is not the same as "any version
+  // works": `custom` injects nothing and has nothing to declare, so it carries
+  // no range rather than an open one.
+  backend_versions?: string | null;
   // Which accelerators this recipe fits. Absent only on `custom`, which
   // injects nothing and must stay selectable on every accelerator — an
   // unsupported engine × accelerator pair means "no built-in recipe", never

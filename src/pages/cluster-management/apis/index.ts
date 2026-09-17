@@ -8,7 +8,6 @@ import {
   ClusterTopology,
   CredentialFormData,
   CredentialListItem,
-  GatherFeasibility,
   LocationAssignment,
   LocationsResponse,
   NodePoolFormData,
@@ -279,32 +278,6 @@ export async function previewClusterTopology(params: {
       method: 'POST',
       data: { topology: params.topology },
       skipErrorHandler: true
-    }
-  );
-}
-
-/**
- * Whether a group would deploy at each gather tier, right now.
- *
- * Takes the whole model spec because capacity is decided by the resource-fit
- * selectors, and those read the backend, the engine parameters and the
- * per-role overrides. A summary would make the answer disagree with the real
- * scheduling, which is the one thing a feasibility check must not do.
- *
- * Every tier comes back in one response: the alternative is a round trip per
- * option while the dropdown renders.
- */
-export async function queryGatherFeasibility(
-  params: { id: number; model_spec: Record<string, any> },
-  options?: any
-) {
-  return request<GatherFeasibility>(
-    `${CLUSTERS_API}/${params.id}/topology/gather-feasibility`,
-    {
-      method: 'POST',
-      data: { model_spec: params.model_spec },
-      cancelToken: options?.token,
-      skipErrorHandler: options?.skipErrorHandler
     }
   );
 }

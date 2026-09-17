@@ -411,30 +411,3 @@ export interface LocationsResponse {
   previous: LocationAssignment[];
   topology: TopologyView;
 }
-
-export interface GatherTier {
-  layer: string;
-  /** Server fallback display name; builtin ids are named by the UI. */
-  name?: string | null;
-  feasible: boolean;
-  /** Where the group would land, when it fits. */
-  domain?: string | null;
-  /** The solver's own words — "the roomiest rack holds 6". */
-  reason?: string | null;
-  best_domain?: string | null;
-  needed: number;
-  available: number;
-  /**
-   * Workers whose capacity could not be established. Non-zero makes
-   * `available` a floor, and the form must not present a floor as a capacity
-   * verdict: "we could not look" and "there is no room" call for opposite
-   * reactions.
-   */
-  unmeasured: number;
-}
-
-export interface GatherFeasibility {
-  /** Leaf-first: the tightest choice is the one that always exists. */
-  tiers: GatherTier[];
-  prefer?: GatherTier | null;
-}

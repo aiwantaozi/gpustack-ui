@@ -9,18 +9,24 @@ import { Flex, Form, Switch, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import { useAtomValue } from 'jotai';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { resolvePDMode } from '../apis';
-import { PD_CAPABLE_BACKENDS, PDEnableValueMap, RoleValueMap } from '../config';
+import { queryModelSpanningRoles, resolvePDMode } from '../apis';
+import {
+  PD_CAPABLE_BACKENDS,
+  PDEnableValueMap,
+  RoleLabelMap,
+  RoleValueMap
+} from '../config';
 import { useFormContext } from '../config/form-context';
 import {
   FormData,
   PDMode,
   PDModeResolution,
-  RoleFormItem
+  RoleFormItem,
+  SpanningPreview
 } from '../config/types';
 import { backendOptionsMap } from '../constants/backend-parameters';
 import useQueryPDModes, { transportLabel } from '../hooks/use-query-pd-modes';
-import { createDefaultRoles } from './roles/transform';
+import { createDefaultRoles, rolesFormToPayload } from './roles/transform';
 
 // 1 prefill + 1 decode is the smallest group that can exist, so a cluster with
 // fewer usable cards than this cannot run PD at all.
@@ -657,6 +663,109 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
     return Math.round((1 / prefillReplicas) * 100);
   })();
 
+  /**
+   * ...unless a member is too wide for any single machine, which does not
+   * loosen that floor — it inverts it.
+   *
+   * 🔴 A member that cannot fit one machine takes WHOLE machines (the engine
+   * selectors allocate every GPU of every worker they pick), so no machine ever
+   * holds both a prefill and a decode and the true figure is exactly 0. «At
+   * least about 25%» printed beside a real 0 is worse than printing nothing.
+   *
+   * Asked of the server, not computed here: the width is the engine's own
+   * arithmetic — vLLM spells it `--tensor-parallel-size`, SGLang `--tp-size`,
+   * and both fold in pipeline and data parallelism. A second reading of those
+   * flags in TypeScript would be a second answer to one question.
+   *
+   * Shown at ANY group size, unlike the floor above it. The floor is hidden
+   * below 4 prefills because there the number is high enough to need no
+   * comment; this one is the opposite — at 1P1D the operator's expectation is
+   * 100% on-host and the truth is 0, which is the largest gap this note ever
+   * has to close.
+   */
+  const [spanning, setSpanning] = useState<SpanningPreview | null>(null);
+  const spanningSessionRef = useRef(0);
+  const modelParams = Form.useWatch('backend_parameters', form);
+
+  /**
+   * Everything the answer depends on, and nothing else — so a form being typed
+   * elsewhere does not re-ask, and these four changing always does.
+   */
+  const spanningSignature = JSON.stringify([
+    clusterId,
+    backend,
+    modelParams,
+    (roles || []).map((role: RoleFormItem) => [
+      role?.name,
+      role?.backend,
+      role?.backend_parameters
+    ])
+  ]);
+
+  useEffect(() => {
+    const session = ++spanningSessionRef.current;
+    if (!clusterId || !roles?.length) {
+      setSpanning(null);
+      return;
+    }
+    // Debounced because the inputs include a text field the user types into.
+    // Nothing downstream of this blocks, so a late answer only ever adds a
+    // note; there is no state it can arrive too late for.
+    const timer = setTimeout(async () => {
+      const values = form.getFieldsValue(true) as Record<string, any>;
+      try {
+        // Assembled field by field rather than spread, and that is the point:
+        // half-typed values elsewhere in this form 422 the whole request — a
+        // vGPU selector mid-switch carries a cores percentage without a memory
+        // one, an in-progress scaling rule is incomplete — and a rejected
+        // request means this note silently never appears. Nothing outside
+        // these fields can change the answer, so nothing else is sent. The
+        // source block is here only because the API requires it.
+        const result = await queryModelSpanningRoles({
+          name: values.name,
+          source: values.source,
+          huggingface_repo_id: values.huggingface_repo_id,
+          huggingface_filename: values.huggingface_filename,
+          model_scope_model_id: values.model_scope_model_id,
+          model_scope_file_path: values.model_scope_file_path,
+          local_path: values.local_path,
+          cluster_id: values.cluster_id,
+          backend: values.backend,
+          backend_parameters: values.backend_parameters,
+          roles: rolesFormToPayload(values.roles, values)
+        });
+        if (spanningSessionRef.current === session) {
+          setSpanning(result);
+        }
+      } catch (e) {
+        // 🔴 Never an error state, and never a third «unknown» rendering. A
+        // half-typed draft the API rejects, a fleet that cannot be read and a
+        // width that was never stated all mean the same thing here: show what
+        // this form showed before the question could be asked at all.
+        if (spanningSessionRef.current === session) {
+          setSpanning(null);
+        }
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [spanningSignature]);
+
+  const spanningNote = (() => {
+    const first = spanning?.roles?.[0];
+    if (!first) {
+      return null;
+    }
+    const labelId = RoleLabelMap[first.name as keyof typeof RoleLabelMap];
+    return intl.formatMessage(
+      { id: 'models.form.gather.spanning' },
+      {
+        role: labelId ? intl.formatMessage({ id: labelId }) : first.name,
+        gpus: first.gpus,
+        widest: spanning?.widest_worker_gpus
+      }
+    );
+  })();
+
   // Options come from the catalog, gated by engine *and* by the accelerators
   // the picked cluster actually has: a recipe that targets another engine or
   // another accelerator stays visible but disabled, carrying why.
@@ -996,13 +1105,21 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
                 because the alternative is finding out from a latency graph a
                 week later. Non-blocking on purpose: the deployment is fine,
                 it is the expectation that needs correcting. */}
-            {largeGroupPairing !== null && (
-              <div className="note">
-                {intl.formatMessage(
-                  { id: 'models.form.gather.largeGroup' },
-                  { percent: largeGroupPairing }
-                )}
-              </div>
+            {/* One or the other, never both: the floor is a statement about
+                this group's pairing and the span note replaces it with the
+                true one. Printing both would leave «at least 25%» on screen
+                beside «pairing is 0». */}
+            {spanningNote ? (
+              <div className="note">{spanningNote}</div>
+            ) : (
+              largeGroupPairing !== null && (
+                <div className="note">
+                  {intl.formatMessage(
+                    { id: 'models.form.gather.largeGroup' },
+                    { percent: largeGroupPairing }
+                  )}
+                </div>
+              )
             )}
             {pdCapableBackend && onlyCustomLeft && (
               <div className="note">

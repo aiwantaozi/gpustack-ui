@@ -1010,3 +1010,19 @@ export interface ModelLoraAdapterResult {
     source: 'huggingface' | 'model_scope' | 'local_path';
   }>;
 }
+
+/**
+ * Which roles of a draft cannot fit on one machine, and how wide the widest
+ * machine in the chosen cluster is.
+ *
+ * 🔴 `roles` empty means «no, OR not knowable», and the two must render
+ * identically. The server answers empty for a width the engine was never told,
+ * a fleet it cannot read, and a backend whose width it cannot ask for — so an
+ * empty answer is the cue to show whatever the form showed before this could be
+ * asked at all, never a third «unknown» state. That distinction is what the
+ * removed `gather-feasibility` probe got wrong.
+ */
+export interface SpanningPreview {
+  roles: { name: string; gpus: number }[];
+  widest_worker_gpus: number;
+}

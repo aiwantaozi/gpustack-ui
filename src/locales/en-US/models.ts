@@ -648,6 +648,9 @@ export default {
   'models.form.gather.largeGroup':
     'At this size at least about {percent}% of requests pair on the same host, whatever the topology. That is a floor derived from the replica count — the real share depends on how many machines the group ends up spread over, and is shown in the group summary once deployed. For KV transfer locality, consider several smaller disaggregated groups instead.',
 
+  'models.form.gather.spanning':
+    '{role} needs {gpus} GPUs and the widest machine in this cluster has {widest}, so each member takes whole machines: prefill and decode never share one, and on-host pairing is 0. The KV always crosses machines — what matters is which tier above keeps it inside.',
+
   'models.form.gather.checking': 'Checking what fits…',
   'models.form.gather.unavailable':
     'Could not check what fits right now, so only the default is offered.',

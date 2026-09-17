@@ -606,6 +606,9 @@ export default {
   'models.form.gather.largeGroup':
     '这个规模下至少约 {percent}% 的请求会落在同一台机上，与拓扑和上面的选择都无关。这是按副本数算的下界 —— 真实比例取决于这个组最终摊在几台机器上，部署后可在组摘要里看到。若追求 KV 传输局部性，考虑部署多个较小的分离组。',
 
+  'models.form.gather.spanning':
+    '{role} 需要 {gpus} 张卡，而这个集群最宽的机器有 {widest} 张 —— 每个成员会占满整台机器，P 与 D 不会共享机器，同机配对为 0。KV 必然跨机，此时要看的是上面的拓扑档次把它限制在哪一层。',
+
   'models.form.gather.checking': '正在检查放得下哪一档…',
   'models.form.gather.unavailable':
     '暂时查不到放得下哪一档，所以只给出默认项。',

@@ -22,7 +22,8 @@ import {
   ModelRestartResult,
   PDMetrics,
   PDMode,
-  PDModeResolution
+  PDModeResolution,
+  SpanningPreview
 } from '../config/types';
 
 export const MODELS_API = '/models';
@@ -141,6 +142,26 @@ export async function createModel(params: { data: FormData }) {
 export async function deleteModel(id: number) {
   return request(`${MODELS_API}/${id}`, {
     method: 'DELETE'
+  });
+}
+
+// Whether a member of this draft will have to occupy more than one machine.
+//
+// 🔴 Safe to ask while the form is still being typed, which the removed
+// `gather-feasibility` was not: this is one comparison between a width the user
+// has typed and the widest machine in the cluster — no placement solve, no free
+// capacity — so the answer does not move as the rest of the form is filled in.
+// Every uncertainty comes back empty, and the caller must render that the same
+// as «no», never as a third state.
+export async function queryModelSpanningRoles(
+  data: Record<string, any>,
+  options?: any
+) {
+  return request<SpanningPreview>(`${MODELS_API}/spanning-roles`, {
+    method: 'POST',
+    data,
+    cancelToken: options?.token,
+    skipErrorHandler: true
   });
 }
 

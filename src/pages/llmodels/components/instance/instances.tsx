@@ -134,12 +134,13 @@ const Instances: React.FC<InstanceItemProps> = ({
 
   return (
     <Wrapper>
-      {/* 🔴 `GroupSummary` — the PD effectiveness / KV transfer / per-member
-          request bar — is deliberately not rendered here for now. The
-          component and the two hooks behind it (`use-pd-metrics`,
-          `use-kv-transfer-budget`) are left in place rather than deleted,
-          because this is a hold, not a removal. `pd-markers` stays in use
-          regardless: `use-models-columns` imports `markerTexts` from it. */}
+      {/* No group-level bar here: the expansion is role headings and their
+          members, nothing else. A `GroupSummary` panel once led it — PD
+          effectiveness, KV transfer rate and per-member request counts, read
+          from Prometheus on expand — and was removed along with its two hooks
+          once the hold on rendering it turned permanent. The server side is
+          untouched, so `GET /models/{id}/pd-metrics` and `POST
+          /models/kv-transfer-budget` still answer if it is ever reinstated. */}
       {groups.map((group) => (
         <React.Fragment key={group.item.name}>
           <RoleGroupHeader

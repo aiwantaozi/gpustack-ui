@@ -2,7 +2,7 @@ import { useIntl } from '@umijs/max';
 import { useState } from 'react';
 import { queryPDModes } from '../apis';
 import { PD_MODE_CUSTOM } from '../config';
-import { PDMode } from '../config/types';
+import { PDMode, PDModeEligibility } from '../config/types';
 
 export interface PDModeOption {
   label: string;
@@ -99,6 +99,48 @@ export default function useQueryPDModes() {
   };
 
   /**
+   * The server's verdict, in this catalog's language.
+   *
+   * The code is looked up and the prose is the fallback — for a server older
+   * than the code, and for a code newer than this client. `formatMessage` on
+   * an id the catalog does not hold logs and echoes the id, which reads worse
+   * than an English sentence that at least says what happened.
+   *
+   * The ids are the ones the local evaluation below already renders, and the
+   * server names its params after their placeholders (the contract
+   * `unresolved_params` established). One wording per refusal, whichever path
+   * produced it — two would drift the first time either is reworded.
+   */
+  const INELIGIBLE_MESSAGE: Record<string, string> = {
+    backend_mismatch: 'models.form.pd.mode.backend.mismatch',
+    vendor_mismatch: 'models.form.pd.mode.runtime.mismatch'
+  };
+
+  const ineligibleText = (verdict: PDModeEligibility): string | undefined => {
+    if (verdict.eligible) {
+      return undefined;
+    }
+    const id = verdict.ineligible_code
+      ? INELIGIBLE_MESSAGE[verdict.ineligible_code]
+      : undefined;
+    if (!id || !intl.messages[id]) {
+      return verdict.ineligible_reason || undefined;
+    }
+    const params: Record<string, string> = {
+      ...(verdict.ineligible_params || {})
+    };
+    // The engine is optional on the request, and the server sends '' rather
+    // than wording "this engine" itself — that half-sentence is the client's.
+    // Left empty it would render as a hole mid-sentence.
+    if (params.backend === '') {
+      params.backend = intl.formatMessage({
+        id: 'models.form.pd.unresolved.thisEngine'
+      });
+    }
+    return intl.formatMessage({ id }, params);
+  };
+
+  /**
    * The options for one engine on one cluster's accelerators.
    *
    * A mode the combination cannot run is disabled with a reason rather than
@@ -122,8 +164,24 @@ export default function useQueryPDModes() {
    * `custom` declares neither constraint and is therefore always available: it
    * injects nothing, which is also what makes it the only mode under which a
    * group may mix engines.
+   *
+   * 🔴 **The verdict is the server's; this only renders it.** Both sides used
+   * to evaluate the two constraints — the resolver filled `ineligible_reason`
+   * that nobody read, and this recomputed the same thing from `backends` and
+   * `gpu_filters.vendor`. Two answers to one question drift the first time a
+   * third constraint is added on one side only. `verdicts` now carries the
+   * server's per-entry answer, keyed by mode name.
+   *
+   * The local evaluation stays as the fallback for the moment before the
+   * resolution has arrived (the dropdown renders on the first paint, the
+   * resolve call is a round trip later) and for a server that sends no
+   * verdicts at all. It is never used to *contradict* one.
    */
-  const buildOptions = (backend?: string, vendors?: string[]): PDModeOption[] =>
+  const buildOptions = (
+    backend?: string,
+    vendors?: string[],
+    verdicts?: Record<string, PDModeEligibility>
+  ): PDModeOption[] =>
     pdModes.map((mode) => {
       const targets = mode.backends || [];
       const backendOk =
@@ -138,8 +196,13 @@ export default function useQueryPDModes() {
         !vendors?.length ||
         wanted.some((v) => vendors.includes(v));
 
+      const verdict = verdicts?.[mode.name];
+      const disabled = verdict ? !verdict.eligible : !backendOk || !vendorOk;
       let reason: string | undefined;
-      if (!backendOk) {
+
+      if (verdict) {
+        reason = ineligibleText(verdict);
+      } else if (!backendOk) {
         reason = intl.formatMessage(
           { id: 'models.form.pd.mode.backend.mismatch' },
           { backend, targets: targets.join(' / ') }
@@ -147,14 +210,21 @@ export default function useQueryPDModes() {
       } else if (!vendorOk) {
         reason = intl.formatMessage(
           { id: 'models.form.pd.mode.runtime.mismatch' },
-          { runtime: wanted.join(' / '), vendors: vendors!.join(' / ') }
+          {
+            runtime: wanted.join(' / '),
+            vendors: vendors!.join(' / '),
+            // This path only ever knows the cluster's accelerators; the
+            // partition wording exists for the server's verdict, which knows
+            // whether one was chosen.
+            scope: 'cluster'
+          }
         );
       }
 
       return {
         label: transportLabel(mode),
         value: mode.name,
-        disabled: !backendOk || !vendorOk,
+        disabled,
         reason,
         data: mode
       };

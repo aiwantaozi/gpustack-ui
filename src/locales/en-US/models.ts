@@ -427,7 +427,7 @@ export default {
   'models.form.pd.mode.backend.mismatch':
     'Requires {targets}; the selected engine is {backend}. Mixing engines across roles needs the Custom mode.',
   'models.form.pd.mode.runtime.mismatch':
-    'Requires {runtime} accelerators; this cluster reports {vendors}.',
+    'Requires {runtime} accelerators; {scope, select, partition{the chosen partition has} other{this cluster reports}} {vendors}.',
   'models.form.pd.mode.only.custom':
     'No built-in recipe fits this engine and accelerator. Custom is still available: you supply the connector, ports and handshake variables yourself.',
   'models.form.pd.vendor': 'Accelerator vendor',
@@ -513,71 +513,19 @@ export default {
     'Some members are still deployed in the namespace they used before the upgrade. Serving is unaffected, but the accelerators they hold are absent from the tenant quota ledger, so atomic admission for the group is optimistic by that much. Restart the model to move them.',
   'models.pd.degraded.ineffective':
     'The group is serving but no KV is being transferred — disaggregation has silently collapsed into aggregated serving. Check the pairing and the KV connector configuration.',
+  'models.pd.degraded.pairingUnverified':
+    'One role declares a pairing factor and the other leaves it to the engine default, so GPUStack could not verify that the two agree — typically --max-model-len, --block-size, --kv-cache-layout, or one side set to auto against a named dtype. It does not mean the pair is wrong, only that nothing checked it. Write the factor on both roles to have it verified.',
+  'models.pd.degraded.pairingTP':
+    'The effective tensor parallelism — recomputed from the cards the members actually got — breaks the direction this PD recipe declares: NIXL needs decode at least as wide as prefill, Ascend Mooncake needs prefill at least as wide as decode. Admission could not catch this, because a role that pins no cards and writes no --tensor-parallel-size has no number to check until it is placed. Set --tensor-parallel-size on both roles, or give them GPU counts the recipe allows.',
   'models.pd.heterogeneous.warning':
     'Prefill and Decode use different GPU types, so the group cannot be admitted atomically: a concurrent submission may start only some of the roles.',
   'models.pd.admission.infeasible':
     'The available capacity cannot hold this group (needs {required}, available {available}). Reduce the replica counts, use a sliced card type, or add nodes.',
-  'models.pd.effectiveness.degraded':
-    'PD has degraded to aggregated serving - no KV transfer detected. Check the PD mode and the engine parameters.',
-  'models.pd.effectiveness.partial':
-    'KV is crossing for part of the traffic only - some requests are being prefilled twice. Check whether one member of a role has lost its connector.',
-  'models.pd.stat.derived': 'derived',
-  'models.pd.stat.p99': 'p99',
-  'models.pd.bandwidth.derived.tips':
-    'Derived, not measured: this KV connector exports no byte counter, so the rate is the {tokensPerSecond} prompt tokens/s the engine reports as arriving over the wire, times {perToken} of KV per token. Divided by wall clock, so an idle window reads low - the measured figure divides by time spent transferring instead, and the two are not comparable.',
-  'models.pd.recomputeTail': 'Prompts recomputed',
-  'models.pd.recomputeTail.none': 'none',
-  'models.pd.recomputeTail.tips':
-    'Catches the requests the effectiveness ratio above cannot see. That ratio sums every token in the window, so a handful of requests that never got their KV - and had to prefill a second time on decode - is diluted by the majority that did. This is the 99th percentile of KV tokens decode computed itself, so those requests show up at their own prompt length instead. It is only drawn when something was recomputed; a healthy group has nothing here.',
-  'models.pd.members': 'Requests per member',
-  'models.pd.members.tips':
-    "Answers which member, where the figures above answer whether. A group reads healthy while one prefill of three takes no traffic at all, and the router's per-member counters are the only place that is visible. Shown only when a role has several members, since on a 1P1D each carries all of its role's traffic by definition. Keyed by the engine's address because one host runs several members.",
-  'models.pd.members.errors': 'Dispatch errors',
-  'models.pd.members.errors.tips':
-    'Dispatches the router saw fail, counted before its own retry. A non-zero value over a window where every request succeeded is the share of traffic a retry covered up.',
-  'models.pd.stat.avg': 'avg',
-  'models.pd.window': 'last {window}',
-  'models.pd.effectiveness': 'PD Effectiveness',
-  'models.pd.bandwidth': 'KV Transfer',
-  // Neither is a degradation, and they are different answers: nobody
-  // called the model vs this mode's router exports no request counter.
-  'models.pd.effectiveness.idle': '(no traffic)',
-  'models.pd.effectiveness.unmeasurable': 'no denominator',
-  'models.pd.pairingLocality': 'Local pairing',
-  'models.pd.pairingLocality.tips':
-    'Share of requests whose KV can stay inside one host, from where this group actually landed. Derived from placement, not measured, so it holds with no traffic. 0% means no prefill and decode share a host, so every transfer crosses the network. The deploy form shows a floor based on the replica count; this is the real figure, driven by how many machines the group spread over.',
-  'models.pd.transferP99': 'Transfer p99',
-  'models.pd.bytesPerTransfer': 'Per transfer',
-  'models.pd.ttft': 'TTFT',
-  'models.pd.tpot': 'TPOT',
-  'models.pd.queue': 'Queue',
-  'models.pd.ttft.tips':
-    "Time to first token belongs to prefill: that is what a user waited for. Decode's TTFT is measured from its own first forward pass and is not comparable.",
-  'models.pd.tpot.tips':
-    'Time per output token belongs to decode. Prefill emits one token and hands over, so its inter-token latency is not a steady-state figure.',
-  'models.pd.queue.tips':
-    'Mean queue depth. The only objective signal for whether the prefill:decode ratio is right and which way it is wrong: a queue that only ever builds on one side is that side asking for more replicas. Read the shape, not the value -- a queue that drains is healthy at any depth.',
-  'models.pd.failedTransfers': 'KV Transfer Failures',
-  'models.pd.kvExpired': 'KV Leases Expired',
-  'models.pd.kvExpired.tips':
-    'Requests dropped between the two hops, whose prefill was computed for nothing. A rising value means requests are being lost between hop 1 and hop 2.',
-  // The requirement beside the reading. `0.42 GB/s` is fine for an MLA model
-  // and a catastrophe for a 70B GQA one, so the measured rate alone is not a
-  // judgement -- and the assumption it was computed under has to travel with
-  // it, since a requirement is a property of a workload, not of a model.
-  'models.pd.bandwidth.sentence':
-    'Transmitting the {seqLen}-token KV cache ({perRequest}) within {budget} ms requires a link bandwidth of {required}.',
-  'models.pd.bandwidth.kvMath':
-    '2 (K and V) × {kvHeads} KV heads × {headDim} head dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
-  'models.pd.bandwidth.kvMath.mla':
-    '{latentDim} latent dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
-  'models.pd.denominator.weak': 'coarse denominator',
-  'models.pd.denominator.weak.tips':
-    "The ratio came from the router's route-aggregated total rather than per-worker counters: it still answers whether anything was routed, but no longer points at which decode stopped pulling.",
   'models.pd.ratio.waiting':
     'Ratio {configured} (currently {current}, waiting for {role})',
-  'models.pd.group.restarting':
-    'Restarting the group: {stopped}/{total} stopped, {ready}/{total} rebuilt and ready',
+  'models.pd.group.restarting.brief': 'Restarting…',
+  'models.pd.group.restarting.progress':
+    'Restarting the group: its members were stopped on purpose and are being rebuilt, {ready}/{total} ready so far. The replica counts read low for that reason, not because the group failed.',
   'models.pd.group.restart.confirm':
     'This change needs the whole PD group restarted: all {total} instances are stopped first and rebuilt with the new configuration, and the model is unavailable in between.',
   'models.pd.instance.stale':

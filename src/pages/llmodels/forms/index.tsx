@@ -186,6 +186,17 @@ const DataForm: React.FC<DataFormProps> = forwardRef((props, ref) => {
         env: {}
       } as any);
     }
+    if (next.clearModelLora) {
+      // Not a projection problem — an admission one. LoRA does not serve under
+      // PD at all (the router's registry is keyed by served-model name, the
+      // members register the base name), so the backend refuses `lora_list`
+      // together with `roles`. The field is unmounted while PD is on, and an
+      // unmounted field is already absent from what `onFinish` hands over —
+      // this clears the store as well, so nothing reads a value the user can
+      // no longer see (`getFieldsValue(true)`, the copy path, a later switch
+      // back to a form that would show it again as if it were still deployed).
+      form.setFieldValue('lora_list', []);
+    }
     // Only when it actually differs. An unconditional write fires the form's
     // onValuesChange on every notification, and that is what drives the
     // compatibility check — so writing the value it already holds turns each

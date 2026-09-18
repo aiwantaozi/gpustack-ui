@@ -427,7 +427,7 @@ export default {
   'models.form.pd.mode.backend.mismatch':
     '{targets} gerekiyor; seçili motor {backend}. Roller arasında motor karıştırmak için Özel modu kullanın.',
   'models.form.pd.mode.runtime.mismatch':
-    '{runtime} hızlandırıcı gerekiyor; bu kümede yalnızca {vendors} var.',
+    '{runtime} hızlandırıcı gerekiyor; {scope, select, partition{seçilen bölümde} other{bu kümede}} yalnızca {vendors} var.',
   'models.form.pd.mode.only.custom':
     'Bu motor ve hızlandırıcı bileşimi için yerleşik bir reçete yok. Özel mod hâlâ kullanılabilir: bağlayıcı, portlar ve el sıkışma değişkenlerini kendiniz girersiniz.',
   'models.form.pd.vendor': 'Hızlandırıcı üreticisi',
@@ -502,78 +502,30 @@ export default {
   'models.form.pd.engineVersion.below':
     'The selected PD recipe declares support for engine versions {range}, and this deployment pins {version}. It will still deploy — a self-built image may carry a private version number — but a version genuinely below the floor can be missing behaviour the recipe assumes, such as deregistering a scaled-down member.',
   'models.pd.degraded.pairing':
-    'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
+    'Hiçbir prefill üyesi herhangi bir decode üyesiyle aynı sunucuyu paylaşmıyor; bu yüzden her KV aktarımı ağ üzerinden gidiyor. RDMA’sız bir bağlantıda bu, genellikle hiç ayrıştırmamaktan bile yavaştır. En az bir çifti aynı sunucuya yerleştirin ya da her iki rol için aynı sunucudaki GPU’ları seçin.',
   'models.pd.degraded.gather':
     'Topoloji hedefinin altında: üyeler istenenden daha uzakta',
   'models.pd.degraded.scaleOut':
-    'The group is pinned to a single topology domain under the strict posture, and a member it was asked to add has not been placed. The members already running keep serving normally — what stopped is the scale-out. The status message on that member says what blocked it; from there, free capacity inside the domain, switch the posture to lenient, or lower the replica count back.',
+    'Grup, katı kipte tek bir topoloji alanına sabitlenmiş durumda ve eklenmesi istenen bir üye henüz yerleştirilemedi. Hâlihazırda çalışan üyeler normal biçimde hizmet vermeyi sürdürüyor — duran şey yalnızca ölçek büyütme. Neyin engellediğini o üyenin durum mesajı söyler; buradan hareketle alan içinde kapasite açın, topoloji kısıtını gevşetin ya da kopya sayısını eski değerine döndürün.',
   'models.pd.degraded.engineVersion':
-    'The pinned engine version is below the range the selected PD recipe declares support for. This is allowed — a self-built image may carry a private version number — but the behaviour the recipe assumes may be missing: on SGLang below 0.5.7, for example, a scaled-down member cannot be deregistered and keeps taking traffic.',
+    'Sabitlenen motor sürümü, seçilen PD reçetesinin desteklediğini bildirdiği aralığın altında. Buna izin verilir — kendiniz derlediğiniz bir imaj özel bir sürüm numarası taşıyabilir — ancak reçetenin varsaydığı davranış eksik olabilir: örneğin 0.5.7 altındaki SGLang sürümlerinde, ölçek küçültmeyle çıkarılan bir üyenin kaydı silinemez ve trafik almayı sürdürür.',
   'models.pd.degraded.placement':
     'Bazı üyeler hâlâ yükseltmeden önceki ad alanında dağıtılmış durumda. Hizmet etkilenmez, ancak bu üyelerin tuttuğu hızlandırıcılar kiracı kota defterinde yer almadığından grubun atomik kabulü o kadar iyimserdir. Taşımak için modeli yeniden başlatın.',
   'models.pd.degraded.ineffective':
     'Grup hizmet veriyor ancak hiç KV aktarımı olmuyor — ayrıştırma sessizce toplu çıkarıma geriledi. Eşleştirmeyi ve KV bağlayıcı yapılandırmasını denetleyin.',
+  'models.pd.degraded.pairingUnverified':
+    'Eşleştirme parametresi rollerden yalnızca birinde açıkça belirtilmiş, diğerinde motorun varsayılanına bırakılmış; bu yüzden GPUStack ikisinin uyuştuğunu doğrulayamadı — tipik olarak --max-model-len, --block-size, --kv-cache-layout ya da bir tarafta auto, diğerinde belirli bir dtype. Bu, eşleştirmenin yanlış olduğu anlamına gelmez; yalnızca doğrulanmadığı anlamına gelir. Doğrulanması için parametreyi iki rolde de yazın.',
+  'models.pd.degraded.pairingTP':
+    'Üyelerin gerçekte aldığı kartlardan yeniden hesaplanan etkin tensör paralelliği, bu PD reçetesinin bildirdiği yönü ihlal ediyor: NIXL, decode’un prefill’den dar olmamasını; Ascend Mooncake ise prefill’in decode’dan dar olmamasını gerektirir. Kart sabitlemeyen ve --tensor-parallel-size yazmayan bir rolün yerleşimden önce denetlenecek bir sayısı olmadığı için bu, kabul aşamasında yakalanamaz. --tensor-parallel-size değerini iki rolde de ayarlayın veya reçetenin izin verdiği GPU sayılarını verin.',
   'models.pd.heterogeneous.warning':
     'Prefill ve Decode farklı GPU türleri kullanıyor; grup atomik olarak kabul edilemez: eşzamanlı gönderimde yalnızca bazı roller başlayabilir.',
   'models.pd.admission.infeasible':
     'Mevcut kapasite bu grubu barındıramıyor (gereken {required}, mevcut {available}). Replika sayısını azaltın, dilimlenmiş kart türü kullanın veya düğüm ekleyin.',
-  'models.pd.effectiveness.degraded':
-    'PD toplu sunuma geriledi - KV aktarımı algılanmadı. PD modunu ve motor parametrelerini kontrol edin.',
-  'models.pd.effectiveness.partial':
-    "KV yalnızca trafiğin bir kısmı için aktarılıyor - bazı istekler iki kez prefill ediliyor. Bir rolün üyelerinden birinin connector'ünü yitirip yitirmediğini kontrol edin.",
-  'models.pd.stat.derived': 'türetilmiş',
-  'models.pd.stat.p99': 'p99',
-  'models.pd.bandwidth.derived.tips':
-    'Ölçülmüş değil, türetilmiş: bu KV bağlayıcısı bayt sayacı yayımlamadığı için hız, motorun ağ üzerinden geldiğini bildirdiği saniyedeki {tokensPerSecond} prompt belirtecinin, belirteç başına {perToken} KV ile çarpımıdır. Duvar saatine bölündüğü için boş bir pencerede düşük okunur; ölçülen değer ise aktarımda geçen süreye bölünür ve ikisi karşılaştırılamaz.',
-  'models.pd.recomputeTail': 'Yeniden hesaplanan istekler',
-  'models.pd.recomputeTail.none': 'yok',
-  'models.pd.recomputeTail.tips':
-    "Yukarıdaki etkinlik oranının göremediği istekleri yakalar. O oran penceredeki tüm belirteçleri toplar; bu yüzden KV'sini alamayıp decode tarafında ikinci kez prefill edilen birkaç istek, normal çoğunluk arasında erir. Buradaki değer, decode'un kendi hesapladığı KV belirteçlerinin 99. yüzdebirliğidir, dolayısıyla o istekler kendi istem uzunluklarıyla ortaya çıkar. Yalnızca gerçekten yeniden hesaplama olduğunda gösterilir; sağlıklı bir grupta burada hiçbir şey olmaz.",
-  'models.pd.members': 'Üye başına istek',
-  'models.pd.members.tips':
-    "Yukarıdaki değerler 'sorun var mı' sorusuna yanıt verirken bu 'hangi üye' sorusuna yanıt verir. Üç prefill'den biri hiç trafik almasa bile grup düzeyindeki okuma sağlıklı görünür ve bunu yalnızca router'ın üye başına sayaçları gösterir. Yalnızca bir rolün birden çok üyesi olduğunda görünür; 1P1D'de her üye tanım gereği rolünün tüm trafiğini taşır. Tek bir ana makine birden çok üye çalıştırdığı için anahtar motorun adresidir.",
-  'models.pd.members.errors': 'Dağıtım hataları',
-  'models.pd.members.errors.tips':
-    "Router'ın gördüğü başarısız dağıtımlar, kendi yeniden denemesinden önce sayılır. Her isteğin başarılı olduğu bir pencerede sıfır olmayan bir değer, bir yeniden denemenin gizlediği trafik payıdır.",
-  'models.pd.stat.avg': 'ort.',
-  'models.pd.window': 'son {window}',
-  'models.pd.effectiveness': 'PD Effectiveness',
-  'models.pd.bandwidth': 'KV Transfer',
-  // Neither is a degradation, and they are different answers: nobody
-  // called the model vs this mode's router exports no request counter.
-  'models.pd.effectiveness.idle': '(no traffic)',
-  'models.pd.effectiveness.unmeasurable': 'no denominator',
-  'models.pd.pairingLocality': 'Local pairing',
-  'models.pd.pairingLocality.tips':
-    'Share of requests whose KV can stay inside one host, from where this group actually landed. Derived from placement, not measured, so it holds with no traffic. 0% means no prefill and decode share a host, so every transfer crosses the network. The deploy form shows a floor based on the replica count; this is the real figure, driven by how many machines the group spread over.',
-  'models.pd.transferP99': 'Transfer p99',
-  'models.pd.bytesPerTransfer': 'Per transfer',
-  'models.pd.ttft': 'TTFT',
-  'models.pd.tpot': 'TPOT',
-  'models.pd.queue': 'Queue',
-  'models.pd.ttft.tips':
-    "Time to first token belongs to prefill: that is what a user waited for. Decode's TTFT is measured from its own first forward pass and is not comparable.",
-  'models.pd.tpot.tips':
-    'Time per output token belongs to decode. Prefill emits one token and hands over, so its inter-token latency is not a steady-state figure.',
-  'models.pd.queue.tips':
-    'Mean queue depth. The only objective signal for whether the prefill:decode ratio is right and which way it is wrong: a queue that only ever builds on one side is that side asking for more replicas. Read the shape, not the value -- a queue that drains is healthy at any depth.',
-  'models.pd.failedTransfers': 'KV Transfer Failures',
-  'models.pd.kvExpired': 'KV Leases Expired',
-  'models.pd.kvExpired.tips':
-    'Requests dropped between the two hops, whose prefill was computed for nothing. A rising value means requests are being lost between hop 1 and hop 2.',
-  'models.pd.bandwidth.sentence':
-    'Transmitting the {seqLen}-token KV cache ({perRequest}) within {budget} ms requires a link bandwidth of {required}.',
-  'models.pd.bandwidth.kvMath':
-    '2 (K and V) × {kvHeads} KV heads × {headDim} head dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
-  'models.pd.bandwidth.kvMath.mla':
-    '{latentDim} latent dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
-  'models.pd.denominator.weak': 'coarse denominator',
-  'models.pd.denominator.weak.tips':
-    "The ratio came from the router's route-aggregated total rather than per-worker counters: it still answers whether anything was routed, but no longer points at which decode stopped pulling.",
   'models.pd.ratio.waiting':
     'Oran {configured} (şu an {current}, {role} bekleniyor)',
-  'models.pd.group.restarting':
-    'Grup yeniden başlatılıyor: {stopped}/{total} durduruldu, {ready}/{total} yeniden oluşturuldu',
+  'models.pd.group.restarting.brief': 'Yeniden başlatılıyor…',
+  'models.pd.group.restarting.progress':
+    'Grup yeniden başlatılıyor: üyeleri bilerek durduruldu ve yeniden oluşturuluyor, şu ana kadar {ready}/{total} hazır. Kopya sayılarının düşük görünmesi bu yüzdendir, grup arızalandığı için değil.',
   'models.pd.group.restart.confirm':
     'Bu değişiklik tüm PD grubunun yeniden başlatılmasını gerektirir: önce {total} örneğin tümü durdurulur, sonra yeni yapılandırmayla yeniden oluşturulur; bu sürede model kullanılamaz.',
   'models.pd.instance.stale':

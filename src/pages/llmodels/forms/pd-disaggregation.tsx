@@ -129,6 +129,15 @@ export interface PDEffects {
   // none, so a leftover `--tensor-parallel-size` would silently constrain all
   // three members with nothing on screen saying where it came from.
   clearModelParams?: boolean;
+  // 🆕 LoRA is withdrawn under PD, not relocated. Unlike the two above this is
+  // not a duplication argument: the combination does not serve. The router
+  // indexes its worker registry by served-model name and the members register
+  // under the base name only, so a request for `<base>:<adapter>` is answered
+  // 503 by a group every health surface calls running. Cleared rather than
+  // hidden for the usual reason plus one more — the backend refuses
+  // `lora_list` + `roles` at admission, so a leftover value turns an invisible
+  // field into a 400 on submit.
+  clearModelLora?: boolean;
   // Model-level `replicas` is a 0/1 deployment switch under PD, never a group
   // count: pin the field to 1 and make it read-only.
   replicasLocked: boolean;
@@ -383,6 +392,11 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       modeData: next.enabled ? resolve(next.mode) : undefined,
       isCustomMode: next.enabled && isCustomMode(next.mode),
       clearModelParams: next.enabled,
+      // Published on every notification while PD is on, exactly like
+      // `clearModelParams`: the edit path never runs the switch's handler, and
+      // an existing group that arrives carrying `lora_list` has to shed it
+      // here or its next save is a 400.
+      clearModelLora: next.enabled,
       replicasLocked: next.enabled,
       replicasLockReason: next.enabled
         ? intl.formatMessage({ id: 'models.form.pd.replicas.moved' })
@@ -513,6 +527,28 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
       // re-render before the next line runs.
       const modes = pdModes.length ? pdModes : await getPDModes();
       await runResolve(undefined, modes);
+      /**
+       * Re-ask the mode field's own rules, because nothing else will.
+       *
+       * antd re-runs a field's rules when *its* value changes, and what makes a
+       * transport ineligible is a change to `cluster_id` or `backend` — sibling
+       * fields it does not watch. Without this the mismatch below is only
+       * raised at submit: the gate holds, but the user learns about it one
+       * click before the end instead of at the change that caused it.
+       *
+       * After the resolve, never before: when the server derives a mode for the
+       * new pair, `applyResolution` has just replaced the stale value and there
+       * is nothing left to complain about.
+       *
+       * 🔑 Only when a value is present. An empty field is the `required` rule's
+       * business, and asking here would paint "please select" red on a field the
+       * user has not touched yet — turning PD on for a pair the server derives
+       * nothing for would open with an error already on screen.
+       */
+      if (form.getFieldValue(['disaggregation', 'mode'])) {
+        // Rejection IS the outcome this asks for, and the field renders it.
+        form.validateFields([['disaggregation', 'mode']]).catch(() => {});
+      }
     };
     resolveWithCatalog();
   }, [active, backend, clusterId]);
@@ -770,7 +806,15 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
         .flatMap((worker) => worker.vendors || [])
     )
   );
-  const modeOptions = buildOptions(backend, clusterVendors);
+  // The server's per-entry verdict, keyed by mode name, when the resolve call
+  // has come back. Before that — the dropdown paints before the round trip —
+  // `buildOptions` evaluates the same two constraints locally.
+  const modeVerdicts = derived.resolution?.options?.length
+    ? Object.fromEntries(
+        derived.resolution.options.map((option) => [option.name, option])
+      )
+    : undefined;
+  const modeOptions = buildOptions(backend, clusterVendors, modeVerdicts);
 
   // Every built-in recipe is unavailable for this engine × accelerator pair,
   // leaving only Custom. The per-option reasons already say *why* each one is
@@ -1112,6 +1156,44 @@ const PDDisaggregation: React.FC<PDDisaggregationProps> = (props) => {
               {
                 required: true,
                 message: getRuleMessage('select', 'models.form.pd.mode')
+              },
+              /**
+               * The selected recipe, against the engine × accelerator pair the
+               * rest of the form now describes.
+               *
+               * 🔴 `required` cannot catch this and was the only rule here: the
+               * value is not empty, it is unrunnable. Switching the cluster to
+               * one whose accelerators no built-in recipe covers leaves the
+               * previous transport in the field — `applyResolution` returns
+               * without writing when the server derives nothing — and the
+               * "never hide the selected value" rule keeps it on screen, greyed
+               * and explained but perfectly submittable. The server does not
+               * catch it either: `gpu_filters.vendor` is enforced by
+               * `PDModeRuntimeFilter` at schedule time, so the group is created
+               * and then waits forever for a worker that cannot exist. This
+               * field is the last gate in front of that.
+               *
+               * Looked up in `modeOptions` rather than `visibleModeOptions`:
+               * the disabled rows are precisely what the latter filters out.
+               * The message is the option's own reason, so the error says the
+               * same sentence as the dropdown row it came from — and needs no
+               * copy of its own.
+               *
+               * 🔑 A value the catalog does not hold passes. A recipe can be
+               * retired from `pd-modes.yaml` while a group still runs it, and
+               * an unknown name is also what an empty catalog looks like (the
+               * fetch is in flight, or it failed). Refusing either would lock a
+               * deployed group out of every other edit on the form.
+               */
+              {
+                validator: async (_rule: any, value: string) => {
+                  const option = modeOptions.find(
+                    (item) => item.value === value
+                  );
+                  if (value && option?.disabled) {
+                    throw new Error(option.reason);
+                  }
+                }
               }
             ]}
           >

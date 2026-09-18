@@ -6,7 +6,7 @@ import { useIntl } from '@umijs/max';
 import { useMemoizedFn } from 'ahooks';
 import { ConfigProvider, Table } from 'antd';
 import _ from 'lodash';
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import {
   deleteModelInstance,
   MODEL_INSTANCE_API,
@@ -67,12 +67,21 @@ const InstanceView = forwardRef((props, ref) => {
     deleteAPI: deleteModelInstance,
     watch: true,
     API: MODEL_INSTANCE_API,
+    // The hook's default is `['UPDATE', 'DELETE']`, and on this list that
+    // silently loses rows: an instance the scheduler has just created arrives
+    // as a CREATE event, whose branch the default skips entirely, and the
+    // UPDATE that follows it carries an id the list has never seen — which
+    // `useUpdateChunkedList` only inserts when 'INSERT' is among the events
+    // too. With neither, a new instance can reach the list by no path at all
+    // and the table sits a row short of the API until the next full fetch.
+    // Spelled out here rather than fixed in the default, which every other
+    // list page shares.
+    events: ['CREATE', 'UPDATE', 'DELETE', 'INSERT'],
     contentForDelete: 'menu.models.instances',
     // the models page routes pause/resume by which view tab is active
     pauseOnHidden: false
   });
   const intl = useIntl();
-  const [role, setRole] = useState<string | undefined>(undefined);
   const { dataList: modelList, fetchData: fetchModelList } =
     useQueryModelList();
   const { clusterList, workerList } = useDeploymentsContext();
@@ -141,31 +150,6 @@ const InstanceView = forwardRef((props, ref) => {
       worker_id: value
     });
   };
-
-  // The role filter has no server-side counterpart yet: `GET
-  // /v2/model-instances` declares no `role` parameter, and an undeclared query
-  // parameter is silently dropped — sending it alone would return an
-  // unfiltered list under an active filter, which is the exact silent failure
-  // this view exists to prevent. So the parameter is sent (harmless today,
-  // correct the day the endpoint grows it) *and* the rows are filtered here.
-  const handleRoleChange = (value: string) => {
-    setRole(value || undefined);
-    handleQueryChange({
-      page: 1,
-      role: value
-    });
-  };
-
-  const roleFilteredList = role
-    ? dataSource.dataList.filter((item) => item.role === role)
-    : dataSource.dataList;
-  // Only override the total while the local filter actually removed something.
-  // Once the server filters, the two lengths match and the real total — which
-  // spans every page — is what shows.
-  const roleFilteredTotal =
-    roleFilteredList.length === dataSource.dataList.length
-      ? dataSource.total
-      : roleFilteredList.length;
 
   const columns = useInstanceColumns({
     handleSelect,

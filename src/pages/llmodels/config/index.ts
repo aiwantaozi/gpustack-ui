@@ -692,7 +692,21 @@ export const DegradationValueMap = {
   // describe. It is flagged because the recipe's floor usually encodes a
   // behaviour the group depends on — below SGLang 0.5.7, for instance, a
   // scaled-down member cannot be deregistered and keeps taking traffic.
-  EngineVersionBelowRecipeFloor: 'engine_version_below_recipe_floor'
+  EngineVersionBelowRecipeFloor: 'engine_version_below_recipe_floor',
+  // One role wrote a pairing factor down and the other left it to the engine,
+  // so the two could not be compared. Deliberately not a refusal: the silent
+  // side's value is genuinely unknown at admission — an unwritten
+  // `--tensor-parallel-size` is the member's card count, an unwritten
+  // `--dtype` is `auto` and needs the checkpoint to resolve — so substituting
+  // a default would invent divergences that are not there. What this reports
+  // is that nothing verified the pair, which is not the same claim as "this
+  // is broken".
+  PairingUnverified: 'pairing_unverified',
+  // The other half of the same story, one stage later: the tensor parallelism
+  // recomputed from the cards the members actually received runs against the
+  // direction the recipe declares. Admission cannot see this, because a role
+  // that pins no cards and declares no width has no number until it is placed.
+  PairingTPMisplaced: 'pairing_tp_misplaced'
 };
 
 export const DegradationLabelMap = {
@@ -705,7 +719,10 @@ export const DegradationLabelMap = {
   [DegradationValueMap.GatherUnmet]: 'models.pd.degraded.gather',
   [DegradationValueMap.GatherBlockedScaleOut]: 'models.pd.degraded.scaleOut',
   [DegradationValueMap.EngineVersionBelowRecipeFloor]:
-    'models.pd.degraded.engineVersion'
+    'models.pd.degraded.engineVersion',
+  [DegradationValueMap.PairingUnverified]:
+    'models.pd.degraded.pairingUnverified',
+  [DegradationValueMap.PairingTPMisplaced]: 'models.pd.degraded.pairingTP'
 };
 
 // The four override groups of a role tab. A group left on "same as model"

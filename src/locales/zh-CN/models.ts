@@ -405,7 +405,7 @@ export default {
   'models.form.pd.mode.backend.mismatch':
     '需要 {targets}，当前引擎是 {backend}。跨角色混用引擎请选「自定义」模式。',
   'models.form.pd.mode.runtime.mismatch':
-    '需要 {runtime} 加速卡，当前集群只有 {vendors}。',
+    '需要 {runtime} 加速卡，{scope, select, partition{所选分区} other{当前集群}}只有 {vendors}。',
   'models.form.pd.mode.only.custom':
     '当前引擎与加速卡组合没有内置配方。仍可用「自定义」模式：连接器、端口与握手变量由你自己填写。',
   'models.form.pd.vendor': '加速卡厂商',
@@ -484,66 +484,18 @@ export default {
     '部分成员仍部署在升级前的命名空间。服务不受影响，但这些成员占用的加速卡未计入租户配额账本，组级原子准入因此偏乐观。重启该模型即可迁移。',
   'models.pd.degraded.ineffective':
     '本组正在服务，但没有任何 KV 传输发生 —— 分离已静默退化为聚合推理。请检查配对与 KV 连接器配置。',
+  'models.pd.degraded.pairingUnverified':
+    '配对参数只有一侧显式声明，另一侧沿用引擎默认值，GPUStack 无法判定两者是否一致 —— 常见于 --max-model-len、--block-size、--kv-cache-layout，以及一侧写 auto、另一侧写具体 dtype。这不代表配对是错的，只代表没有任何检查验证过它。在两个角色上都写明该参数即可被校验。',
+  'models.pd.degraded.pairingTP':
+    '按成员实际拿到的卡重新算出的有效张量并行度，违反了该 PD 方案声明的方向：NIXL 要求 decode 不窄于 prefill，昇腾 Mooncake 要求 prefill 不窄于 decode。准入阶段查不出来 —— 一个既不固定卡、也不写 --tensor-parallel-size 的角色，在落位之前根本没有数可查。请在两个角色上都设置 --tensor-parallel-size，或给它们符合方案要求的卡数。',
   'models.pd.heterogeneous.warning':
     '本组 Prefill 与 Decode 使用不同 GPU 类型，无法原子准入：并发提交时可能出现只有部分角色启动。',
   'models.pd.admission.infeasible':
     '当前可用算力放不下这一组（需要 {required}，可用 {available}）。可减少副本数、换用切分卡型，或增加节点。',
-  'models.pd.effectiveness.degraded':
-    'PD 已退化为聚合式 —— 未检测到 KV 传输。请检查 PD 模式与引擎参数。',
-  'models.pd.effectiveness.partial':
-    'KV 只对部分流量生效 —— 有一部分请求在重复做 prefill。请检查某个角色下是否有成员的 connector 已失效。',
-  'models.pd.stat.derived': '推算',
-  'models.pd.stat.p99': 'p99',
-  'models.pd.bandwidth.derived.tips':
-    '推算值，非实测：该 KV 连接器不导出字节计数器，所以速率取引擎报告的每秒 {tokensPerSecond} 个经网络到达的 prompt token，乘以每 token {perToken} 的 KV。按墙钟时间除，所以空闲窗口读数偏低——实测值是按传输耗时除的，两者不可比。',
-  'models.pd.recomputeTail': '被重算的 prompt',
-  'models.pd.recomputeTail.none': '无',
-  'models.pd.recomputeTail.tips':
-    '用来抓上面那个有效性比值看不见的请求。比值是窗口内所有 token 的总和，所以少数几个没拿到 KV、在 decode 侧被重新 prefill 一遍的请求，会被大多数正常请求稀释掉。这里是 decode 自己计算的 KV token 数的 99 分位，那些请求会以自己的 prompt 长度暴露出来。只在真的发生重算时才显示，健康的组这里什么都没有。',
-  'models.pd.members': '各成员请求数',
-  'models.pd.members.tips':
-    '回答「是哪一个成员」，而上面的数字只回答「有没有问题」。三个 prefill 里有一个完全没接到流量时，组级读数依然健康，只有 router 的每成员计数器能看见这件事。仅在某个角色有多个成员时显示——1P1D 下每个成员按定义承担该角色的全部流量，没有可比对象。以引擎地址为键，因为一台主机上会跑多个成员。',
-  'models.pd.members.errors': '派发失败',
-  'models.pd.members.errors.tips':
-    'router 观测到的派发失败次数，计在它自己重试之前。窗口内所有请求都成功而此值非零，就是被重试掩盖掉的那部分流量。',
-  'models.pd.stat.avg': '均值',
-  'models.pd.window': '最近 {window}',
-  'models.pd.effectiveness': 'PD 有效性',
-  'models.pd.bandwidth': 'KV 传输',
-  // Neither is a degradation, and they are different answers: nobody
-  // called the model vs this mode's router exports no request counter.
-  'models.pd.effectiveness.idle': '（无流量）',
-  'models.pd.effectiveness.unmeasurable': '无分母',
-  'models.pd.pairingLocality': '同机配对',
-  'models.pd.pairingLocality.tips':
-    '按这个组实际落在哪些机器上算出的「一次请求的 KV 能留在同一台机器内」的比例。它由放置推导而来，不是测出来的，所以没有流量也成立。0% 表示没有任何一对 prefill 与 decode 同机，每次传输都要过网络。部署表单里给的是按副本数算的下界，这里是真实值 —— 真正决定它的是这个组摊在几台机器上。',
-  'models.pd.transferP99': '传输 p99',
-  'models.pd.bytesPerTransfer': '每次传输',
-  'models.pd.ttft': '首 token',
-  'models.pd.tpot': '每 token',
-  'models.pd.queue': '排队',
-  'models.pd.ttft.tips':
-    '首 token 延迟属于 Prefill —— 那才是用户真正等待的时间。Decode 的首 token 是从它自己第一次前向开始算的，两者不可比。',
-  'models.pd.tpot.tips':
-    '每 token 延迟属于 Decode。Prefill 只出第一个 token 就交接了，它的 token 间延迟不是稳态值。',
-  'models.pd.queue.tips':
-    '平均排队深度。判断配比是否正确、以及错在哪一侧的唯一客观依据：只在一侧持续堆积，就是那一侧在要副本。看趋势而不是看数值 —— 能排空的队列在任何深度都是健康的。',
-  'models.pd.failedTransfers': 'KV 传输失败',
-  'models.pd.kvExpired': 'KV 租约到期',
-  'models.pd.kvExpired.tips':
-    '请求在两跳之间被丢弃，其 prefill 的算力白付了。持续上涨说明有请求在 hop1 与 hop2 之间丢失。',
-  'models.pd.bandwidth.sentence':
-    '{budget} ms 内传输 {seqLen}-token KV cache（{perRequest}），所需链路带宽：{required}',
-  'models.pd.bandwidth.kvMath':
-    '2（K 和 V）× {kvHeads} 个 KV head × {headDim} head dim × {element} B（{dtype}）× {layers} 层 = 每 token {perToken}，× {seqLen} token = {perRequest}',
-  'models.pd.bandwidth.kvMath.mla':
-    '{latentDim} latent dim × {element} B（{dtype}）× {layers} 层 = 每 token {perToken}，× {seqLen} token = {perRequest}',
-  'models.pd.denominator.weak': '分母较粗',
-  'models.pd.denominator.weak.tips':
-    '该比率来自 router 的路由级总计数，而非 per-worker 计数：它仍能回答「有没有请求被路由」，但定位不到是哪个 Decode 停止拉取。',
   'models.pd.ratio.waiting': '配比 {configured}（当前 {current}，等待 {role}）',
-  'models.pd.group.restarting':
-    '组级重启中：已停止 {stopped}/{total} · 重建 {ready}/{total} 就绪',
+  'models.pd.group.restarting.brief': '重启中…',
+  'models.pd.group.restarting.progress':
+    '组级重启中：成员是被主动停止后重建的，目前 {ready}/{total} 已就绪。副本数偏低是因为这个，而不是因为组出了故障。',
   'models.pd.group.restart.confirm':
     '此修改需要重启整个 PD 组：将先停止全部 {total} 个实例，再以新配置重建，期间该模型不可用。',
   'models.pd.instance.stale': '该实例使用旧版配置，重启整组后生效。',

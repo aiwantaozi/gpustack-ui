@@ -175,7 +175,8 @@ export interface PDKVTransferMetrics {
   // that export no byte or duration counters at all.
   external_tokens?: number | null;
   // The same over wall clock. Multiply by the budget endpoint's
-  // `bytes_per_token` for a derived bandwidth; see `use-pd-metrics`.
+  // `bytes_per_token` for a derived bandwidth — the conversion the removed
+  // group summary panel did, for connectors that export no byte counter.
   external_tokens_per_second?: number | null;
   failures?: number | null;
   // Requests dropped between the two hops. Null (not 0) where the connector
@@ -337,7 +338,17 @@ export interface PDModeEligibility {
   // Why it cannot be picked here. Rendered inline next to the disabled
   // option — an option the user cannot pick still tells them the capability
   // exists and what it would take to reach it.
+  //
+  // `ineligible_reason` is English prose assembled on the server; render the
+  // code instead and keep the prose as the fallback for a server older than
+  // the code, exactly as `unresolved_code` is handled.
   ineligible_reason?: string | null;
+  // `backend_mismatch` | `vendor_mismatch`.
+  ineligible_code?: string | null;
+  // Pre-joined substitutions, so the client never has to decide how a list of
+  // engines or vendors should read. `backend` may be an empty string when the
+  // caller has not picked an engine yet — that half-sentence is the client's.
+  ineligible_params?: Record<string, string> | null;
 }
 
 /**

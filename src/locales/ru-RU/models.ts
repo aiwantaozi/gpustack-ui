@@ -431,7 +431,7 @@ export default {
   'models.form.pd.mode.backend.mismatch':
     'Требуется {targets}, выбран движок {backend}. Для смешивания движков по ролям используйте режим «Пользовательский».',
   'models.form.pd.mode.runtime.mismatch':
-    'Требуются ускорители {runtime}; в этом кластере есть только {vendors}.',
+    'Требуются ускорители {runtime}; {scope, select, partition{в выбранном разделе} other{в этом кластере}} есть только {vendors}.',
   'models.form.pd.mode.only.custom':
     'Для этого сочетания движка и ускорителя нет встроенного рецепта. Режим «Пользовательский» по-прежнему доступен: коннектор, порты и переменные рукопожатия задаёте вы.',
   'models.form.pd.vendor': 'Производитель ускорителя',
@@ -506,78 +506,30 @@ export default {
   'models.form.pd.engineVersion.below':
     'The selected PD recipe declares support for engine versions {range}, and this deployment pins {version}. It will still deploy — a self-built image may carry a private version number — but a version genuinely below the floor can be missing behaviour the recipe assumes, such as deregistering a scaled-down member.',
   'models.pd.degraded.pairing':
-    'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
+    'Ни один участник prefill не делит хост ни с одним участником decode, поэтому каждая передача KV идёт по сети. На линии без RDMA это обычно медленнее, чем вообще не разделять роли. Разместите хотя бы одну пару на одном хосте или выберите для обеих ролей GPU одного и того же хоста.',
   'models.pd.degraded.gather':
     'Ниже цели по топологии: участники расположены дальше друг от друга, чем требовалось',
   'models.pd.degraded.scaleOut':
-    'The group is pinned to a single topology domain under the strict posture, and a member it was asked to add has not been placed. The members already running keep serving normally — what stopped is the scale-out. The status message on that member says what blocked it; from there, free capacity inside the domain, switch the posture to lenient, or lower the replica count back.',
+    'Группа закреплена за одним топологическим доменом в строгом режиме, а участник, которого требовалось добавить, так и не был размещён. Уже работающие участники продолжают обслуживать запросы как обычно — остановилось именно расширение. Что именно помешало, указано в сообщении о состоянии этого участника; исходя из него освободите ёмкость внутри домена, смягчите топологическое ограничение или верните прежнее число реплик.',
   'models.pd.degraded.engineVersion':
-    'The pinned engine version is below the range the selected PD recipe declares support for. This is allowed — a self-built image may carry a private version number — but the behaviour the recipe assumes may be missing: on SGLang below 0.5.7, for example, a scaled-down member cannot be deregistered and keeps taking traffic.',
+    'Закреплённая версия движка ниже диапазона, поддержку которого объявляет выбранный PD-рецепт. Это допустимо — у самостоятельно собранного образа может быть собственный номер версии, — но поведения, на которое рассчитывает рецепт, может не оказаться: например, на SGLang ниже 0.5.7 участника, выведенного при уменьшении числа реплик, нельзя снять с регистрации, и он продолжает принимать трафик.',
   'models.pd.degraded.placement':
     'Часть участников по-прежнему развёрнута в пространстве имён, которое использовалось до обновления. На обслуживание это не влияет, но занятые ими ускорители отсутствуют в учёте квот арендатора, поэтому атомарный приём группы настолько же оптимистичен. Перезапустите модель, чтобы переместить их.',
   'models.pd.degraded.ineffective':
     'Группа обслуживает запросы, но передача KV не происходит — разделение незаметно выродилось в агрегированный вывод. Проверьте связывание и настройку KV-коннектора.',
+  'models.pd.degraded.pairingUnverified':
+    'Одна роль задаёт параметр связывания явно, а другая оставляет его значению движка по умолчанию, поэтому GPUStack не смог проверить их согласованность — обычно это --max-model-len, --block-size, --kv-cache-layout либо auto с одной стороны против явного dtype с другой. Это не значит, что пара настроена неверно, — значит, что её никто не проверил. Укажите параметр в обеих ролях, чтобы он проверялся.',
+  'models.pd.degraded.pairingTP':
+    'Эффективная тензорная параллельность, пересчитанная по картам, которые участники действительно получили, нарушает направление, объявленное этим PD-рецептом: NIXL требует, чтобы decode был не уже prefill, Ascend Mooncake — чтобы prefill был не уже decode. На приёме это не поймать: у роли, которая не закрепляет карты и не задаёт --tensor-parallel-size, до размещения нет числа для проверки. Задайте --tensor-parallel-size в обеих ролях или выделите им количество GPU, допустимое рецептом.',
   'models.pd.heterogeneous.warning':
     'Prefill и Decode используют разные типы GPU, поэтому группа не может быть принята атомарно: при одновременной отправке могут запуститься лишь некоторые роли.',
   'models.pd.admission.infeasible':
     'Доступной ёмкости недостаточно для этой группы (требуется {required}, доступно {available}). Уменьшите число реплик, выберите нарезанный тип карты или добавьте узлы.',
-  'models.pd.effectiveness.degraded':
-    'PD деградировал до агрегированного режима - передача KV не обнаружена. Проверьте режим PD и параметры движка.',
-  'models.pd.effectiveness.partial':
-    'KV передаётся только для части трафика - часть запросов проходит prefill дважды. Проверьте, не потерял ли connector один из участников роли.',
-  'models.pd.stat.derived': 'расчётно',
-  'models.pd.stat.p99': 'p99',
-  'models.pd.bandwidth.derived.tips':
-    'Расчётное значение, не измеренное: этот KV-коннектор не публикует счётчик байтов, поэтому скорость получена как {tokensPerSecond} prompt-токенов в секунду, о которых движок сообщает как о пришедших по сети, умноженные на {perToken} KV на токен. Делится на реальное время, поэтому в простаивающем окне значение ниже - измеренная величина делится на время самой передачи, и эти два числа несопоставимы.',
-  'models.pd.recomputeTail': 'Пересчитанные запросы',
-  'models.pd.recomputeTail.none': 'нет',
-  'models.pd.recomputeTail.tips':
-    'Ловит те запросы, которых коэффициент эффективности выше не видит. Он суммирует все токены окна, поэтому несколько запросов, не получивших свой KV и заново прошедших prefill на decode, растворяются среди большинства нормальных. Здесь - 99-й процентиль KV-токенов, вычисленных самим decode, так что такие запросы проявляются на своей полной длине промпта. Показывается только тогда, когда пересчёт действительно был; у здоровой группы здесь пусто.',
-  'models.pd.members': 'Запросы по участникам',
-  'models.pd.members.tips':
-    'Отвечает на вопрос «какой участник», тогда как значения выше отвечают лишь «есть ли проблема». Если один prefill из трёх не получает трафика вовсе, показатель по группе всё равно выглядит здоровым, и увидеть это можно только по счётчикам router по участникам. Показывается лишь когда у роли несколько участников: в 1P1D каждый по определению несёт весь трафик своей роли. Ключом служит адрес движка, поскольку на одном хосте работает несколько участников.',
-  'models.pd.members.errors': 'Ошибки отправки',
-  'models.pd.members.errors.tips':
-    'Неудачные отправки, которые видел router, посчитанные до его собственной повторной попытки. Ненулевое значение в окне, где все запросы завершились успешно, - это доля трафика, скрытая повтором.',
-  'models.pd.stat.avg': 'сред.',
-  'models.pd.window': 'за последние {window}',
-  'models.pd.effectiveness': 'PD Effectiveness',
-  'models.pd.bandwidth': 'KV Transfer',
-  // Neither is a degradation, and they are different answers: nobody
-  // called the model vs this mode's router exports no request counter.
-  'models.pd.effectiveness.idle': '(no traffic)',
-  'models.pd.effectiveness.unmeasurable': 'no denominator',
-  'models.pd.pairingLocality': 'Local pairing',
-  'models.pd.pairingLocality.tips':
-    'Share of requests whose KV can stay inside one host, from where this group actually landed. Derived from placement, not measured, so it holds with no traffic. 0% means no prefill and decode share a host, so every transfer crosses the network. The deploy form shows a floor based on the replica count; this is the real figure, driven by how many machines the group spread over.',
-  'models.pd.transferP99': 'Transfer p99',
-  'models.pd.bytesPerTransfer': 'Per transfer',
-  'models.pd.ttft': 'TTFT',
-  'models.pd.tpot': 'TPOT',
-  'models.pd.queue': 'Queue',
-  'models.pd.ttft.tips':
-    "Time to first token belongs to prefill: that is what a user waited for. Decode's TTFT is measured from its own first forward pass and is not comparable.",
-  'models.pd.tpot.tips':
-    'Time per output token belongs to decode. Prefill emits one token and hands over, so its inter-token latency is not a steady-state figure.',
-  'models.pd.queue.tips':
-    'Mean queue depth. The only objective signal for whether the prefill:decode ratio is right and which way it is wrong: a queue that only ever builds on one side is that side asking for more replicas. Read the shape, not the value -- a queue that drains is healthy at any depth.',
-  'models.pd.failedTransfers': 'KV Transfer Failures',
-  'models.pd.kvExpired': 'KV Leases Expired',
-  'models.pd.kvExpired.tips':
-    'Requests dropped between the two hops, whose prefill was computed for nothing. A rising value means requests are being lost between hop 1 and hop 2.',
-  'models.pd.bandwidth.sentence':
-    'Transmitting the {seqLen}-token KV cache ({perRequest}) within {budget} ms requires a link bandwidth of {required}.',
-  'models.pd.bandwidth.kvMath':
-    '2 (K and V) × {kvHeads} KV heads × {headDim} head dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
-  'models.pd.bandwidth.kvMath.mla':
-    '{latentDim} latent dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
-  'models.pd.denominator.weak': 'coarse denominator',
-  'models.pd.denominator.weak.tips':
-    "The ratio came from the router's route-aggregated total rather than per-worker counters: it still answers whether anything was routed, but no longer points at which decode stopped pulling.",
   'models.pd.ratio.waiting':
     'Соотношение {configured} (сейчас {current}, ожидается {role})',
-  'models.pd.group.restarting':
-    'Перезапуск группы: остановлено {stopped}/{total}, пересоздано и готово {ready}/{total}',
+  'models.pd.group.restarting.brief': 'Перезапуск…',
+  'models.pd.group.restarting.progress':
+    'Перезапуск группы: её участники были намеренно остановлены и сейчас пересоздаются, готово {ready}/{total}. Счётчики реплик занижены именно поэтому, а не из-за сбоя.',
   'models.pd.group.restart.confirm':
     'Это изменение требует перезапуска всей группы PD: сначала останавливаются все {total} экземпляров, затем они пересоздаются с новой конфигурацией; в это время модель недоступна.',
   'models.pd.instance.stale':

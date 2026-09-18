@@ -428,7 +428,7 @@ export default {
   'models.form.pd.mode.backend.mismatch':
     '{targets} が必要ですが、現在のエンジンは {backend} です。ロール間でエンジンを混在させる場合は「カスタム」モードを選択してください。',
   'models.form.pd.mode.runtime.mismatch':
-    '{runtime} アクセラレータが必要ですが、このクラスターは {vendors} のみです。',
+    '{runtime} アクセラレータが必要ですが、{scope, select, partition{選択したパーティション} other{このクラスター}}は {vendors} のみです。',
   'models.form.pd.mode.only.custom':
     '現在のエンジンとアクセラレータの組み合わせに対応する組み込みレシピはありません。「カスタム」モードは利用可能です：コネクタ、ポート、ハンドシェイク変数はご自身で指定してください。',
   'models.form.pd.vendor': 'アクセラレータのベンダー',
@@ -503,78 +503,30 @@ export default {
   'models.form.pd.engineVersion.below':
     'The selected PD recipe declares support for engine versions {range}, and this deployment pins {version}. It will still deploy — a self-built image may carry a private version number — but a version genuinely below the floor can be missing behaviour the recipe assumes, such as deregistering a scaled-down member.',
   'models.pd.degraded.pairing':
-    'No prefill member shares a host with any decode member, so every KV transfer crosses the network. On a link without RDMA that is usually slower than not disaggregating at all. Co-locate at least one pair, or pick GPUs on the same host for both roles.',
+    'prefill メンバーと同じホストに乗っている decode メンバーが 1 つもないため、KV 転送は毎回ネットワークを経由します。RDMA のないリンクでは、これは分離しない場合よりも遅くなるのが普通です。少なくとも 1 組を同一ホストに配置するか、両方のロールで同じホスト上の GPU を選んでください。',
   'models.pd.degraded.gather':
     'トポロジー目標未達：メンバーが要求より離れて配置されています',
   'models.pd.degraded.scaleOut':
-    'The group is pinned to a single topology domain under the strict posture, and a member it was asked to add has not been placed. The members already running keep serving normally — what stopped is the scale-out. The status message on that member says what blocked it; from there, free capacity inside the domain, switch the posture to lenient, or lower the replica count back.',
+    'このグループは厳格な設定により単一のトポロジードメインに固定されており、追加を求められたメンバーがまだ配置されていません。すでに稼働中のメンバーは通常どおりサービスを続けています —— 止まっているのはスケールアウトです。何に阻まれているかは、そのメンバーの状態メッセージに示されます。そこから、ドメイン内の空きを確保する、トポロジー制約を緩やかな設定に切り替える、レプリカ数を元に戻す、のいずれかを行ってください。',
   'models.pd.degraded.engineVersion':
-    'The pinned engine version is below the range the selected PD recipe declares support for. This is allowed — a self-built image may carry a private version number — but the behaviour the recipe assumes may be missing: on SGLang below 0.5.7, for example, a scaled-down member cannot be deregistered and keeps taking traffic.',
+    '固定されているエンジンバージョンが、選択した PD レシピが対応を宣言する範囲を下回っています。これは許容されます —— 自前でビルドしたイメージが独自のバージョン番号を持つことがあります —— が、レシピが前提とする動作が存在しない可能性があります。たとえば SGLang 0.5.7 未満では、縮退で外されたメンバーを登録解除できず、トラフィックを受け取り続けます。',
   'models.pd.degraded.placement':
     '一部のメンバーはアップグレード前の名前空間に残っています。サービスに影響はありませんが、それらが占有するアクセラレータはテナントのクォータ台帳に含まれないため、グループのアトミック受け入れはその分だけ楽観的になります。モデルを再起動すると移動します。',
   'models.pd.degraded.ineffective':
     'グループは稼働していますが KV 転送が発生していません —— 分離が暗黙のうちに集約推論に退化しています。ペアリングと KV コネクタ設定を確認してください。',
+  'models.pd.degraded.pairingUnverified':
+    'ペアリング要素が一方のロールだけで明示され、もう一方はエンジンの既定値に委ねられているため、両者が一致するか検証できませんでした —— 典型的には --max-model-len、--block-size、--kv-cache-layout、または片側が auto でもう片側が具体的な dtype の場合です。ペアリングが誤っているという意味ではなく、検証されていないという意味です。両方のロールに明記すると検証されます。',
+  'models.pd.degraded.pairingTP':
+    'メンバーが実際に取得したカードから再計算した実効テンソル並列度が、この PD レシピの宣言する方向に反しています：NIXL は decode が prefill 以上、Ascend Mooncake は prefill が decode 以上である必要があります。カードを固定せず --tensor-parallel-size も書かないロールは配置されるまで検査できる数値を持たないため、受け入れ時には検出できません。両方のロールに --tensor-parallel-size を設定するか、レシピが許す枚数を割り当ててください。',
   'models.pd.heterogeneous.warning':
     'Prefill と Decode で GPU 種別が異なるため原子的な受け入れができません。同時投入時に一部のロールのみ起動する可能性があります。',
   'models.pd.admission.infeasible':
     '利用可能な容量ではこのグループを収容できません（必要 {required}、利用可能 {available}）。レプリカ数を減らす、分割カード種別に変える、ノードを追加してください。',
-  'models.pd.effectiveness.degraded':
-    'PD が集約方式に退化しています —— KV 転送が検出されません。PD モードとエンジンパラメータを確認してください。',
-  'models.pd.effectiveness.partial':
-    'KV は一部のトラフィックしか跨いでいません —— 一部のリクエストが二重に prefill されています。いずれかのロールのメンバーが connector を失っていないか確認してください。',
-  'models.pd.stat.derived': '推定',
-  'models.pd.stat.p99': 'p99',
-  'models.pd.bandwidth.derived.tips':
-    '実測ではなく推定値です。この KV コネクタはバイトカウンタを公開しないため、エンジンが報告する毎秒 {tokensPerSecond} 個のネットワーク経由 prompt トークンに、トークンあたり {perToken} の KV を掛けた値です。実時間で割っているため、アイドルなウィンドウでは低く出ます。実測値は転送に費やした時間で割るので、両者は比較できません。',
-  'models.pd.recomputeTail': '再計算されたプロンプト',
-  'models.pd.recomputeTail.none': 'なし',
-  'models.pd.recomputeTail.tips':
-    '上の有効性の比率では見えないリクエストを捕まえるための値です。その比率はウィンドウ内の全トークンの合計なので、KV を受け取れず decode 側でもう一度 prefill されたごく一部のリクエストは、正常な大多数によって薄められます。ここは decode が自分で計算した KV トークン数の 99 パーセンタイルなので、そうしたリクエストは自身のプロンプト長として現れます。実際に再計算が起きたときだけ表示され、健全なグループでは何も出ません。',
-  'models.pd.members': 'メンバーごとのリクエスト数',
-  'models.pd.members.tips':
-    '上の数値が「問題があるか」に答えるのに対し、これは「どのメンバーか」に答えます。3 つの prefill のうち 1 つがまったくトラフィックを受けていなくてもグループ全体の値は健全に見え、それが見えるのは router のメンバー別カウンタだけです。ある役割に複数のメンバーがある場合にのみ表示されます。1P1D では各メンバーがその役割の全トラフィックを担うため比較対象がありません。1 台のホストが複数のメンバーを動かすので、エンジンのアドレスをキーにしています。',
-  'models.pd.members.errors': '振り分け失敗',
-  'models.pd.members.errors.tips':
-    'router が観測した振り分け失敗の回数で、router 自身のリトライより前に計上されます。すべてのリクエストが成功したウィンドウでこの値が非ゼロなら、それはリトライが隠したトラフィックの割合です。',
-  'models.pd.stat.avg': '平均',
-  'models.pd.window': '直近 {window}',
-  'models.pd.effectiveness': 'PD Effectiveness',
-  'models.pd.bandwidth': 'KV Transfer',
-  // Neither is a degradation, and they are different answers: nobody
-  // called the model vs this mode's router exports no request counter.
-  'models.pd.effectiveness.idle': '(no traffic)',
-  'models.pd.effectiveness.unmeasurable': 'no denominator',
-  'models.pd.pairingLocality': 'Local pairing',
-  'models.pd.pairingLocality.tips':
-    'Share of requests whose KV can stay inside one host, from where this group actually landed. Derived from placement, not measured, so it holds with no traffic. 0% means no prefill and decode share a host, so every transfer crosses the network. The deploy form shows a floor based on the replica count; this is the real figure, driven by how many machines the group spread over.',
-  'models.pd.transferP99': 'Transfer p99',
-  'models.pd.bytesPerTransfer': 'Per transfer',
-  'models.pd.ttft': 'TTFT',
-  'models.pd.tpot': 'TPOT',
-  'models.pd.queue': 'Queue',
-  'models.pd.ttft.tips':
-    "Time to first token belongs to prefill: that is what a user waited for. Decode's TTFT is measured from its own first forward pass and is not comparable.",
-  'models.pd.tpot.tips':
-    'Time per output token belongs to decode. Prefill emits one token and hands over, so its inter-token latency is not a steady-state figure.',
-  'models.pd.queue.tips':
-    'Mean queue depth. The only objective signal for whether the prefill:decode ratio is right and which way it is wrong: a queue that only ever builds on one side is that side asking for more replicas. Read the shape, not the value -- a queue that drains is healthy at any depth.',
-  'models.pd.failedTransfers': 'KV Transfer Failures',
-  'models.pd.kvExpired': 'KV Leases Expired',
-  'models.pd.kvExpired.tips':
-    'Requests dropped between the two hops, whose prefill was computed for nothing. A rising value means requests are being lost between hop 1 and hop 2.',
-  'models.pd.bandwidth.sentence':
-    'Transmitting the {seqLen}-token KV cache ({perRequest}) within {budget} ms requires a link bandwidth of {required}.',
-  'models.pd.bandwidth.kvMath':
-    '2 (K and V) × {kvHeads} KV heads × {headDim} head dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
-  'models.pd.bandwidth.kvMath.mla':
-    '{latentDim} latent dim × {element} B ({dtype}) × {layers} layers = {perToken} per token, × {seqLen} tokens = {perRequest}',
-  'models.pd.denominator.weak': 'coarse denominator',
-  'models.pd.denominator.weak.tips':
-    "The ratio came from the router's route-aggregated total rather than per-worker counters: it still answers whether anything was routed, but no longer points at which decode stopped pulling.",
   'models.pd.ratio.waiting':
     '配分 {configured}（現在 {current}、{role} を待機中）',
-  'models.pd.group.restarting':
-    'グループを再起動中：停止 {stopped}/{total}・再作成 {ready}/{total} 準備完了',
+  'models.pd.group.restarting.brief': '再起動中…',
+  'models.pd.group.restarting.progress':
+    'グループを再起動中：メンバーは意図的に停止され、再作成されています（現在 {ready}/{total} が準備完了）。レプリカ数が少なく見えるのはそのためで、障害が起きたからではありません。',
   'models.pd.group.restart.confirm':
     'この変更には PD グループ全体の再起動が必要です：まず {total} 個すべてのインスタンスを停止し、新しい設定で再作成します。その間モデルは利用できません。',
   'models.pd.instance.stale':
